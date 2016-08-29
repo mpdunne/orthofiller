@@ -123,10 +123,15 @@ def readInputLocations(path_speciesInfoFile):
 			str_species = os.path.basename(line[0])
 			addSpecies(str_species, dict_speciesInfo)
 			# Then just build up the dictionary with human-readable names
-			dict_speciesInfo[str_species]["protein"] = checkFileExists(line[0])
-			dict_speciesInfo[str_species]["gff"]	 = checkFileExists(line[1])
-			dict_speciesInfo[str_species]["genome"]  = checkFileExists(line[2])
-			dict_speciesInfo[str_species]["cds"]	 = checkFileExists(line[3])
+			path_aa	        = checkFileExists(line[0])
+			path_gff 	= checkFileExists(line[1])
+			path_genome     = checkFileExists(line[2])
+			path_cds	= checkFileExists(line[3])
+			dict_speciesInfo[str_species]["protein"] = path_aa
+			dict_speciesInfo[str_species]["gff"]	 = path_gff
+			dict_speciesInfo[str_species]["genome"]  = path_genome
+			dict_speciesInfo[str_species]["cds"]	 = path_cds
+			checkSequences(path_gff, path_cds, path_aa)
 	return dict_speciesInfo
 
 def trainAugustus(dict_speciesInfo, path_wDir, pool):
@@ -1139,7 +1144,7 @@ def checkSequences(path_gff, path_cds, path_aa):
 			errMsg=$errMsgTmp
 		fi			
 		if [ "$mGff" != 0 ]; then
-			errMsgTmp=`echo "$errorMsg$mGff entries from aa fasta file are missing in gtf file. Gtf entries must have attribute 'transcript_id \\"[sequence name]\\";'.\\n"`	
+			errMsgTmp=`echo "$errorMsg$mGff entries from aa fasta file are missing in gtf file $gff. Gtf entries must have attribute 'transcript_id \\"[sequence name]\\";'.\\n"`	
 			errMsg=$errMsgTmp
 		fi
 		echo "$errMsg" """)[1]
@@ -1188,13 +1193,13 @@ if __name__ == '__main__':
 	parser.add_argument("-c", "--cores", metavar="cores", help="The maximum number of cores you wish to use", dest="CO", default=1)
 	parser.add_argument("-o", "--outdir", metavar="outdir", help="The output directory", dest="OD", default="")
 	parser.add_argument("-i", "--infoFiles", metavar="info", dest="IN")
-#	parser.add_argument("--prep", metavar="preprepared", help="Input data in preprared form", dest="prep", action="store_true")
+	parser.add_argument("--prep", help="Input data in pre-prepared form", dest="prep", action="store_true")
 	parser.add_argument("-g", "--orthogroups", metavar="orthogroups", help="An orthofinder output file (orthogroups)", dest="OG")
 	parser.add_argument("-s", "--singletons", metavar="singletons", help="An orthofinder output file (singles)", dest="SN")
 	parser.add_argument("-t", "--translationtable", metavar="transtable", help="Which translation table to use", dest="TT")
 
 	args = parser.parse_args()
-	prep=True #args.prep
+	prep=args.prep
 
 	#Check existence and non-confliction of arguments
 	if args.IN == None:
@@ -1219,7 +1224,6 @@ if __name__ == '__main__':
 		path_orthoFinderOutputFile = checkFileExists(args.OG)
 		path_singletonsFile = checkFileExists(args.SN)
 		path_speciesInfoFile = checkFileExists(args.IN)
-		checkSequences(path_gff, path_cds, path_aa)
 
 	start(path_speciesInfoFile, path_orthoFinderOutputFile, path_singletonsFile, path_outDir, path_resultsDir, path_wDir, not args.noHitFilter, not args.noHintFilter, int(int_cores))
 

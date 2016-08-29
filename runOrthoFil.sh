@@ -7,7 +7,7 @@ config_augustus=""    #path to augustus config directory
 export AUGUSTUS_CONFIG_PATH=$config_augustus;
 PATH="$bin_hmmer:$bin_augustus:$PATH"
 
-python OrthoFiller.py \
+python OrthoFiller.py --prep \
 	-g    \ #[orthogroups file]
 	-s    \ #[singletons file]
 	-i    \ #[sequence locations file]
