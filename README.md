@@ -1,4 +1,4 @@
-# OrthoFinder — identifying missing annotations for evolutionarily conserved genes.
+# OrthoFiller — identifying missing annotations for evolutionarily conserved genes.
 
 What does OrthoFiller do?
 ==========
