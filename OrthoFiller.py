@@ -169,7 +169,7 @@ def makeGffTrainingFile(path_inputGff, path_outputGff):
 		sed -r  '/transcript_id/! s/gene_id([ =])\\"([^\\"]*)\\";?( ?)/gene_id\\1\\"\\2\\"; transcript_id\\1\\"\\2.t999\\";\\3/g' $infile > $infile_td
 
 		echo "Grouping into regions.."
-		sed -r "s/(gene_id[ =]\\"[^\\"]*\\"; ?transcript_id[= ]\\"[^\\"]*\\";).*/\\1/g" $infile_td | awk '$3=="CDS"' | bedtools groupby -g 1,2,3,7,9 -c 4,5 -o min,max | perl -ne 'chomp; @l=split /\\t/; printf "$l[0]\\t$l[5]\\t$l[6]\\t.\\t.\\t$l[3]\\n" ' | sort -k1,1V -k2,2n | bedtools merge -s -i - > $td/gffmerged.bed
+		sed -r "s/(gene_id[ =]\\"[^\\"]*\\"; ?transcript_id[= ]\\"[^\\"]*\\";).*/\\1/g" $infile_td | awk '$3=="CDS"' | bedtools groupby -g 1,2,3,7,9 -c 4,5 -o min,max | perl -ne 'chomp; @l=split /\\t/; printf "$l[0]\\t$l[5]\\t$l[6]\\t.\\t.\\t$l[3]\\n" ' | sort -k1,1V -k2,2n | bedtools merge -i - | cut -f1,2,3,5 | sed -r "s/\\t([^\\t]*)$/\\t.\\t.([^\\t]*)/g" |  > $td/gffmerged.bed
 
 		echo "Intersecting..."
 		bedtools intersect -a $td/gffmerged.bed -b $infile_td -wa -wb > $td/gffis.bed
@@ -816,7 +816,7 @@ def combineIndirectAugustusResults(path_otherSpeciesResults, path_augustusParsed
 		interim=`mktemp $working/interim.XXXXXXX`
 
 		### Get genes as merged consensus regions ###
-		cat  $predictions/*AugustusParsed.gff | grep -P "\\tgene\\t" | sort -k1,1V -k4,4n | bedtools merge -s -i - | perl -ne 'chomp; @l=split; printf "%s\\t%s\\t%s\\t.\\t.\\t%s\\tg%s\\n", $l[0], $l[1]-1, $l[2], $l[3], $., ' > $concat
+		cat  $predictions/*AugustusParsed.gff | grep -P "\\tgene\\t" | sort -k1,1V -k4,4n | bedtools merge -s -i - | cut -f1,2,3,5 | sed -r "s/\\t([^\\t]*)$/\\t.\\t.([^\\t]*)/g" | perl -ne 'chomp; @l=split; printf "%s\\t%s\\t%s\\t.\\t.\\t%s\\tg%s\\n", $l[0], $l[1]-1, $l[2], $l[3], $., ' > $concat
 
 		### Get only those gene regions which are predicted more than one time  ###
 		for file in `find $predictions -type "f" -name "*AugustusParsed.gff"`; do base=`basename $file` ; bfile=`mktemp`; grep -P "\\tgene\\t" $file | sed -r "s/$/\\t$base/g" > $bfile; bedtools intersect -a $concat -b $bfile -wa -wb ; done | sort -k1,1V -k2,2n | rev | uniq -D -f11 | rev  > $doubles
@@ -993,6 +993,7 @@ def fetchSequences(path_gffIn, path_genome, path_cdsFastaOut, path_aaFastaOut, i
 		cat $gffBed.pos.tab | awk '{a[$1]=a[$1]""$2} END {for (i in a) {print ">"i"\\n"a[i]}}' > $gffBed.pos.fa
 
 		cat $gffBed.pos.fa $gffBed.neg.fa > $outfile
+		echo $tf
 		rm -r $tf
 		""")
 	print("translating to protein...")

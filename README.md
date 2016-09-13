@@ -56,7 +56,7 @@ Installing Dependencies
 =======================
 OrthoFiller is written to run on linux and requires the following to be installed and in the system path:
 
-1. Python 2.7 together with the scipy libraries stack (If you don't have python 2.7 you can still use the standalone binaries) 
+1. Python 2.7 together with the scipy and BioPython libraries 
 
 2. BedTools Suite
 
