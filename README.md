@@ -43,13 +43,13 @@ Output File Format
 ==================
 OrthoFiller output can be found in the `results` folder of the specified output directory. For each species, four files are produced:
 
-1. results/species.newGenes.gff is a GTF file containing new genes discovered by OrthoFiller;
+1. `results/species.newGenes.gff` is a GTF file containing new genes discovered by OrthoFiller;
 
-2. results/species.results.gff is a GTF file containing new genes discovered by OrthoFiller as well as all genes from the original annotation;
+2. `results/species.results.gff` is a GTF file containing new genes discovered by OrthoFiller as well as all genes from the original annotation;
 
-3. results/species.newGenes.gff is a FASTA file containing sequences of the new genes discovered by OrthoFiller;
+3. `results/species.newGenes.gff` is a FASTA file containing sequences of the new genes discovered by OrthoFiller;
 
-4. results/species.results.gff is a FASTA file containing sequences of the new genes discovered by OrthoFiller as well as sequences of all genes from the original annotation.
+4. `results/species.results.gff` is a FASTA file containing sequences of the new genes discovered by OrthoFiller as well as sequences of all genes from the original annotation.
 
 
 Installing Dependencies
