@@ -174,7 +174,7 @@ def makeGffTrainingFile(path_inputGff, path_outputGff):
 		echo "Intersecting..."
 		bedtools intersect -a $td/gffmerged.bed -b $infile_td -wa -wb > $td/gffis.bed
 
-		cat $td/gffis.bed | shuf | sed -r  "s/(.*transcript_id[ =]\\")([^\\"]*)(\\".*)/\\1\\2\\3\\t\\2/g" | awk 'BEGIN {FS="\\t"} {if (a[$1"---"$2"---"$3"---"$4] == "") { a[$1"---"$2"---"$3"---"$4]=$14 } ; if (a[$1"---"$2"---"$3"---"$4]=$14) {v[$1"---"$2"---"$3"---"$4]=v[$1"---"$2"---"$3"---"$4]"\\n"$0 } } END { for ( i in a ) {print v[i] } } ' | awk 'NF' | cut -f5- | sed -r "s/.\tgene_id/.\tgene_id/g" | sort -u > $outfile
+		cat $td/gffis.bed | shuf | sed -r  "s/(.*transcript_id[ =]\\")([^\\"]*)(\\".*)/\\1\\2\\3\\t\\2/g" | awk 'BEGIN {FS="\\t"} {if (a[$1"---"$2"---"$3"---"$4] == "") { a[$1"---"$2"---"$3"---"$4]=$14 } ; if (a[$1"---"$2"---"$3"---"$4]=$14) {v[$1"---"$2"---"$3"---"$4]=v[$1"---"$2"---"$3"---"$4]"\\n"$0 } } END { for ( i in a ) {print v[i] } } ' | awk 'NF' | cut -f7- | sed -r "s/.\tgene_id/.\tgene_id/g" | sort -u > $outfile
 		
 		rm -r $td"""
 
