@@ -169,7 +169,7 @@ def makeGffTrainingFile(path_inputGff, path_outputGff):
 		sed -r  '/transcript_id/! s/gene_id([ =])\\"([^\\"]*)\\";?( ?)/gene_id\\1\\"\\2\\"; transcript_id\\1\\"\\2.t999\\";\\3/g' $infile > $infile_td
 
 		echo "Grouping into regions.."
-		sed -r "s/(gene_id[ =]\\"[^\\"]*\\"; ?transcript_id[= ]\\"[^\\"]*\\";).*/\\1/g" $infile_td | awk '$3=="CDS"' | bedtools groupby -g 1,2,3,7,9 -c 4,5 -o min,max | perl -ne 'chomp; @l=split /\\t/; printf "$l[0]\\t$l[5]\\t$l[6]\\t.\\t.\\t$l[3]\\n" ' | sort -k1,1V -k2,2n | bedtools merge -i - | cut -f1,2,3,5 | sed -r "s/\\t([^\\t]*)$/\\t.\\t.([^\\t]*)/g" |  > $td/gffmerged.bed
+		sed -r "s/(gene_id[ =]\\"[^\\"]*\\"; ?transcript_id[= ]\\"[^\\"]*\\";).*/\\1/g" $infile_td | awk '$3=="CDS"' | bedtools groupby -g 1,2,3,7,9 -c 4,5 -o min,max | perl -ne 'chomp; @l=split /\\t/; printf "$l[0]\\t$l[5]\\t$l[6]\\t.\\t.\\t$l[3]\\n" ' | sort -k1,1V -k2,2n | bedtools merge -i - | cut -f1,2,3,5 | sed -r "s/\\t([^\\t]*)$/\\t.\\t.\\1/g" |  > $td/gffmerged.bed
 
 		echo "Intersecting..."
 		bedtools intersect -a $td/gffmerged.bed -b $infile_td -wa -wb > $td/gffis.bed
