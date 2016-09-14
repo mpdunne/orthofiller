@@ -116,6 +116,7 @@ def readInputLocations(path_speciesInfoFile):
 		# Ignore any commented lines, typically these are headers.
 		data = csv.reader((row for row in path_locationsFile if not row.startswith('#')), delimiter="\t")
 		for line in data:
+			print(line)
 			if not ''.join(line).strip():
 				continue
 			# The "species", i.e. the basename for the source protein file
@@ -1051,6 +1052,9 @@ def start(path_speciesInfoFile, path_orthoFinderOutputFile, path_singletonsFile,
 	# orthofinder output.
 	# MD-CC: will need to have a consistency check for this.:
 	######################################################
+	print(path_speciesInfoFile)
+	print(path_orthoFinderOutputFile)
+	print(path_singletonsFile)
 	dict_speciesInfo = readInputLocations(path_speciesInfoFile)
 	dict_sequenceInfoById, orthogroups, singletons = readOrthoFinderOutput(path_orthoFinderOutputFile, path_singletonsFile, dict_speciesInfo)
 	#####################################################
@@ -1179,7 +1183,7 @@ def prepareFromScratch(path_infile, path_outDir):
 		path_cdsFastaOut=path_cdsDir+"/"+key+".cds.fasta"
 		path_aaFastaOut=path_aaDir+"/"+key+".aa.fasta"
 		fetchSequences(path_gffIn, path_genome, path_cdsFastaOut, path_aaFastaOut, 1)
-		callFunction("echo \"#" + path_aaFastaOut + "\t" + path_gffIn + "\t" + path_genome + "\t" + path_cdsFastaOut + "\" >> " + path_speciesInfoFile)
+		callFunction("echo \"" + path_aaFastaOut + "\t" + path_gffIn + "\t" + path_genome + "\t" + path_cdsFastaOut + "\" >> " + path_speciesInfoFile)
 	callFunction("rm -rf " + path_aaDir + "/Results*")
 	callFunction("python orthofinder.py -f " + path_aaDir)
 	path_orthoFinderOutputFile=find("OrthologousGroups.csv", path_aaDir)
