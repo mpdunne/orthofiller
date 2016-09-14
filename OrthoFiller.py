@@ -175,7 +175,6 @@ def makeGffTrainingFile(path_inputGff, path_outputGff):
 		bedtools intersect -a $td/gffmerged.bed -b $infile_td -wa -wb > $td/gffis.bed
 
 		cat $td/gffis.bed | shuf | sed -r  "s/(.*transcript_id[ =]\\")([^\\"]*)(\\".*)/\\1\\2\\3\\t\\2/g" | awk 'BEGIN {FS="\\t"} {if (a[$1"---"$2"---"$3"---"$4] == "") { a[$1"---"$2"---"$3"---"$4]=$14 } ; if (a[$1"---"$2"---"$3"---"$4]=$14) {v[$1"---"$2"---"$3"---"$4]=v[$1"---"$2"---"$3"---"$4]"\\n"$0 } } END { for ( i in a ) {print v[i] } } ' | awk 'NF' | cut -f7- | sed -r "s/.\tgene_id/.\tgene_id/g" | sort -u > $outfile
-		
 		rm -r $td"""
 
 	callFunction(function)
@@ -197,7 +196,7 @@ def checkStartAndStopCodons(path_inputGff):
 	holder="$td/holder";
 
 	echo "checking codons are in the right place..."
-	awk 'BEGIN {FS="\t" } { v[$10]=v[$10]"\\n"$0; if ($7 == "+") {if ( $3 == "stop_codon" ) { e[$10]=$5 } else if ($3 == "start_codon") { b[$10] = $4 } else if ($3=="CDS") { if (cb[$10] == "") { cb[$10]=$4; ce[$10]=$5 } else { if ($4 < cb[$10]) {cb[$10]=$4}; if ($5 > ce[$10]) { ce[$10] = $5 } } } } else if ($7 == "-") {if ( $3 == "stop_codon" ) { b[$10]=$4 } else if ($3 == "start_codon") { e[$10] =$ 5 } else if ($3=="CDS") { if (cb[$10] == "") { cb[$10]=$4; ce[$10]=$5 } else { if ($4 < cb[$10]) {cb[$10]=$4}; if ($5 > ce[$10]) { ce[$10] = $5 } } } } }  END {for (i in b) { if ( e[i]==ce[i] &&  cb[i]==b[i]) { print v[i] } } }' $inFile > $holder
+	awk 'BEGIN {FS="\\t" } { v[$10]=v[$10]"\\n"$0; if ($7 == "+") {if ( $3 == "stop_codon" ) { e[$10]=$5 } else if ($3 == "start_codon") { b[$10] = $4 } else if ($3=="CDS") { if (cb[$10] == "") { cb[$10]=$4; ce[$10]=$5 } else { if ($4 < cb[$10]) {cb[$10]=$4}; if ($5 > ce[$10]) { ce[$10] = $5 } } } } else if ($7 == "-") {if ( $3 == "stop_codon" ) { b[$10]=$4 } else if ($3 == "start_codon") { e[$10] =$ 5 } else if ($3=="CDS") { if (cb[$10] == "") { cb[$10]=$4; ce[$10]=$5 } else { if ($4 < cb[$10]) {cb[$10]=$4}; if ($5 > ce[$10]) { ce[$10] = $5 } } } } }  END {for (i in b) { if ( e[i]==ce[i] &&  cb[i]==b[i]) { print v[i] } } }' $inFile > $holder
 
 	rev $holder | cut -f2- | rev | awk 'NF' > $inFile
 
