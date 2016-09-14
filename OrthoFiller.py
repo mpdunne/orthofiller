@@ -161,7 +161,7 @@ def makeGffTrainingFile(path_inputGff, path_outputGff):
 	# Make sure there are no overlaps, by randomly choosing between overlapping entries, and sort the file.
 	function="infile=\"" + path_inputGff + "\"; outfile=\"" + path_tmp + "\"; " + """
 		td=`mktemp -d`
-		echo "temp directory is $td"
+
 		echo -n "" > $outfile
 
 		echo "Assuring transcripts..."
@@ -169,14 +169,12 @@ def makeGffTrainingFile(path_inputGff, path_outputGff):
 		sed -r  '/transcript_id/! s/gene_id([ =])\\"([^\\"]*)\\";?( ?)/gene_id\\1\\"\\2\\"; transcript_id\\1\\"\\2.t999\\";\\3/g' $infile > $infile_td
 
 		echo "Grouping into regions.."
-		sed -r "s/(gene_id[ =]\\"[^\\"]*\\"; ?transcript_id[= ]\\"[^\\"]*\\";).*/\\1/g" $infile_td | awk '$3=="CDS"' | bedtools groupby -g 1,2,3,7,9 -c 4,5 -o min,max | perl -ne 'chomp; @l=split /\\t/; printf "$l[0]\\t$l[5]\\t$l[6]\\t.\\t.\\t$l[3]\\n" ' | sort -k1,1V -k2,2n | bedtools merge -s -i - > $td/gffmerged.bed.tmp
-
-		cut -f1,2,3,4 $td/gffmerged.bed.tmp | sed -r "s/\\t([^\\t]*)$/\\t.\\t.\\t\\1/g" > $td/gffmerged.bed
+		sed -r "s/(gene_id[ =]\\"[^\\"]*\\"; ?transcript_id[= ]\\"[^\\"]*\\";).*/\\1/g" $infile_td | awk '$3=="CDS"' | bedtools groupby -g 1,2,3,7,9 -c 4,5 -o min,max | perl -ne 'chomp; @l=split /\\t/; printf "$l[0]\\t$l[5]\\t$l[6]\\t.\\t.\\t$l[3]\\n" ' | sort -k1,1V -k2,2n | bedtools merge -i - | cut -f1,2,3,4 | sed -r "s/\\t([^\\t]*)$/\\t.\\t.\\t\\1/g" |  > $td/gffmerged.bed
 
 		echo "Intersecting..."
 		bedtools intersect -a $td/gffmerged.bed -b $infile_td -wa -wb > $td/gffis.bed
 
-		cat $td/gffis.bed | shuf | sed -r  "s/(.*transcript_id[ =]\\")([^\\"]*)(\\".*)/\\2\t\\1\\2\\3\\t\\2/g" | awk 'BEGIN {FS="\\t"} {if (a[$2"---"$3"---"$4"---"$7] == "") { a[$2"---"$3"---"$4"---"$7]=$1 } ; if (a[$2"---"$3"---"$4"---"$7]=$1) {v[$2"---"$3"---"$4"---"$7]=v[$2"---"$3"---"$4"---"$7]"\\n"$0 } } END { for ( i in a ) {print v[i] } } ' | awk 'NF' | cut -f8- | sed -r "s/.\tgene_id/.\tgene_id/g" | sort -u > $outfile
+		cat $td/gffis.bed | shuf | sed -r  "s/(.*transcript_id[ =]\\")([^\\"]*)(\\".*)/\\1\\2\\3\\t\\2/g" | awk 'BEGIN {FS="\\t"} {if (a[$1"---"$2"---"$3"---"$4] == "") { a[$1"---"$2"---"$3"---"$4]=$14 } ; if (a[$1"---"$2"---"$3"---"$4]=$14) {v[$1"---"$2"---"$3"---"$4]=v[$1"---"$2"---"$3"---"$4]"\\n"$0 } } END { for ( i in a ) {print v[i] } } ' | awk 'NF' | cut -f7- | sed -r "s/.\tgene_id/.\tgene_id/g" | sort -u > $outfile
 		rm -r $td"""
 
 	callFunction(function)
@@ -817,7 +815,7 @@ def combineIndirectAugustusResults(path_otherSpeciesResults, path_augustusParsed
 		interim=`mktemp $working/interim.XXXXXXX`
 
 		### Get genes as merged consensus regions ###
-		cat  $predictions/*AugustusParsed.gff | grep -P "\\tgene\\t" | sort -k1,1V -k4,4n | bedtools merge -s -i - | cut -f1,2,3,5 | sed -r "s/\\t([^\\t]*)$/\\t.\\t.([^\\t]*)/g" |  perl -ne 'chomp; @l=split; printf "%s\\t%s\\t%s\\t.\\t.\\t%s\\tg%s\\n", $l[0], $l[1]-1, $l[2], $l[3], $., ' > $concat
+		cat  $predictions/*AugustusParsed.gff | grep -P "\\tgene\\t" | sort -k1,1V -k4,4n | bedtools merge -s -i - | cut -f1,2,3,5 | sed -r "s/\\t([^\\t]*)$/\\t.\\t.([^\\t]*)/g" | perl -ne 'chomp; @l=split; printf "%s\\t%s\\t%s\\t.\\t.\\t%s\\tg%s\\n", $l[0], $l[1]-1, $l[2], $l[3], $., ' > $concat
 
 		### Get only those gene regions which are predicted more than one time  ###
 		for file in `find $predictions -type "f" -name "*AugustusParsed.gff"`; do base=`basename $file` ; bfile=`mktemp`; grep -P "\\tgene\\t" $file | sed -r "s/$/\\t$base/g" > $bfile; bedtools intersect -a $concat -b $bfile -wa -wb ; done | sort -k1,1V -k2,2n | rev | uniq -D -f11 | rev  > $doubles
@@ -1173,8 +1171,8 @@ def prepareFromScratch(path_infile, path_outDir):
 			# Use genome name as key in dictionary
 			key = os.path.basename(line[1])
 			dict_basicInfo[key]={}
-			dict_basicInfo[key]["gff"]    = line[0]
-			dict_basicInfo[key]["genome"] = line[1]
+			dict_basicInfo[key]["gff"]    = checkFileExists(line[0])
+			dict_basicInfo[key]["genome"] = checkFileExists(line[1])
 	for key in dict_basicInfo:
 		path_gffIn=dict_basicInfo[key]["gff"]
 		path_genome=dict_basicInfo[key]["genome"]
