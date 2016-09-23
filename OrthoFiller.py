@@ -116,7 +116,6 @@ def readInputLocations(path_speciesInfoFile):
 		# Ignore any commented lines, typically these are headers.
 		data = csv.reader((row for row in path_locationsFile if not row.startswith('#')), delimiter="\t")
 		for line in data:
-			print(line)
 			if not ''.join(line).strip():
 				continue
 			# The "species", i.e. the basename for the source protein file
@@ -162,7 +161,7 @@ def makeGffTrainingFile(path_inputGff, path_outputGff):
 	# Make sure there are no overlaps, by randomly choosing between overlapping entries, and sort the file.
 	function="infile=\"" + path_inputGff + "\"; outfile=\"" + path_tmp + "\"; " + """
 		td=`mktemp -d`
-
+		echo "temp directory is $td"
 		echo -n "" > $outfile
 
 		echo "Assuring transcripts..."
@@ -170,29 +169,30 @@ def makeGffTrainingFile(path_inputGff, path_outputGff):
 		sed -r  '/transcript_id/! s/gene_id([ =])\\"([^\\"]*)\\";?( ?)/gene_id\\1\\"\\2\\"; transcript_id\\1\\"\\2.t999\\";\\3/g' $infile > $infile_td
 
 		echo "Grouping into regions.."
-		sed -r "s/(gene_id[ =]\\"[^\\"]*\\"; ?transcript_id[= ]\\"[^\\"]*\\";).*/\\1/g" $infile_td | awk '$3=="CDS"' | bedtools groupby -g 1,2,3,7,9 -c 4,5 -o min,max | perl -ne 'chomp; @l=split /\\t/; printf "$l[0]\\t$l[5]\\t$l[6]\\t.\\t.\\t$l[3]\\n" ' | sort -k1,1V -k2,2n | bedtools merge -i - | cut -f1,2,3,4 | sed -r "s/\\t([^\\t]*)$/\\t.\\t.\\t\\1/g" |  > $td/gffmerged.bed
+		sed -r "s/(gene_id[ =]\\"[^\\"]*\\"; ?transcript_id[= ]\\"[^\\"]*\\";).*/\\1/g" $infile_td | awk '$3=="CDS"' | bedtools groupby -g 1,2,3,7,9 -c 4,5 -o min,max | perl -ne 'chomp; @l=split /\\t/; printf "$l[0]\\t$l[5]\\t$l[6]\\t.\\t.\\t$l[3]\\n" ' | sort -k1,1V -k2,2n | bedtools merge -s -i - > $td/gffmerged.bed.tmp
+
+		cut -f1,2,3,4 $td/gffmerged.bed.tmp | sed -r "s/\\t([^\\t]*)$/\\t.\\t.\\t\\1/g" > $td/gffmerged.bed
 
 		echo "Intersecting..."
 		bedtools intersect -a $td/gffmerged.bed -b $infile_td -wa -wb > $td/gffis.bed
 
-		cat $td/gffis.bed | shuf | sed -r  "s/(.*transcript_id[ =]\\")([^\\"]*)(\\".*)/\\1\\2\\3\\t\\2/g" | awk 'BEGIN {FS="\\t"} {if (a[$1"---"$2"---"$3"---"$4] == "") { a[$1"---"$2"---"$3"---"$4]=$14 } ; if (a[$1"---"$2"---"$3"---"$4]=$14) {v[$1"---"$2"---"$3"---"$4]=v[$1"---"$2"---"$3"---"$4]"\\n"$0 } } END { for ( i in a ) {print v[i] } } ' | awk 'NF' | cut -f7- | sed -r "s/.\tgene_id/.\tgene_id/g" | sort -u > $outfile
+		cat $td/gffis.bed | shuf | sed -r  "s/(.*transcript_id[ =]\\")([^\\"]*)(\\".*)/\\2\t\\1\\2\\3\\t\\2/g" | awk 'BEGIN {FS="\\t"} {if (a[$2"."$3"."$4"."$7] == "") { a[$2"."$3"."$4"."$7]=$1 } ; if (a[$2"."$3"."$4"."$7]=$1) {v[$2"."$3"."$4"."$7]=v[$2"."$3"."$4"."$7]"\\n"$0"\t"$2"."$3"."$4"."$7 } } END { for ( i in a ) {print v[i] } } ' | awk 'NF' | cut -f8- | sed -r "s/.\tgene_id/.\tgene_id/g" | sed -r "s/\.\-/\.neg/g" | sed -r "s/\.\+/\.pos/g" > $td/tmp1
+		awk -F "\\t" '{print $1"\\t"$2"\\t"$3"\\t"$4"\\t"$5"\\t.\\t"$7"\\t.\\tgene_id \\""$11".gene\\"; transcript_id \\""$11".gene.t1\\";\t"$11}' $td/tmp1 | sort -u > $outfile
+		
 		rm -r $td"""
 
 	callFunction(function)
 	print("check st(art|op) codon consistency")
 	# Check each gene has a start codon and a stop codon and that they're in the right place
 	checkStartAndStopCodons(path_tmp)
-	print("rejigging naming")
-	# Rejig the naming to make it AUGUSTUS-friendly.
-	function="infile=\"" + path_tmp + "\"; outfile=\"" + path_outputGff + "\"; " + """sed -r "s/\\t[^\\t]*(gene_id|gene|geneId)[= ]+\\"?([^\\"]*)\\"?/\\tgene_id \\"\\2\\"/g" $infile > $outfile; rm $infile"""
-	callFunction(function)
+	callFunction("mv " +path_tmp+ " " + path_outputGff)
 	# Add exons as well as CDS
 	function="infile=\"" + path_outputGff + "\"; tmpfile=`mktemp`; tmpfile2=`mktemp`; grep -P \"\\tCDS\\t\" $infile | sed -r \"s/\\tCDS\\t/\\texon\\t/g\" | sed -r \"s/\\t[^\\t]*\\tgene_id/\\t\\.\\tgene_id/g\" > $tmpfile2; cat $infile $tmpfile2 | sort -u | sort -k1,1V -k4,4n > $tmpfile; mv $tmpfile $infile; rm $tmpfile2"
 	callFunction(function)
 
 def checkStartAndStopCodons(path_inputGff):
 	function="inFile=\"" + path_inputGff + "\";" + """
-
+	
 	td=`mktemp -d`
 	holder="$td/holder";
 
@@ -200,7 +200,7 @@ def checkStartAndStopCodons(path_inputGff):
 	awk 'BEGIN {FS="\\t" } { v[$10]=v[$10]"\\n"$0; if ($7 == "+") {if ( $3 == "stop_codon" ) { e[$10]=$5 } else if ($3 == "start_codon") { b[$10] = $4 } else if ($3=="CDS") { if (cb[$10] == "") { cb[$10]=$4; ce[$10]=$5 } else { if ($4 < cb[$10]) {cb[$10]=$4}; if ($5 > ce[$10]) { ce[$10] = $5 } } } } else if ($7 == "-") {if ( $3 == "stop_codon" ) { b[$10]=$4 } else if ($3 == "start_codon") { e[$10] =$ 5 } else if ($3=="CDS") { if (cb[$10] == "") { cb[$10]=$4; ce[$10]=$5 } else { if ($4 < cb[$10]) {cb[$10]=$4}; if ($5 > ce[$10]) { ce[$10] = $5 } } } } }  END {for (i in b) { if ( e[i]==ce[i] &&  cb[i]==b[i]) { print v[i] } } }' $inFile > $holder
 
 	rev $holder | cut -f2- | rev | awk 'NF' > $inFile
-
+	
 	rm -r $td
 	"""
 	callFunction(function)
@@ -407,7 +407,7 @@ def processOg(orthogroup, list_orthogroupSequenceIds, orthogroupProteinSequences
 		print("Getting orthoprotein file " + path_gffBedFile)
 		# CC - This assumes a specifically formatted gff file. Will need to adapt to make it applicable to gff3 etc.
 		for seqId in seqIds:
-			callFunction("grep -P \"transcript_id[ =]\\\"" + seqId + "\\\"\" " + path_gffCds + " | sed -r \"s/_id /_id=/g\" | sed -r \"s/; /;/g\" | cut -f1,4,5,6,7,9 | \
+			callFunction("grep -P \"transcript_id[ =]\\\"" + seqId + "\\\"\" " + path_gffCds + " | sed -r \"s/ +\"/=\"/g\" | sed -r \"s/; /;/g\" | cut -f1,4,5,6,7,9 | \
 			       perl -ne 'chomp;@l=split; printf \"%s\\t.\\t%s\\t" + species + "\\t" + orthogroup + "\\n\", join(\"\\t\", @l[0..2]), join(\"\\t\", \
 			       @l[3..5])' >> " + path_gffBedFile)
 	print("Finished " + orthogroup)
@@ -528,7 +528,7 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 			print "Submitting singleton " + singleton + "; " + str(int_counter) + " of " + str_total + " submitted."
 			async(og_pool, processSingleton, args=(singleton, \
 							singletons[singleton][0], \
- 							dict_sequenceInfoById, \
+							dict_sequenceInfoById, \
 							dict_speciesInfo, \
 							path_wDir))
 			int_counter = int_counter + 1
@@ -547,13 +547,16 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 			path_ogBedFileName = path_wDir + "/" + str_speciesName + ".allOrthogroups.bed"
 			path_hitsOgIntersectionFileName = path_wDir + "/" + str_speciesName + ".hitsIntersectOrthogroups.bed"
 			# Get all hits into one file
-			callFunction("find  " + path_wDir + " -name \"OG*" + str_speciesName + "*hits.bed\" | xargs -n 32 cat | sed -r \"s/gene_id=*[^\\\"]*\\\"/gene_id=\\\"/g\"> " + path_hitsBedFileName)
+			callFunction("find  " + path_wDir + " -name \"OG*" + str_speciesName + "*hits.bed\" | xargs -n 32 cat | sed -r \"s/gene_id=*[^\\\"]*\\\"/gene_id=\\\"/g\" | sort -k1,1 -k2,2n | awk '$2 >0 && $3 > 0'  | sort -k1,1 -k2,2n > " + path_hitsBedFileName)
 			# Get all orthos and singletons into one file
 			# Bedtools gets upset if we try to intersect with an empty file, so as a hack also provide a fake
 			# entry in the same format. Hope that this never pops up in real life.
-			callFunction("find  " + path_wDir + " -name \"OG*" + str_speciesName + "*Protein.bed\" | xargs -n 32 cat | sed -r \"s/gene_id=*[^\\\"]*\\\"/gene_id=\\\"/g\"> " + path_ogBedFileName + "; echo \"chr_FAKE_QKlWlKgGS4\\t0\\t1\\t.\\t.\\t-\\tgene_id=\\\"FAKE\\\"\\tfake.fasta\tOG9999999\" >> " + path_ogBedFileName) 
+			callFunction("find  " + path_wDir + " -name \"OG*" + str_speciesName + "*Protein.bed\" | xargs -n 32 cat | sed -r \"s/gene_id=*[^\\\"]*\\\"/gene_id=\\\"/g\"> " + path_ogBedFileName + "; echo \"chr_FAKE_QKlWlKgGS4\\t0\\t1\\t.\\t.\\t-\\tgene_id=\\\"FAKE\\\"\\tfake.fasta\tOG9999999\" | sort -k1,1 -k2,2n >> " + path_ogBedFileName) 
 			#Now intersect
-			callFunction("bedtools intersect -loj -nonamecheck -a " + path_hitsBedFileName + " -b " + path_ogBedFileName + " -wa -wb > " + path_hitsOgIntersectionFileName)
+			#loj is causing problems (segfaults) and they don't make any sense. So work around it.
+#			callFunction("bedtools intersect -loj -nonamecheck -a " + path_hitsBedFileName + " -b " + path_ogBedFileName + " -wa -wb -sorted > " + path_hitsOgIntersectionFileName)
+			callFunction("bedtools intersect -nonamecheck -a " + path_hitsBedFileName + " -b " + path_ogBedFileName + " -wa -wb > " + path_hitsOgIntersectionFileName)
+			callFunction("cat " + path_hitsOgIntersectionFileName + " " + path_hitsBedFileName + " | cut -f1-11 | sort | uniq -u | sed -r \"s/$/\\t.\\t.\\t.\\t.\\t.\\t.\\t.\\t.\\t./g\" > " + path_hitsOgIntersectionFileName + ".tmp; cat " + path_hitsOgIntersectionFileName + ".tmp " + path_hitsOgIntersectionFileName + " > " + path_hitsOgIntersectionFileName + ".tmp.tmp ; mv " + path_hitsOgIntersectionFileName + ".tmp.tmp " + path_hitsOgIntersectionFileName + "; rm " + path_hitsOgIntersectionFileName + ".tmp")
 			path_hitsOgIntersectionFileNameAnnotated = path_wDir + "/" + str_speciesName + ".hitsIntersectionOrthogroups.annotated.bed"
 			#Annotate whether each line is a good match, a bad match, or a candidate match.
 			#We don't need to distinguish singletons and orthos.
@@ -661,7 +664,7 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 	# rerun OrthoFiller
 	####################################################
 	path_newProteomesDir = path_wDirS + "/newProteomes"
-	callFunction("rm -r " + path_newProteomesDir)
+	callFunction("rm -rf " + path_newProteomesDir)
 	makeIfAbsent(path_newProteomesDir)
 	for str_speciesName in dict_speciesInfo:
 		path_newProteome = path_newProteomesDir + "/" + str_speciesName + "newProteome.fasta"
@@ -796,9 +799,9 @@ def assignNames(str_speciesName, path_acceptedGff, path_geneNameConversionTable,
 def annotateIntersectedOutput(path_hitsOgIntersectionFileName, path_hitsOgIntersectionFileNameAnnotated):
 	callFunction("infile=\""+ path_hitsOgIntersectionFileName+"\"; outfile=\""+path_hitsOgIntersectionFileNameAnnotated+"\";\
 		echo -n \"\" > $outfile; \
-		awk '$20 == \".\"' $infile | sed -r \"s/_id[= ]*[^\\\"]*\\\"/_id=\\\"/g\" | sed -r \"s/$/\\tmatch_none/g\" >> $outfile ;\
-		awk '$20 != \".\"' $infile | awk '$20 != $11' | sed -r \"s/_id[ =]*[^\\\"]*\\\"/_id=\\\"/g\" | sed -r \"s/$/\\tmatch_bad/g\" >> $outfile;\
-		awk '$20 != \".\"' $infile | awk '$20 == $11' | sed -r \"s/_id[ =]*[^\\\"]*\\\"/_id=\\\"/g\" | sed -r \"s/$/\\tmatch_good/g\" >> $outfile;")
+		awk -F \"\\t\" '$20 == \".\"' $infile | sed -r \"s/_id[= ]*[^\\\"]*\\\"/_id=\\\"/g\" | sed -r \"s/$/\\tmatch_none/g\" >> $outfile ;\
+		awk -F \"\\t\" '$20 != \".\"' $infile | awk '$20 != $11' | sed -r \"s/_id[ =]*[^\\\"]*\\\"/_id=\\\"/g\" | sed -r \"s/$/\\tmatch_bad/g\" >> $outfile;\
+		awk -F \"\\t\" '$20 != \".\"' $infile | awk '$20 == $11' | sed -r \"s/_id[ =]*[^\\\"]*\\\"/_id=\\\"/g\" | sed -r \"s/$/\\tmatch_good/g\" >> $outfile;")
 	
 def runAndParseAugustus(path_goodHits, path_genome, path_augustusOut, path_augustusParsedOut, path_fastaOut, path_augustusSpeciesName, path_hintsFile):
 	print("augustus out is " + path_augustusOut)
@@ -816,7 +819,7 @@ def combineIndirectAugustusResults(path_otherSpeciesResults, path_augustusParsed
 		interim=`mktemp $working/interim.XXXXXXX`
 
 		### Get genes as merged consensus regions ###
-		cat  $predictions/*AugustusParsed.gff | grep -P "\\tgene\\t" | sort -k1,1V -k4,4n | bedtools merge -s -i - | cut -f1,2,3,5 | sed -r "s/\\t([^\\t]*)$/\\t.\\t.([^\\t]*)/g" | perl -ne 'chomp; @l=split; printf "%s\\t%s\\t%s\\t.\\t.\\t%s\\tg%s\\n", $l[0], $l[1]-1, $l[2], $l[3], $., ' > $concat
+		cat  $predictions/*AugustusParsed.gff | grep -P "\\tgene\\t" | sort -k1,1V -k4,4n | bedtools merge -s -i - | cut -f1,2,3,5 | sed -r "s/\\t([^\\t]*)$/\\t.\\t.([^\\t]*)/g" |  perl -ne 'chomp; @l=split; printf "%s\\t%s\\t%s\\t.\\t.\\t%s\\tg%s\\n", $l[0], $l[1]-1, $l[2], $l[3], $., ' > $concat
 
 		### Get only those gene regions which are predicted more than one time  ###
 		for file in `find $predictions -type "f" -name "*AugustusParsed.gff"`; do base=`basename $file` ; bfile=`mktemp`; grep -P "\\tgene\\t" $file | sed -r "s/$/\\t$base/g" > $bfile; bedtools intersect -a $concat -b $bfile -wa -wb ; done | sort -k1,1V -k2,2n | rev | uniq -D -f11 | rev  > $doubles
@@ -1052,9 +1055,6 @@ def start(path_speciesInfoFile, path_orthoFinderOutputFile, path_singletonsFile,
 	# orthofinder output.
 	# MD-CC: will need to have a consistency check for this.:
 	######################################################
-	print(path_speciesInfoFile)
-	print(path_orthoFinderOutputFile)
-	print(path_singletonsFile)
 	dict_speciesInfo = readInputLocations(path_speciesInfoFile)
 	dict_sequenceInfoById, orthogroups, singletons = readOrthoFinderOutput(path_orthoFinderOutputFile, path_singletonsFile, dict_speciesInfo)
 	#####################################################
