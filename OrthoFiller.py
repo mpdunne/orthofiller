@@ -860,7 +860,7 @@ def combineIndirectAugustusResults(path_otherSpeciesResults, path_augustusParsed
 
 				#Get the relevant fasta sequence and change the names
 				awk -v patt="gene_id[= ]\\"$gid\\";\\n" 'BEGIN {RS=">"} $0 ~ patt {print ">"$0}' $fastasource | grep -v "^$" | sed -r "s/transcript_id[= ]\\"$tid\\"; ?gene_id[= ]\\"$gid\\";/transcript_id \\"$newtid\\"; gene_id \\"$newgid\\";/g" >> $fastatmp
-				counter_tmp=`echo "$counter + 1" | bc`
+				counter_tmp=`echo $[counter + 1]`
 				counter=$counter_tmp
 			done
 		done
@@ -913,50 +913,41 @@ def hintFscoreFilter(path_augustusParsed, path_hintFile, path_augustusParsedHint
 	extractFromFastaByName(path_augustusParsedHintFiltered, path_augustusSequences, path_augustusSequencesHintFiltered)
 
 def implementHintFscoreFilter(path_augustusParsed, path_hintFile, path_outFile, num_threshold):
-	function="augParsed=\"" + path_augustusParsed + "\"; hintFile=\"" + path_hintFile + "\"; of=\"" + path_outFile + "\"; threshold=\"" + str(num_threshold) + "\"" + """
-	augParsedBed="$augParsed.bed"
-	echo "" > $of
-	grep -P "\\tCDS\\t" $augParsed | sed -r "s/transcript_id \\"([^\\"]*)\\"; gene_id \\"([^\\"]*)\\";/transcript_id=\\"\\1\\";gene_id=\\"\\2\\";/g" | sort -u | perl -ne 'chomp; @l=split; printf "%s\\t%d\\t%d\\t.\\t.\\t%s\\t%s\\n", $l[0], $l[3]-1, $l[4], $l[6], $l[8]' > $augParsedBed
-	
-	hintsFileBed="$hintFile.bed"
+        function="augParsed=\"" + path_augustusParsed + "\"; hintFile=\"" + path_hintFile + "\"; of=\"" + path_outFile + "\"; threshold=\"" + str(num_threshold) + "\"" + """
+        augParsedBed="$augParsed.bed"
+        echo "" > $of
+        grep -P "\\tCDS\\t" $augParsed | sed -r "s/transcript_id \\"([^\\"]*)\\"; gene_id \\"([^\\"]*)\\";/transcript_id=\\"\\1\\";gene_id=\\"\\2\\";/g" | sort -u | perl -ne 'chomp; @l=split; printf "%s\\t%d\\t%d\\t.\\t.\\t%s\\t%s\\n", $l[0], $l[3]-1, $l[4], $l[6], $l[8]' > $augParsedBed
 
-	perl -ne 'chomp; @l=split; printf "%s\\t%d\\t%d\\t.\\t.\\t%s\\t%s\\n", $l[0], $l[3]-1, $l[4], $l[6], $l[8]' $hintFile > $hintsFileBed
-	
-	gids=`mktemp`
-	sed -r "s/.*gene_id=\\"([^\\"]*)\\";.*/\\1/g" $augParsedBed | sort -u > $gids
+        hintsFileBed="$hintFile.bed"
 
-	IFS='\n'
+        perl -ne 'chomp; @l=split; printf "%s\\t%d\\t%d\\t.\\t.\\t%s\\t%s\\n", $l[0], $l[3]-1, $l[4], $l[6], $l[8]' $hintFile > $hintsFileBed
 
-	for gid in `cat $gids`; do 
-		echo "checking hint scores for $gid from $augParsed"
- 		entrytmp=`mktemp`
-		grep -P "gene_id[ =]\\"$gid\\"" $augParsedBed > $entrytmp
-		compatibleHints=`bedtools intersect -wo -s -a $entrytmp -b $hintsFileBed`
-		geneLength=`awk -F'\\t' 'BEGIN{SUM=0}{ SUM+=$3-$2 }END{print SUM}' $entrytmp`
-		for line in `echo "$compatibleHints"`; do
-			hintStart=`echo "$line" | cut -f9`
-			hintEnd=`echo "$line" | cut -f10`
-			hintLength=`echo "$hintEnd - $hintStart" | bc`
-			intersectionLength=`echo "$line" | cut -f15`
-			hintRecall=`echo "$intersectionLength/$hintLength" | bc -l`
-			hintPrecision=`echo "$intersectionLength/$geneLength" | bc -l`
-			hintFscore=`echo "2*$hintRecall*$hintPrecision/($hintPrecision + $hintRecall)" | bc -l `
-			echo "the hint f score is $hintFscore"
-			if [ "$(echo "$hintFscore < $threshold" | bc)" -ne "1" ]; then
-				echo "Keeping this one"
-				echo "outputting:"
-				grep -P "(gene_id[= ]\\"$gid\\";|\\t$gid\\t|\\t$gid\\.t.*\\t)" $augParsed
-				grep -P "(gene_id[= ]\\"$gid\\";|\\t$gid\\t|\\t$gid\\.t.*\\t)" $augParsed | sort -u >> $of
-			fi
-		done
-		rm $entrytmp
-	done
-	
-	sort -u $of > $of.tmp; mv $of.tmp $of
+        gids=`mktemp`
+        sed -r "s/.*gene_id=\\"([^\\"]*)\\";.*/\\1/g" $augParsedBed | sort -u > $gids
 
-	rm $gids
-	"""
-	callFunction(function)
+        IFS='\n'
+
+        for gid in `cat $gids`; do
+                echo "checking hint scores for $gid from $augParsed"
+                entrytmp=`mktemp`
+                grep -P "gene_id[ =]\\"$gid\\"" $augParsedBed > $entrytmp
+                compatibleHints=`bedtools intersect -wo -s -a $entrytmp -b $hintsFileBed`
+                geneLength=`awk -F'\\t' 'BEGIN{SUM=0}{ SUM+=$3-$2 }END{print SUM}' $entrytmp`
+                suc=`echo "$compatibleHints" | awk -v gL="$geneLength" -v thresh="$threshold" '{hS=$9; hE=$10; hL=hE-hS; iL=$15; hR=iL/hL; hP=iL/gL; hF=2*hR*hP/(hP+hR); if (hF >= thresh) {print $0}}'`
+                if [ "$suc" != "" ]; then
+                        echo "success"
+                        grep -P "(gene_id[= ]\\"$gid\\";|\\t$gid\\t|\\t$gid\\.t.*\\t)" $augParsed | sort -u >> $of
+                else
+                        echo "failure"
+                fi
+        done
+
+        sort -u $of > $of.tmp; mv $of.tmp $of
+
+        rm $gids
+        """
+        callFunction(function)
+
 
 def extractFromFastaByName(path_gffFile, path_fastaFile, path_fastaOut):
 	function="gff=\""+path_gffFile+"\"; fasta=\""+path_fastaFile+"\"; fastaout=\"" + path_fastaOut + "\"; " + """
