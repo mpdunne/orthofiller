@@ -123,7 +123,7 @@ def readInputLocations(path_speciesInfoFile):
 			str_species = os.path.basename(line[0])
 			addSpecies(str_species, dict_speciesInfo)
 			# Then just build up the dictionary with human-readable names
-			path_aa	        = checkFileExists(line[0])
+			path_aa		= checkFileExists(line[0])
 			path_gff 	= checkFileExists(line[1])
 			path_genome     = checkFileExists(line[2])
 			path_cds	= checkFileExists(line[3])
@@ -131,6 +131,7 @@ def readInputLocations(path_speciesInfoFile):
 			dict_speciesInfo[str_species]["gff"]	 = path_gff
 			dict_speciesInfo[str_species]["genome"]  = path_genome
 			dict_speciesInfo[str_species]["cds"]	 = path_cds
+			checkChromosomes(path_gff, path_genome)
 			checkSequences(path_gff, path_cds, path_aa)
 	return dict_speciesInfo
 
@@ -913,84 +914,84 @@ def hintFscoreFilter(path_augustusParsed, path_hintFile, path_augustusParsedHint
 	extractFromFastaByName(path_augustusParsedHintFiltered, path_augustusSequences, path_augustusSequencesHintFiltered)
 
 def implementHintFscoreFilterOld(path_augustusParsed, path_hintFile, path_outFile, num_threshold):
-        function="augParsed=\"" + path_augustusParsed + "\"; hintFile=\"" + path_hintFile + "\"; of=\"" + path_outFile + "\"; threshold=\"" + str(num_threshold) + "\"" + """
-        augParsedBed="$augParsed.bed"
-        echo "" > $of
-        grep -P "\\tCDS\\t" $augParsed | sed -r "s/transcript_id \\"([^\\"]*)\\"; gene_id \\"([^\\"]*)\\";/transcript_id=\\"\\1\\";gene_id=\\"\\2\\";/g" | sort -u | perl -ne 'chomp; @l=split; printf "%s\\t%d\\t%d\\t.\\t.\\t%s\\t%s\\n", $l[0], $l[3]-1, $l[4], $l[6], $l[8]' > $augParsedBed
+	function="augParsed=\"" + path_augustusParsed + "\"; hintFile=\"" + path_hintFile + "\"; of=\"" + path_outFile + "\"; threshold=\"" + str(num_threshold) + "\"" + """
+	augParsedBed="$augParsed.bed"
+	echo "" > $of
+	grep -P "\\tCDS\\t" $augParsed | sed -r "s/transcript_id \\"([^\\"]*)\\"; gene_id \\"([^\\"]*)\\";/transcript_id=\\"\\1\\";gene_id=\\"\\2\\";/g" | sort -u | perl -ne 'chomp; @l=split; printf "%s\\t%d\\t%d\\t.\\t.\\t%s\\t%s\\n", $l[0], $l[3]-1, $l[4], $l[6], $l[8]' > $augParsedBed
 
-        hintsFileBed="$hintFile.bed"
+	hintsFileBed="$hintFile.bed"
 
-        perl -ne 'chomp; @l=split; printf "%s\\t%d\\t%d\\t.\\t.\\t%s\\t%s\\n", $l[0], $l[3]-1, $l[4], $l[6], $l[8]' $hintFile > $hintsFileBed
+	perl -ne 'chomp; @l=split; printf "%s\\t%d\\t%d\\t.\\t.\\t%s\\t%s\\n", $l[0], $l[3]-1, $l[4], $l[6], $l[8]' $hintFile > $hintsFileBed
 
-        gids=`mktemp`
-        sed -r "s/.*gene_id=\\"([^\\"]*)\\";.*/\\1/g" $augParsedBed | sort -u > $gids
+	gids=`mktemp`
+	sed -r "s/.*gene_id=\\"([^\\"]*)\\";.*/\\1/g" $augParsedBed | sort -u > $gids
 
-        IFS='\n'
+	IFS='\n'
 
-        for gid in `cat $gids`; do
-                echo "checking hint scores for $gid from $augParsed"
-                entrytmp=`mktemp`
-                grep -P "gene_id[ =]\\"$gid\\"" $augParsedBed > $entrytmp
-                compatibleHints=`bedtools intersect -wo -s -a $entrytmp -b $hintsFileBed`
-                geneLength=`awk -F'\\t' 'BEGIN{SUM=0}{ SUM+=$3-$2 }END{print SUM}' $entrytmp`
-                suc=`echo "$compatibleHints" | awk -v gL="$geneLength" -v thresh="$threshold" '{hS=$9; hE=$10; hL=hE-hS; iL=$15; hR=iL/hL; hP=iL/gL; hF=2*hR*hP/(hP+hR); if (hF >= thresh) {print $0}}'`
-                if [ "$suc" != "" ]; then
-                        echo "success"
-                        grep -P "(gene_id[= ]\\"$gid\\";|\\t$gid\\t|\\t$gid\\.t.*\\t)" $augParsed | sort -u >> $of
-                else
-                        echo "failure"
-                fi
-        done
+	for gid in `cat $gids`; do
+		echo "checking hint scores for $gid from $augParsed"
+		entrytmp=`mktemp`
+		grep -P "gene_id[ =]\\"$gid\\"" $augParsedBed > $entrytmp
+		compatibleHints=`bedtools intersect -wo -s -a $entrytmp -b $hintsFileBed`
+		geneLength=`awk -F'\\t' 'BEGIN{SUM=0}{ SUM+=$3-$2 }END{print SUM}' $entrytmp`
+		suc=`echo "$compatibleHints" | awk -v gL="$geneLength" -v thresh="$threshold" '{hS=$9; hE=$10; hL=hE-hS; iL=$15; hR=iL/hL; hP=iL/gL; hF=2*hR*hP/(hP+hR); if (hF >= thresh) {print $0}}'`
+		if [ "$suc" != "" ]; then
+			echo "success"
+			grep -P "(gene_id[= ]\\"$gid\\";|\\t$gid\\t|\\t$gid\\.t.*\\t)" $augParsed | sort -u >> $of
+		else
+			echo "failure"
+		fi
+	done
 
-        sort -u $of > $of.tmp; mv $of.tmp $of
+	sort -u $of > $of.tmp; mv $of.tmp $of
 
-        rm $gids
-        """
-        callFunction(function)
+	rm $gids
+	"""
+	callFunction(function)
 
 def implementHintFscoreFilter(path_augustusParsed, path_hintFile, path_outFile, num_threshold):
-        function="augParsed=\"" + path_augustusParsed + "\"; hintFile=\"" + path_hintFile + "\"; of=\"" + path_outFile + "\"; threshold=\"" + str(num_threshold) + "\"" + """
-        augParsedBed="$augParsed.bed"
-        echo "" > $of
-        grep -P "\\tCDS\\t" $augParsed | sed -r "s/transcript_id \\"([^\\"]*)\\"; gene_id \\"([^\\"]*)\\";/transcript_id=\\"\\1\\";gene_id=\\"\\2\\";/g" | sort -u | perl -ne 'chomp; @l=split; printf "%s\\t%d\\t%d\\t.\\t.\\t%s\\t%s\\n", $l[0], $l[3]-1, $l[4], $l[6], $l[8]' > $augParsedBed
+	function="augParsed=\"" + path_augustusParsed + "\"; hintFile=\"" + path_hintFile + "\"; of=\"" + path_outFile + "\"; threshold=\"" + str(num_threshold) + "\"" + """
+	augParsedBed="$augParsed.bed"
+	echo "" > $of
+	grep -P "\\tCDS\\t" $augParsed | sed -r "s/transcript_id \\"([^\\"]*)\\"; gene_id \\"([^\\"]*)\\";/transcript_id=\\"\\1\\";gene_id=\\"\\2\\";/g" | sort -u | perl -ne 'chomp; @l=split; printf "%s\\t%d\\t%d\\t.\\t.\\t%s\\t%s\\n", $l[0], $l[3]-1, $l[4], $l[6], $l[8]' > $augParsedBed
 
-        hintsFileBed="$hintFile.bed"
+	hintsFileBed="$hintFile.bed"
 
-        perl -ne 'chomp; @l=split; printf "%s\\t%d\\t%d\\t.\\t.\\t%s\\t%s\\n", $l[0], $l[3]-1, $l[4], $l[6], $l[8]' $hintFile > $hintsFileBed
+	perl -ne 'chomp; @l=split; printf "%s\\t%d\\t%d\\t.\\t.\\t%s\\t%s\\n", $l[0], $l[3]-1, $l[4], $l[6], $l[8]' $hintFile > $hintsFileBed
 
-        gids=`mktemp`
-        sed -r "s/.*gene_id=\\"([^\\"]*)\\";.*/\\1/g" $augParsedBed | sort -u > $gids
+	gids=`mktemp`
+	sed -r "s/.*gene_id=\\"([^\\"]*)\\";.*/\\1/g" $augParsedBed | sort -u > $gids
 
-        IFS='\n'
+	IFS='\n'
 
-        for gid in `cat $gids`; do
-                echo "checking hint scores for $gid from $augParsed"
-                entrytmp=`mktemp`
-                grep -P "gene_id[ =]\\"$gid\\"" $augParsedBed > $entrytmp
-                compatibleHints=`bedtools intersect -wa -s -b $entrytmp -a $hintsFileBed | sort -u`
-                gL=`awk -F'\\t' 'BEGIN{SUM=0}{ SUM+=$3-$2 }END{print SUM}' $entrytmp`
-                successes=""
-                for hint in `echo "$compatibleHints" | cut -f7`; do
-                        hEntry=`mktemp`
-                        echo "$compatibleHints" | awk -v a="$hint" '$7 == a' > $hEntry
-                        hL=`awk -F'\\t' 'BEGIN{SUM=0}{ SUM+=$3-$2 }END{print SUM}' $hEntry`
-                        iL=`bedtools intersect -s -a $hEntry -b $entrytmp | awk -F'\\t' 'BEGIN{SUM=0}{ SUM+=$3-$2 }END{print SUM}'`
-                        suc=`awk -v gL="$gL" -v hL="$hL" -v iL="$iL" -v thresh="$threshold" 'BEGIN{hR=iL/hL; hP=iL/gL; hF=2*hR*hP/(hP+hR); if (hF >= thresh) {print "success"}}'`
-                        successestmp=`echo "$successes\\n$suc"`
-                        successes="$successestmp"
-                done
-                if [ "$successes" != "" ]; then
-                        echo "success"
-                        grep -P "(gene_id[= ]\\"$gid\\";|\\t$gid\\t|\\t$gid\\.t.*\\t)" $augParsed | sort -u >> $of
-                else
-                        echo "failure"
-                fi
-        done
-        sort -u $of > $of.tmp; mv $of.tmp $of
+	for gid in `cat $gids`; do
+		echo "checking hint scores for $gid from $augParsed"
+		entrytmp=`mktemp`
+		grep -P "gene_id[ =]\\"$gid\\"" $augParsedBed > $entrytmp
+		compatibleHints=`bedtools intersect -wa -s -b $entrytmp -a $hintsFileBed | sort -u`
+		gL=`awk -F'\\t' 'BEGIN{SUM=0}{ SUM+=$3-$2 }END{print SUM}' $entrytmp`
+		successes=""
+		for hint in `echo "$compatibleHints" | cut -f7`; do
+			hEntry=`mktemp`
+			echo "$compatibleHints" | awk -v a="$hint" '$7 == a' > $hEntry
+			hL=`awk -F'\\t' 'BEGIN{SUM=0}{ SUM+=$3-$2 }END{print SUM}' $hEntry`
+			iL=`bedtools intersect -s -a $hEntry -b $entrytmp | awk -F'\\t' 'BEGIN{SUM=0}{ SUM+=$3-$2 }END{print SUM}'`
+			suc=`awk -v gL="$gL" -v hL="$hL" -v iL="$iL" -v thresh="$threshold" 'BEGIN{hR=iL/hL; hP=iL/gL; hF=2*hR*hP/(hP+hR); if (hF >= thresh) {print "success"}}'`
+			successestmp=`echo "$successes\\n$suc"`
+			successes="$successestmp"
+		done
+		if [ "$successes" != "" ]; then
+			echo "success"
+			grep -P "(gene_id[= ]\\"$gid\\";|\\t$gid\\t|\\t$gid\\.t.*\\t)" $augParsed | sort -u >> $of
+		else
+			echo "failure"
+		fi
+	done
+	sort -u $of > $of.tmp; mv $of.tmp $of
 
-        rm $gids
-        """
-        callFunction(function)
+	rm $gids
+	"""
+	callFunction(function)
 
 
 def extractFromFastaByName(path_gffFile, path_fastaFile, path_fastaOut):
@@ -1165,6 +1166,29 @@ def checkFileExists(path_file):
 		sys.exit("File does not exist: " + path_file)
 	else:
 		return path_file
+
+def checkChromosomes(path_gff, path_genome):
+	print("checking chromosomes")
+	res=commands.getstatusoutput("gff=\"" + path_gff + "\"; genome=\"" + path_genome + "\"; " + """
+		a=`mktemp`; b=`mktemp`;
+		grep ">" " $genome | sed -r "s/>//g" > $a;
+		cut -f1 $gff | sort -u > $b
+		
+		genchrdup=`sort $a | uniq -d | sort -u | wc -l`
+		errMsg=""
+		if [ "$genchrdup" != 0 ]; then
+			errMsgTmp=`echo "Genome file $genome has duplicate chromosomes. Please adjust and try again."`
+			errMsg=$errMsgTmp
+		fi
+		
+		gffonly=`cat $a $b $b | uniq -u | wc -l`
+		if [ "$gffonly" != 0 ]; then
+			errMsgTmp=`echo "Gff file  $gff contains coordinates that do not exist in genome file $genome. Please adjust and try again."`
+			errMsg=$errMsgTmp
+		echo "$errMsg"
+		""")[1]
+	if res != "":
+		sys.exit(res)
 
 def checkSequences(path_gff, path_cds, path_aa):
 	print("checking gff, fasta, and cds files for consistency")
