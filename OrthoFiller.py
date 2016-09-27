@@ -1239,6 +1239,7 @@ def prepareFromScratch(path_infile, path_outDir):
 	for key in dict_basicInfo:
 		path_gffIn=dict_basicInfo[key]["gff"]
 		path_genome=dict_basicInfo[key]["genome"]
+		checkChromosomes(path_gffIn, path_genome)
 		path_cdsFastaOut=path_cdsDir+"/"+key+".cds.fasta"
 		path_aaFastaOut=path_aaDir+"/"+key+".aa.fasta"
 		fetchSequences(path_gffIn, path_genome, path_cdsFastaOut, path_aaFastaOut, 1)
