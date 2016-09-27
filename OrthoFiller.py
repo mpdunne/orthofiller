@@ -672,7 +672,7 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 		dict_speciesInfo[str_speciesName]["newProtein"] = path_newProteome
 		dict_speciesInfo[str_speciesName]["newSpeciesName"] =  str_speciesName + "newProteome.fasta"
 		path_predictedProteinSequences = dict_speciesInfo[str_speciesName]["augustussequences_hintfiltered"]
-		callFunction("cat " + path_oldProteome + " " + path_predictedProteinSequences + " > " + path_newProteome)
+		callFunction("cat " + path_oldProteome + " " + path_predictedProteinSequences + " | sed -r \"s/^>(.*)$/£££>\\1###/g\" $1 | tr '\\n' ' ' | sed -r \"s/£££/\\n/g\" | sed -r \"s/ //g\" | grep -v XXX | grep -v \"\*[A-Z]\" | grep -v \"###$\" | sed -r \"s/###/\\n/g\" | grep -vP \"^$\" > " + path_newProteome)
 	callFunction("python orthofinder.py -f " + path_newProteomesDir)
 	####################################################
 	# Check genes have ended up in the right orthogroup
