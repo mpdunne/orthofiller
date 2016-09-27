@@ -912,7 +912,7 @@ def hintFscoreFilter(path_augustusParsed, path_hintFile, path_augustusParsedHint
 	implementHintFscoreFilter(path_augustusParsed, path_hintFile, path_augustusParsedHintFiltered, num_threshold)
 	extractFromFastaByName(path_augustusParsedHintFiltered, path_augustusSequences, path_augustusSequencesHintFiltered)
 
-def implementHintFscoreFilter(path_augustusParsed, path_hintFile, path_outFile, num_threshold):
+def implementHintFscoreFilterOld(path_augustusParsed, path_hintFile, path_outFile, num_threshold):
         function="augParsed=\"" + path_augustusParsed + "\"; hintFile=\"" + path_hintFile + "\"; of=\"" + path_outFile + "\"; threshold=\"" + str(num_threshold) + "\"" + """
         augParsedBed="$augParsed.bed"
         echo "" > $of
@@ -942,6 +942,50 @@ def implementHintFscoreFilter(path_augustusParsed, path_hintFile, path_outFile, 
                 fi
         done
 
+        sort -u $of > $of.tmp; mv $of.tmp $of
+
+        rm $gids
+        """
+        callFunction(function)
+
+def implementHintFscoreFilter(path_augustusParsed, path_hintFile, path_outFile, num_threshold):
+        function="augParsed=\"" + path_augustusParsed + "\"; hintFile=\"" + path_hintFile + "\"; of=\"" + path_outFile + "\"; threshold=\"" + str(num_threshold) + "\"" + """
+        augParsedBed="$augParsed.bed"
+        echo "" > $of
+        grep -P "\\tCDS\\t" $augParsed | sed -r "s/transcript_id \\"([^\\"]*)\\"; gene_id \\"([^\\"]*)\\";/transcript_id=\\"\\1\\";gene_id=\\"\\2\\";/g" | sort -u | perl -ne 'chomp; @l=split; printf "%s\\t%d\\t%d\\t.\\t.\\t%s\\t%s\\n", $l[0], $l[3]-1, $l[4], $l[6], $l[8]' > $augParsedBed
+
+        hintsFileBed="$hintFile.bed"
+
+        perl -ne 'chomp; @l=split; printf "%s\\t%d\\t%d\\t.\\t.\\t%s\\t%s\\n", $l[0], $l[3]-1, $l[4], $l[6], $l[8]' $hintFile > $hintsFileBed
+
+        gids=`mktemp`
+        sed -r "s/.*gene_id=\\"([^\\"]*)\\";.*/\\1/g" $augParsedBed | sort -u > $gids
+
+        IFS='\n'
+
+        for gid in `cat $gids`; do
+                echo "checking hint scores for $gid from $augParsed"
+                entrytmp=`mktemp`
+                grep -P "gene_id[ =]\\"$gid\\"" $augParsedBed > $entrytmp
+                compatibleHints=`bedtools intersect -wa -s -b $entrytmp -a $hintsFileBed | sort -u`
+                gL=`awk -F'\\t' 'BEGIN{SUM=0}{ SUM+=$3-$2 }END{print SUM}' $entrytmp`
+                successes=""
+                for hint in `echo "$compatibleHints" | cut -f7`; do
+                        hEntry=`mktemp`
+                        echo "$compatibleHints" | awk -v a="$hint" '$7 == a' > $hEntry
+                        hL=`awk -F'\\t' 'BEGIN{SUM=0}{ SUM+=$3-$2 }END{print SUM}' $hEntry`
+                        iL=`bedtools intersect -s -a $hEntry -b $entrytmp | awk -F'\\t' 'BEGIN{SUM=0}{ SUM+=$3-$2 }END{print SUM}'`
+                        suc=`awk -v gL="$gL" -v hL="$hL" -v iL="$iL" -v thresh="$threshold" 'BEGIN{hR=iL/hL; hP=iL/gL; hF=2*hR*hP/(hP+hR); if (hF >= thresh) {print "success"}}'`
+                        successestmp=`echo "$successes\\n$suc"`
+                        successes="$successestmp"
+                done
+                if [ "$successes" != "" ]; then
+                        echo "success"
+                        grep -P "(gene_id[= ]\\"$gid\\";|\\t$gid\\t|\\t$gid\\.t.*\\t)" $augParsed | sort -u >> $of
+                else
+                        echo "failure"
+                fi
+        done
         sort -u $of > $of.tmp; mv $of.tmp $of
 
         rm $gids
@@ -986,7 +1030,7 @@ def fetchSequences(path_gffIn, path_genome, path_cdsFastaOut, path_aaFastaOut, i
 		bedtools getfasta -name -s -fullHeader -fi $genome -fo $gffBed.pos.tab -bed $gffBed.pos -tab
 		cat $gffBed.pos.tab | awk '{a[$1]=a[$1]""$2} END {for (i in a) {print ">"i"\\n"a[i]}}' > $gffBed.pos.fa
 
-		cat $gffBed.pos.fa $gffBed.neg.fa > $outfile
+		cat $gffBed.pos.fa $gffBed.neg.fa | sed -r "s/^>(.*)$/£££>\\1###/g" $1 | tr '\\n' ' ' | sed -r "s/£££/\\n/g" | sed -r "s/ //g" | grep -v XXX | grep -v "\*[A-Z]" | grep -v "###$" | sed -r "s/###/\\n/g" | grep -vP "^$" > $outfile
 		echo $tf
 		rm -r $tf
 		""")
