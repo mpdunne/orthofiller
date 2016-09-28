@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
 __author__ = "Michael Dunne, Reed Roberts"
 __credits__ = "Michael Dunne, Reed Roberts, David Emms, Steve Kelly"
@@ -1183,10 +1184,10 @@ def checkChromosomes(path_gff, path_genome):
 		
 		gffonly=`cat $a $b $b | uniq -u | wc -l`
 		if [ "$gffonly" != 0 ]; then
-			errMsgTmp=`echo "Gff file  $gff contains coordinates that do not exist in genome file $genome. Please adjust and try again."`
+			errMsgTmp=`echo "$errMsg\\nGff file  $gff contains coordinates that do not exist in genome file $genome. Please adjust and try again."`
 			errMsg=$errMsgTmp
-		echo "$errMsg"
-		""")[1]
+		fi
+		echo "$errMsg" """)[1]
 	if res != "":
 		sys.exit(res)
 
