@@ -537,7 +537,6 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 			int_counter = int_counter + 1
 		og_pool.close()
 		og_pool.join()
-		callFunction("sleep 10000")
 		####################################################
 		# Start a new pool for processing the hmm outfiles.
 		####################################################
