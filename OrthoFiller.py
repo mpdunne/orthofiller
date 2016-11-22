@@ -600,6 +600,7 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 	for str_speciesName in dict_speciesInfo:
 		path_proposedGenes = dict_speciesInfo[str_speciesName]["proposedgenes"]
 		path_genome = dict_speciesInfo[str_speciesName]["genome"]
+		path_sourcegff=dict_speciesInfo[str_speciesName]["gff"]
 		str_augustusOutNameStub= path_wDirS + "/" + str_speciesName + ".proposedGenes"
 		path_augustusOut = str_augustusOutNameStub + ".AugustusModels.gff"
 		path_fastaOut = str_augustusOutNameStub + ".AugustusParsed.sequences.fasta"
@@ -612,7 +613,7 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 		print("Running Augustus on " + str_speciesName)
 		if not dict_speciesInfo[str_speciesName]["indirectAugustus"]:
 			path_augustusSpeciesName = dict_speciesInfo[str_speciesName]["augustusSpecies"]
-			async(augustusPool, runAndParseAugustus, args=(path_proposedGenes, path_genome, path_augustusOut, path_augustusParsedOut, path_fastaOut, path_augustusSpeciesName, path_hintsFile))
+			async(augustusPool, runAndParseAugustus, args=(path_proposedGenes, path_genome, path_augustusOut, path_augustusParsedOut, path_fastaOut, path_augustusSpeciesName, path_hintsFile, path_sourcegff))
 		else:
 			path_otherSpeciesResults = path_wDirS + "/" + str_speciesName + ".augustus_otherSpecies"
 			makeIfAbsent(path_otherSpeciesResults)
@@ -624,7 +625,7 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 				path_otherSpeciesAugustusParsedOut =  path_otherSpeciesResults + "/" + str_speciesName + ".proposedGenes." + str_otherSpecies + ".AugustusParsed.gff"
 				path_otherSpeciesFastaOut =  path_otherSpeciesResults + "/" + str_speciesName + ".proposedGenes." + str_otherSpecies + ".AugustusParsed.sequences.fasta"
 				otherSpeciesAugustusSpeciesName = dict_speciesInfo[str_otherSpecies]["augustusSpecies"]
-				async(augustusPool, runAndParseAugustus, args=(path_proposedGenes, path_genome, path_otherSpeciesAugustusOut, path_otherSpeciesAugustusParsedOut, path_otherSpeciesFastaOut, otherSpeciesAugustusSpeciesName, path_hintsFile))
+				async(augustusPool, runAndParseAugustus, args=(path_proposedGenes, path_genome, path_otherSpeciesAugustusOut, path_otherSpeciesAugustusParsedOut, path_otherSpeciesFastaOut, otherSpeciesAugustusSpeciesName, path_hintsFile, path_sourcegff))
 				print(otherSpeciesAugustusSpeciesName)
 	augustusPool.close()
 	augustusPool.join()
@@ -813,11 +814,11 @@ def annotateIntersectedOutput(path_hitsOgIntersectionFileName, path_hitsOgInters
 		awk -F \"\\t\" '$20 != \".\"' $infile | awk '$20 != $11' | sed -r \"s/_id[ =]*[^\\\"]*\\\"/_id=\\\"/g\" | sed -r \"s/$/\\tmatch_bad/g\" >> $outfile;\
 		awk -F \"\\t\" '$20 != \".\"' $infile | awk '$20 == $11' | sed -r \"s/_id[ =]*[^\\\"]*\\\"/_id=\\\"/g\" | sed -r \"s/$/\\tmatch_good/g\" >> $outfile;")
 	
-def runAndParseAugustus(path_goodHits, path_genome, path_augustusOut, path_augustusParsedOut, path_fastaOut, path_augustusSpeciesName, path_hintsFile):
+def runAndParseAugustus(path_goodHits, path_genome, path_augustusOut, path_augustusParsedOut, path_fastaOut, path_augustusSpeciesName, path_hintsFile, path_sourcegff):
 	print("augustus out is " + path_augustusOut)
 	print("augustus parsed out is " + path_augustusParsedOut)
 	runAugustus(path_goodHits, path_genome, path_augustusOut, path_augustusSpeciesName, path_hintsFile)
-	parseAugustusOutput(path_augustusOut, path_augustusParsedOut, path_fastaOut)
+	parseAugustusOutput(path_augustusOut, path_augustusParsedOut, path_fastaOut, path_sourcegff)
 
 
 def combineIndirectAugustusResults(path_otherSpeciesResults, path_augustusParsedOut, path_fastaOut):
@@ -897,9 +898,9 @@ def makeHintsFile(path_goodHits, path_hitsHintsGff):
 	"""
 	callFunction("grep -v \"#\" " + path_goodHits + " | sed -r \"s/ +/\\t/g\" | perl -ne 'chomp;@l=split; printf \"%s\\tOrthoFiller\\texonpart\\t%s\\t%s\\t%s\\t%s\\t.\\torthogroup=%s;source=M\\n\", $l[0], $l[1], $l[2], $l[6], $l[5], $l[10]' | sed -r \"s/ +/\\t/g\"  > " + path_hitsHintsGff)
 
-def parseAugustusOutput(path_augustusOutput, path_outputGff, path_outputFasta):
+def parseAugustusOutput(path_augustusOutput, path_outputGff, path_outputFasta, path_sourcegff):
 	function = "infile=\"" + path_augustusOutput + "\"; outfile=\"" +\
-			path_outputGff + "\"; fastaout=\"" + path_outputFasta + "\"; "+ \
+			path_outputGff + "\"; fastaout=\"" + path_outputFasta + "\"; sourcegff=\"" + path_sourcegff + "\";"+ \
 			"""ot=`mktemp -d`; mkdir $ot/augsplit; echo "parsing in $ot"; awk -v RS="# start gene" -v ot="$ot" '{print "#"$0 > ot"/augsplit/augSplit."NR }' $infile
 			mkdir $ot/success
 			echo -n "" > $fastaout
@@ -915,7 +916,16 @@ def parseAugustusOutput(path_augustusOutput, path_outputGff, path_outputFasta):
 				echo ">$id" >> $fastaout
 				echo "$sequence" >> $fastaout
 			done
-			sort -u $outfile > $outfile.tmp; mv $outfile.tmp $outfile
+			sort -u $outfile > $outfile.tmp;
+
+			sed -r "s/; /;/g" $outfile.tmp | sed -r "s/ \\"/\\"/g"  |  awk '{if (b[$9]==""){b[$9]=$4; e[$9]=$5; c[$9]=$0}; if (b[$9] > $4){b[$9]=$4}; if(e[$9] < $5){e[$9]=$5}} END {for (i in b) {print c[i]"\\t"b[i]"\\t"e[i]}}' | awk  'BEGIN{OFS="\\t"} $4=$10; $5=$11' | sort -u | sed -r "s/CDS/gene/g" | cut -f1-9 > $outfile.tmp.genes
+
+			bedtools intersect -a $outfile.tmp.genes -b $sourcegff -wa -wb | cut -f1-9 > $outfile.tmp.genes.remove
+			bedtools subtract -A -a $outfile.tmp -b $outfile.tmp.genes.remove > $outfile.tmp.out
+
+			mv $outfile.tmp.out $outfile
+
+			rm $outfile.tmp.genes $outfile.tmp.genes.remove $outfile.tmp
 			rm -r $ot
 			"""
 	callFunction(function)
