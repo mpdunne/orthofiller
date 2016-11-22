@@ -527,7 +527,6 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 		int_counter = 1
 		str_total = str(len(singletons))
 		for singleton in singletons:
-			processSingleton(singleton, singletons[singleton][0], dict_sequenceInfoById, dict_speciesInfo, path_wDir)
 			print "Submitting singleton " + singleton + "; " + str(int_counter) + " of " + str_total + " submitted."
 			async(og_pool, processSingleton, args=(singleton, \
 							singletons[singleton][0], \
@@ -901,11 +900,11 @@ def makeHintsFile(path_goodHits, path_hitsHintsGff):
 def parseAugustusOutput(path_augustusOutput, path_outputGff, path_outputFasta):
 	function = "infile=\"" + path_augustusOutput + "\"; outfile=\"" +\
 			path_outputGff + "\"; fastaout=\"" + path_outputFasta + "\"; "+ \
-			"""ot=`mktemp -d`; echo "parsing in $ot"; awk -v RS="# start gene" -v ot="$ot" '{print "#"$0 > ot"/augSplit."NR }' $infile
+			"""ot=`mktemp -d`; mkdir $ot/augsplit; echo "parsing in $ot"; awk -v RS="# start gene" -v ot="$ot" '{print "#"$0 > ot"/augsplit/augSplit."NR }' $infile
 			mkdir $ot/success
 			echo -n "" > $fastaout
 			echo -n "" > $outfile
-			find $ot | xargs grep -P "transcript supported by hints \(any source\): [^0]" | cut -f 1 -d ":" | xargs -I '{}' mv '{}' $ot/success/
+			find $ot/augsplit -type "f" | xargs grep -P "transcript supported by hints \(any source\): [^0]" | cut -f 1 -d ":" | xargs -I '{}' mv '{}' $ot/success/
 			for file in `find $ot/success -type "f"`; do
 				flatstring=`grep "#" $file | sed -r "s/# //g" | sed ':a;N;$!ba;s/\\n/ /g'`
 				possibleOrthos=`echo "$flatstring" | sed -r "s/.*hint groups fully obeyed://g" | grep -oP "OG[0-9]{7}" | paste -sd, | sed -r "s/^,//g" | sed -r "s/,$//g"`
