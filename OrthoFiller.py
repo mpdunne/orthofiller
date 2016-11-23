@@ -136,6 +136,49 @@ def readInputLocations(path_speciesInfoFile):
 			checkSequences(path_gff, path_cds, path_aa)
 	return dict_speciesInfo
 
+def gffsForOrthoGroups(path_wDir, path_orthogroups, path_singletons, dict_speciesInfo, int_cores):
+	b=[]; bs=[]
+	with open(path_orthogroups) as f:
+		data = csv.reader(f, delimiter="\t")
+		for line in data:
+			b.append(line)
+	with open(path_singletons) as f:
+		data = csv.reader(f, delimiter="\t")
+		for line in data:
+			bs.append(line)
+	speciesList = b[0]
+	orthogroups = b[1:]
+	singletons  = bs[1:]
+	gffPool=multiprocessing.Pool(int_cores)
+	for i in range(1,len(speciesList)):
+		str_species=speciesList[i]
+		a=[];
+		with open(dict_speciesInfo[str_species]["gff"]) as f:
+			data = csv.reader(f, delimiter="\t")
+			for line in data:
+				a.append(line)
+		async(gffPool, gffsForGroups, args=(a, orthogroups, path_wDir, str_species, "_orthoProtein.bed", i))
+		async(gffPool, gffsForGroups, args=(a, singletons, path_wDir, str_species, "_singletonProtein.bed", i))
+	gffPool.join()
+	gffPool.close()
+		
+
+
+def gffsForGroups(list_gff, orthogroups, path_wDir, str_species, str_outsuffix, int_speciesNum):
+	#Gff entries by transcript name
+	aa=[[re.sub(".*transcript_id[ =]\"([^\"]*)\".*", r'\1', x[8]), x] for x in list_gff]
+	c={};
+	for x in aa: c[x[0]]=[]
+	for x in aa: c[x[0]].append(x[1])
+	e ={x[0]: [c[i] for i in itertools.ifilterfalse(lambda x: x=='', re.split("[ ,]*", x[int_speciesNum]))] for x in orthogroups}
+	for orthogroup in e:
+		toprint=list(itertools.chain.from_iterable(e[orthogroup]))
+		filename = path_wDir + "/" + orthogroup+"." + str_species + str_outsuffix
+		with open(filename, 'w') as mycsvfile:
+			datawriter = csv.writer(mycsvfile, delimiter = '\t',quoting = csv.QUOTE_NONE, quotechar='')
+			for row in list(itertools.chain.from_iterable(e[orthogroup])):
+				datawriter.writerow(row)
+
 def trainAugustus(dict_speciesInfo, path_wDir, pool):
 	"""trainAugustus - Trains augustus using the genomes of the input species
 	"""
@@ -396,36 +439,7 @@ def processOg(orthogroup, list_orthogroupSequenceIds, orthogroupProteinSequences
 				'chomp;@l=split; printf \"%s\\t%s\\t%s\\t.\\t.\\t%s\\t" + species + "\\t" + orthogroup +
 				"\\n\", $l[0], ($l[1] + $l[2] - abs($l[1] - $l[2])) / 2, ($l[1] + $l[2] + abs($l[2] - $l[1])) / 2,\
 				 join(\"\\t\", @l[3..6])' > " + path_hitsFileBed)
-		#Form a bed file with the regions contained in the source orthogroup
-		path_gffFile = dict_speciesInfo[species]["gff"]
-		if not "gff_cds" in dict_speciesInfo[species]:
-			path_gffCds = path_wDir + "/" + species + ".cds.gff"
-			callFunction("awk '$3 == \"CDS\"' " + path_gffFile + " > " + path_gffCds)
-			dict_speciesInfo[species]["gff_cds"] = path_gffCds
-		path_gffCds=dict_speciesInfo[species]["gff_cds"]
-		path_gffBedFile = path_wDir + "/" + orthogroup+"."+species+"_orthoProtein.bed"
-		callFunction("echo -n \"\" > " + path_gffBedFile)
-		seqIds = [ dict_sequenceInfoById[x].seqId for x in list_orthogroupSequenceIds if dict_sequenceInfoById[x].species==species ]
-		print("Getting orthoprotein file " + path_gffBedFile)
-		# CC - This assumes a specifically formatted gff file. Will need to adapt to make it applicable to gff3 etc.
-		for seqId in seqIds:
-			callFunction("grep -P \"transcript_id[ =]\\\"" + seqId + "\\\"\" " + path_gffCds + " | sed -r \"s/ +\"/=\"/g\" | sed -r \"s/; /;/g\" | cut -f1,4,5,6,7,9 | \
-			       perl -ne 'chomp;@l=split; printf \"%s\\t.\\t%s\\t" + species + "\\t" + orthogroup + "\\n\", join(\"\\t\", @l[0..2]), join(\"\\t\", \
-			       @l[3..5])' >> " + path_gffBedFile)
 	print("Finished " + orthogroup)
-
-def processSingleton(str_singletonId, str_singletonSequenceId, dict_sequenceInfoById, dict_speciesInfo, path_wDir):
-	"""Simply pulls out a bed file representing the protein in each singleton
-	"""
-	# There should only be one item here.
-	species = dict_sequenceInfoById[str_singletonSequenceId].species
-	seqId = dict_sequenceInfoById[str_singletonSequenceId].seqId
-	# CC -- safety: need to make sure the names are the same in the gff as in the fasta.
-	path_gffFile = dict_speciesInfo[species]["gff"]
-	path_gffBedFile =  path_wDir + "/" + str_singletonId + "."+species+"_singletonProtein.bed"
-	callFunction("awk '$3==\"CDS\"' " + path_gffFile + " | grep -P \"transcript_id[ =]\\\"" + seqId + "\\\"\" | sed -r \"s/_id /_id=/g\" | sed -r \"s/; /;/g\" | cut -f1,4,5,6,7,9 | \
-		perl -ne 'chomp;@l=split; printf \"%s\\t.\\t%s\\t" + species + "\\t" + str_singletonId + "\\n\", join(\"\\t\", @l[0..2]), join(\"\\t\", \
-		@l[3..5])' >>" + path_gffBedFile)
 
 def proposeNewGenes(path_hitsOgIntersectionFileNameAnnotated, path_allHitsOgIntersectionFileNameAnnotated, str_speciesName, path_candidatesFile, hitFilter):
 	# Use R to find candidates.
@@ -470,7 +484,7 @@ def prepareHmmDbs(dict_speciesInfo, path_wDir, int_cores):
 
 
 
-def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_resultsDir, path_wDir, int_cores=16, firstPass=False, augOnly=False, hitFilter=True, hintFilter=True):
+def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_resultsDir, path_wDir, path_orthoFinderOutputFile, path_singletonsFile, int_cores=16, firstPass=False, augOnly=False, hitFilter=True, hintFilter=True):
 	"""Takes orthofinder output and a collection of genome info locations as input.
 	   Processes orthogroups in parallel, filters hits, and generates gene models.
 	"""
@@ -505,6 +519,10 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 		######################################################
 		prepareHmmDbs(dict_speciesInfo, path_wDir, int_cores)
 		#####################################################
+		# Produce gff files for each orthogroup/species pair
+		#####################################################		
+		gffsForOrthoGroups(path_wDir, path_orthoFinderOutputFile, path_singletonsFile, dict_speciesInfo, int_cores):
+		#####################################################
 		# Process each individual orthogroup in parallel
 		#####################################################
 		proteinSequences = getProteinSequences(dict_sequenceInfoById, dict_speciesInfo)
@@ -521,21 +539,6 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 							dict_speciesInfo, \
 							path_wDir))
 			int_counter = int_counter + 1
-		####################################################
-		# Now add a process for each singleton in turn.
-		####################################################
-		int_counter = 1
-		str_total = str(len(singletons))
-		for singleton in singletons:
-			print "Submitting singleton " + singleton + "; " + str(int_counter) + " of " + str_total + " submitted."
-			async(og_pool, processSingleton, args=(singleton, \
-							singletons[singleton][0], \
-							dict_sequenceInfoById, \
-							dict_speciesInfo, \
-							path_wDir))
-			int_counter = int_counter + 1
-		og_pool.close()
-		og_pool.join()
 		####################################################
 		# Start a new pool for processing the hmm outfiles.
 		####################################################
@@ -1142,7 +1145,7 @@ def start(path_speciesInfoFile, path_orthoFinderOutputFile, path_singletonsFile,
 	if firstPassMode:
 		path_firstPassOutDir=path_outDir + "/firstPass"
 		makeIfAbsent(path_firstPassOutDir)
-		run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_firstPassOutDir, path_wDir, int_cores, True, False, hitFilter, hintFilter)
+		run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_firstPassOutDir, path_wDir, path_orthoFinderOutputFile, path_singletonsFile, int_cores, True, False, hitFilter, hintFilter)
 		pool = multiprocessing.Pool(int_cores)
 		for str_species in dict_speciesInfo:
 			sequences = [ dict_sequenceInfoById[x].seqId for x in dict_sequenceInfoById if dict_sequenceInfoById[x].species == str_species ]
@@ -1165,9 +1168,9 @@ def start(path_speciesInfoFile, path_orthoFinderOutputFile, path_singletonsFile,
 		######################################################
 		# Run it
 		######################################################
-		run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_resultsDir, path_wDir, int_cores, False, True, hitFilter, hintFilter)
+		run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_resultsDir, path_wDir, path_orthoFinderOutputFile, path_singletonsFile, int_cores, False, True, hitFilter, hintFilter)
 	else:
-		run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_resultsDir, path_wDir, int_cores, False, False, hitFilter, hintFilter)
+		run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_resultsDir, path_wDir, path_orthoFinderOutputFile, path_singletonsFile, int_cores, False, False, hitFilter, hintFilter)
 
 def unpackFitDistributionScript(path_scriptDestination):
 	callFunction("echo \"outputting to " + path_scriptDestination + "\"")
