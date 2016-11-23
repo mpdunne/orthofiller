@@ -558,7 +558,7 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 			# Get all orthos and singletons into one file
 			# Bedtools gets upset if we try to intersect with an empty file, so as a hack also provide a fake
 			# entry in the same format. Hope that this never pops up in real life.
-			callFunction("(find  " + path_wDir + " -name \"OG*" + str_speciesName + "*Protein.gtf\" | xargs -n 32 cat | grep -v \"inary\" | awk '$3==\"CDS\"' | sed -r \"s/_id /_id=/g\" | sed -r \"s/; /;/g\" | cut -f1,4,5,6,7,9,10,11 | perl -ne 'chomp;@l=split; printf \"$l[0]\\t%s\\t%s\\t.\\t%s\\t\\n\", $l[1]-1, $l[2]-1, join(\"\\t\", @l[3..7])' > " + path_ogBedFileName + "; echo \"chr_FAKE_QKlWlKgGS4\\t0\\t1\\t.\\t.\\t-\\tgene_id=\\\"FAKE\\\"\\tfake.fasta\tOG9999999\") |  sort -k1,1 -k2,2n >> " + path_ogBedFileName)
+			callFunction("(find  " + path_wDir + " -name \"OG*" + str_speciesName + "*Protein.gtf\" | xargs -n 32 cat | grep -v \"inary\" | awk '$3==\"CDS\"' | sed -r \"s/ \\\"/\\\"/g\" | sed -r \"s/; /;/g\" | cut -f1,4,5,6,7,9,10,11 | perl -ne 'chomp;@l=split; printf \"$l[0]\\t%s\\t%s\\t.\\t%s\\t\\n\", $l[1]-1, $l[2]-1, join(\"\\t\", @l[3..7])' > " + path_ogBedFileName + "; echo \"chr_FAKE_QKlWlKgGS4\\t0\\t1\\t.\\t.\\t-\\tgene_id=\\\"FAKE\\\"\\tfake.fasta\tOG9999999\") |  sort -k1,1 -k2,2n >> " + path_ogBedFileName)
 			#Now intersect
 			#loj is causing problems (segfaults) and they don't make any sense. So work around it.
 #			callFunction("bedtools intersect -loj -nonamecheck -a " + path_hitsBedFileName + " -b " + path_ogBedFileName + " -wa -wb -sorted > " + path_hitsOgIntersectionFileName)
