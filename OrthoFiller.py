@@ -523,7 +523,7 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 		#####################################################
 		# Produce gff files for each orthogroup/species pair
 		#####################################################		
-		gffsForOrthoGroups(path_wDir, path_orthoFinderOutputFile, path_singletonsFile, dict_speciesInfo, int_cores):
+		gffsForOrthoGroups(path_wDir, path_orthoFinderOutputFile, path_singletonsFile, dict_speciesInfo, int_cores)
 		#####################################################
 		# Process each individual orthogroup in parallel
 		#####################################################
