@@ -1271,8 +1271,8 @@ def prepareFromScratch(path_infile, path_outDir):
 		path_aaFastaOut=path_aaDir+"/"+key+".aa.fasta"
 		fetchSequences(path_gffIn, path_genome, path_cdsFastaOut, path_aaFastaOut, 1)
 		callFunction("echo \"" + path_aaFastaOut + "\t" + path_gffIn + "\t" + path_genome + "\t" + path_cdsFastaOut + "\" >> " + path_speciesInfoFile)
-#ql	callFunction("rm -rf " + path_aaDir + "/Results*")
-#ql	callFunction("python orthofinder.py -f " + path_aaDir)
+	callFunction("rm -rf " + path_aaDir + "/Results*")
+	callFunction("python orthofinder.py -f " + path_aaDir)
 	path_orthoFinderOutputFile=find("OrthologousGroups.csv", path_aaDir)
 	path_singletonsFile=find("OrthologousGroups_UnassignedGenes.csv", path_aaDir)
 	return path_speciesInfoFile, path_orthoFinderOutputFile, path_singletonsFile
