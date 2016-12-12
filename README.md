@@ -52,6 +52,8 @@ python gff_to_gtf.py infile.gff3 > outfile.gtf
 Users should note that this tool truncates chromsome names to 15 characters. If this is going to be an issue, you may wish to use placeholder names in the conversion step, for example:
 
 ```
+#!bin/bash
+
 file="file_to_convert.gff3"
 
 cut -f1 $file | sort -u | grep -v "#" > $file.placeholder
