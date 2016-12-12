@@ -519,11 +519,11 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 		######################################################
 		# Set up an hmm database for each species
 		######################################################
-#ql		prepareHmmDbs(dict_speciesInfo, path_wDir, int_cores)
+		prepareHmmDbs(dict_speciesInfo, path_wDir, int_cores)#ql
 		#####################################################
 		# Produce gff files for each orthogroup/species pair
 		#####################################################		
-#ql		gffsForOrthoGroups(path_wDir, path_orthoFinderOutputFile, path_singletonsFile, dict_speciesInfo, int_cores)
+		gffsForOrthoGroups(path_wDir, path_orthoFinderOutputFile, path_singletonsFile, dict_speciesInfo, int_cores)#ql
 		#####################################################
 		# Process each individual orthogroup in parallel
 		#####################################################
@@ -534,12 +534,12 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 		for orthogroup in orthogroups:
 			print "Submitting " + orthogroup + "; " + str(int_counter) + " of " + str_total + " submitted."
 			orthogroupProteinSequences = { x: proteinSequences[x] for x in orthogroups[orthogroup] }
-#qr			async(og_pool, processOg, args=(orthogroup, \
-#qr							orthogroups[orthogroup], \
-#qr							orthogroupProteinSequences, \
-#qr							dict_sequenceInfoById, \
-#qr							dict_speciesInfo, \
-#qr							path_wDir))
+			async(og_pool, processOg, args=(orthogroup, \
+							orthogroups[orthogroup], \
+							orthogroupProteinSequences, \
+							dict_sequenceInfoById, \
+							dict_speciesInfo, \
+							path_wDir))#qr
 			int_counter = int_counter + 1
 		####################################################
 		# Start a new pool for processing the hmm outfiles.
@@ -554,7 +554,7 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 			path_ogBedFileName = path_wDir + "/" + str_speciesName + ".allOrthogroups.bed"
 			path_hitsOgIntersectionFileName = path_wDir + "/" + str_speciesName + ".hitsIntersectOrthogroups.bed"
 			# Get all hits into one file
-#ql			callFunction("find  " + path_wDir + " -name \"OG*" + str_speciesName + "*hits.bed\" | xargs -n 32 cat | sed -r \"s/gene_id=*[^\\\"]*\\\"/gene_id=\\\"/g\" | sort -k1,1 -k2,2n | awk '$2 >0 && $3 > 0'  | sort -k1,1 -k2,2n > " + path_hitsBedFileName)
+			callFunction("find  " + path_wDir + " -name \"OG*" + str_speciesName + "*hits.bed\" | xargs -n 32 cat | sed -r \"s/gene_id=*[^\\\"]*\\\"/gene_id=\\\"/g\" | sort -k1,1 -k2,2n | awk '$2 >0 && $3 > 0'  | sort -k1,1 -k2,2n > " + path_hitsBedFileName)#ql
 			# Get all orthos and singletons into one file
 			# Bedtools gets upset if we try to intersect with an empty file, so as a hack also provide a fake
 			# entry in the same format. Hope that this never pops up in real life.
@@ -562,12 +562,12 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 			#Now intersect
 			#loj is causing problems (segfaults) and they don't make any sense. So work around it.
 #			callFunction("bedtools intersect -loj -nonamecheck -a " + path_hitsBedFileName + " -b " + path_ogBedFileName + " -wa -wb -sorted > " + path_hitsOgIntersectionFileName)
-#ql			callFunction("bedtools intersect -nonamecheck -a " + path_hitsBedFileName + " -b " + path_ogBedFileName + " -wa -wb > " + path_hitsOgIntersectionFileName)
-#ql			callFunction("cat " + path_hitsOgIntersectionFileName + " " + path_hitsBedFileName + " | cut -f1-11 | sort | uniq -u | sed -r \"s/$/\\t.\\t.\\t.\\t.\\t.\\t.\\t.\\t.\\t./g\" > " + path_hitsOgIntersectionFileName + ".tmp; cat " + path_hitsOgIntersectionFileName + ".tmp " + path_hitsOgIntersectionFileName + " > " + path_hitsOgIntersectionFileName + ".tmp.tmp ; mv " + path_hitsOgIntersectionFileName + ".tmp.tmp " + path_hitsOgIntersectionFileName + "; rm " + path_hitsOgIntersectionFileName + ".tmp")
+			callFunction("bedtools intersect -nonamecheck -a " + path_hitsBedFileName + " -b " + path_ogBedFileName + " -wa -wb > " + path_hitsOgIntersectionFileName)#ql
+			callFunction("cat " + path_hitsOgIntersectionFileName + " " + path_hitsBedFileName + " | cut -f1-11 | sort | uniq -u | sed -r \"s/$/\\t.\\t.\\t.\\t.\\t.\\t.\\t.\\t.\\t./g\" > " + path_hitsOgIntersectionFileName + ".tmp; cat " + path_hitsOgIntersectionFileName + ".tmp " + path_hitsOgIntersectionFileName + " > " + path_hitsOgIntersectionFileName + ".tmp.tmp ; mv " + path_hitsOgIntersectionFileName + ".tmp.tmp " + path_hitsOgIntersectionFileName + "; rm " + path_hitsOgIntersectionFileName + ".tmp")#ql
 			path_hitsOgIntersectionFileNameAnnotated = path_wDir + "/" + str_speciesName + ".hitsIntersectionOrthogroups.annotated.bed"
 			#Annotate whether each line is a good match, a bad match, or a candidate match.
 			#We don't need to distinguish singletons and orthos.
-#ql			async(pool, annotateIntersectedOutput, args=(path_hitsOgIntersectionFileName, path_hitsOgIntersectionFileNameAnnotated))
+			async(pool, annotateIntersectedOutput, args=(path_hitsOgIntersectionFileName, path_hitsOgIntersectionFileNameAnnotated))#ql
 			dict_ogIntersectionFileNamesAnnotated[str_speciesName] = path_hitsOgIntersectionFileNameAnnotated
 		pool.close()
 		pool.join()
@@ -578,10 +578,10 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 		####################################################
 		print("Generating concatenated version of HMM output")
 		path_allHitsOgIntersectionFileNameAnnotated = path_wDir + "/allSpecies.hitsIntersectionOrthogroups.annotated.bed"
-#ql		deleteIfPresent(path_allHitsOgIntersectionFileNameAnnotated)
+		deleteIfPresent(path_allHitsOgIntersectionFileNameAnnotated)#ql
 		for str_speciesName in dict_ogIntersectionFileNamesAnnotated:
 			path_annotatedFile = dict_ogIntersectionFileNamesAnnotated[str_speciesName]
-#ql			callFunction("cat " + path_annotatedFile + " >> " + path_allHitsOgIntersectionFileNameAnnotated)
+			callFunction("cat " + path_annotatedFile + " >> " + path_allHitsOgIntersectionFileNameAnnotated)#ql
 		####################################################
 		# Fit a model for each individual species. If data
 		# is insufficient, use aggregated data.
@@ -591,7 +591,7 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 			path_outFile = path_wDir + "/" + str_speciesName + ".proposedGenes"
 			dict_speciesInfo[str_speciesName]["proposedgenes"] = path_outFile
 			path_hitsOgIntersectionFileNameAnnotated = dict_ogIntersectionFileNamesAnnotated[str_speciesName]
-#ql			async(pool, proposeNewGenes, args=(path_hitsOgIntersectionFileNameAnnotated, path_allHitsOgIntersectionFileNameAnnotated, str_speciesName, path_outFile, hitFilter))
+			async(pool, proposeNewGenes, args=(path_hitsOgIntersectionFileNameAnnotated, path_allHitsOgIntersectionFileNameAnnotated, str_speciesName, path_outFile, hitFilter))#ql
 		pool.close()
 		pool.join()
 #qx	sys.exit(1)
@@ -756,12 +756,12 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 		# which can be a problem with iterated runs, for example.
 		###########################################################
 		# get the list of existing gene names
- 		path_acceptedGff=path_resultsDir + "/" + str_speciesName + ".newGenes.gff"
+ 		path_acceptedGff=path_resultsDir + "/" + str_speciesName + ".newGenes.gtf"
 		path_geneNameConversionTable=path_augustusParsed + ".geneNamesConversion.txt"
 		assignNames(str_speciesName, path_acceptedGff, path_geneNameConversionTable, protSequencesAccepted, dict_sequenceInfoById, path_augustusParsed, path_acceptedSequencesOut)
 		# write everything out
 		path_resultsFasta = path_resultsDir + "/" + str_speciesName + ".results.aa.fasta"
-		path_resultsGff =path_resultsDir + "/" + str_speciesName + ".results.gff"
+		path_resultsGff =path_resultsDir + "/" + str_speciesName + ".results.gtf"
 		dict_speciesInfo[str_speciesName]["resultsgff"]=path_resultsGff
 		callFunction("cat " + dict_speciesInfo[str_speciesName]["gff"] + " " +  path_acceptedGff + " > " + path_resultsGff)
 		callFunction("cat " + dict_speciesInfo[str_speciesName]["protein"] + " " +  path_acceptedSequencesOut + " > " + path_resultsFasta)
@@ -1145,12 +1145,12 @@ def start(path_speciesInfoFile, path_orthoFinderOutputFile, path_singletonsFile,
 			dict_speciesInfo[str_species]["gffForTraining"] = ""
 		else:
 			path_gff=dict_speciesInfo[str_species]["gff"]
-#ql			dict_speciesInfo[str_species]["needsTraining"] = True
+			dict_speciesInfo[str_species]["needsTraining"] = True#ql
 			path_gffForTraining = path_wDir + "/" + str_species + ".training.gff"
-			dict_speciesInfo[str_species]["augustusSpecies"]=commands.getstatusoutput("a=`find " + path_wDir+ "/Augustus/"+str_species+"/autoAugTrain -name \"tmp_opt*\" -exec stat {} --printf=\"%y\\t%n\\n\" \\;  | sort -t\"-\" -k1,1n -k2,2n -k3,3n | head -n1  | cut -f2`; echo ${a##*/} | sed -r \"s/tmp_opt_//g\"")[1]
-#qr			dict_speciesInfo[str_species]["augustusSpecies"]=str_species+ ".orthofiller." + datetime.datetime.now().strftime("%y%m%d") + "." + ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(9))
+#qr			dict_speciesInfo[str_species]["augustusSpecies"]=commands.getstatusoutput("a=`find " + path_wDir+ "/Augustus/"+str_species+"/autoAugTrain -name \"tmp_opt*\" -exec stat {} --printf=\"%y\\t%n\\n\" \\;  | sort -t\"-\" -k1,1n -k2,2n -k3,3n | head -n1  | cut -f2`; echo ${a##*/} | sed -r \"s/tmp_opt_//g\"")[1]
+			dict_speciesInfo[str_species]["augustusSpecies"]=str_species+ ".orthofiller." + datetime.datetime.now().strftime("%y%m%d") + "." + ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(9))
 			dict_speciesInfo[str_species]["gffForTraining"] = path_gffForTraining
-#ql			async(pool, makeGffTrainingFile, args=(path_gff, path_gffForTraining))
+			async(pool, makeGffTrainingFile, args=(path_gff, path_gffForTraining))#ql
 	pool.close()
 	pool.join()
 	if firstPassMode:
@@ -1167,7 +1167,7 @@ def start(path_speciesInfoFile, path_orthoFinderOutputFile, path_singletonsFile,
 				# set too many times. (and it complains quietly).
 				dict_speciesInfo[str_species]["augustusSpecies"]=str_species+ ".orthofiller." + datetime.datetime.now().strftime("%y%m%d") + "." + ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(9))
 				path_gff=dict_speciesInfo[str_species]["resultsgff"]
-				#path_gff="/cellar/michael/OrthoFiller/testing/testSet_jgi_sgd/OrthoFiller_20160407_nomt_removed_100_generic_firstPass_new/firstPass/Sacce_S288C_genes_nomt.aa.fasta.removed_100.fasta.results.gff"
+				#path_gff="/cellar/michael/OrthoFiller/testing/testSet_jgi_sgd/OrthoFiller_20160407_nomt_removed_100_generic_firstPass_new/firstPass/Sacce_S288C_genes_nomt.aa.fasta.removed_100.fasta.results.gtf"
 				path_gffForTraining = path_wDir + "/" + str_species + ".training.gff"
 				dict_speciesInfo[str_species]["gffForTraining"] = path_gffForTraining
 				dict_speciesInfo[str_species]["needsTraining"] = True
@@ -1280,8 +1280,8 @@ def prepareFromScratch(path_infile, path_outDir):
 		path_aaFastaOut=path_aaDir+"/"+key+".aa.fasta"
 		fetchSequences(path_gffIn, path_genome, path_cdsFastaOut, path_aaFastaOut, 1)
 		callFunction("echo \"" + path_aaFastaOut + "\t" + path_gffIn + "\t" + path_genome + "\t" + path_cdsFastaOut + "\" >> " + path_speciesInfoFile)
-#ql	callFunction("rm -rf " + path_aaDir + "/Results*")
-#ql	callFunction("python orthofinder.py -f " + path_aaDir)
+	callFunction("rm -rf " + path_aaDir + "/Results*")#ql
+	callFunction("python orthofinder.py -f " + path_aaDir)#ql
 	path_orthoFinderOutputFile=find("OrthologousGroups.csv", path_aaDir)
 	path_singletonsFile=find("OrthologousGroups_UnassignedGenes.csv", path_aaDir)
 	return path_speciesInfoFile, path_orthoFinderOutputFile, path_singletonsFile
