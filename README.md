@@ -41,6 +41,34 @@ Orthofinder is then run using:
 
 An example skeleton bash script for running OrthoFiller is included as runOrthoFil.sh. Paths for input files and for relevant packages must be added manually.
 
+Obtaining GTFs from GFF3 files
+==============================
+OrthoFiller uses gtf files for both its input and output, due to the superior uniformity of gtf naming and attribute conventions. To convert files from gff3 to gtf format, we recommend using the simple tool fml_gff3togtf, from the Galaxy Tool Shed. This can be found at https://toolshed.g2.bx.psu.edu/repository?repository_id=afcb6456d8e300ed, and is implemented using python:
+
+```
+python gff_to_gtf.py infile.gff3 > outfile.gtf
+```
+
+Users should note that this tool truncates chromsome names to 15 characters. If this is going to be an issue, you may wish to use placeholder names in the conversion step, for example:
+
+```
+file="file_to_convert.gff3"
+cut -f1 $file | sort -u | grep -v "#" > $file.placeholder
+awk '{print $1"\tTYRANT_"NR}' $file.placeholder > $file.placeholder.lookup
+cp $file $file.placeholder.replaced
+while read line; do
+	echo "placeholding $line"; first=`echo "$line" | cut -f1`; second=`echo "$line" | cut -f2`;
+	sed -ri "s/^$first\t/$second\t/g" $file.placeholder.replaced
+done < $file.placeholder.lookup
+python gff_to_gtf.py $file.placeholder.replaced > $file.placeholder.nearly;
+cp $file.tyrant.nearly ${file%gff3}gtf
+while read line; do
+	echo "unplaceholding $line"; first=`echo "$line" | cut -f1`; second=`echo "$line" | cut -f2`;
+	sed -ri "s/^$second\t/$first\t/g" ${file%gff3}gtf
+done < $file.placeholder.lookup
+rm $file*placeholder*
+```
+
 Output File Format
 ==================
 OrthoFiller output can be found in the `results` folder of the specified output directory. For each species, four files are produced:
