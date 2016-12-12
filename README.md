@@ -64,13 +64,11 @@ OrthoFiller is written to run on linux and requires the following to be installe
 
 3. OrthoFinder
 
-4. MAFFT
+4. R with Gamlss package
 
-5. R with Gamlss package
+5. Augustus
 
-6. Augustus
-
-7. Hmmer
+6. Hmmer
 
 python and scipy
 ----------------
