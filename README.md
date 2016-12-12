@@ -60,17 +60,15 @@ cut -f1 $file | sort -u | grep -v "#" > $file.placeholder
 awk '{print $1"\tPLACEHOLDER_"NR}' $file.placeholder > $file.placeholder.lookup
 
 cp $file $file.placeholder.replaced
-while read line; do
-	echo "placeholding $line"; first=`echo "$line" | cut -f1`; second=`echo "$line" | cut -f2`;
-	sed -ri "s/^$first\t/$second\t/g" $file.placeholder.replaced
+while read first second; do
+	echo "placeholding $line"; sed -ri "s/^$first\t/$second\t/g" $file.placeholder.replaced
 done < $file.placeholder.lookup
 
 python gff_to_gtf.py $file.placeholder.replaced > $file.placeholder.nearly;
 
 cp $file.tyrant.nearly ${file%gff3}gtf
-while read line; do
-	echo "unplaceholding $line"; first=`echo "$line" | cut -f1`; second=`echo "$line" | cut -f2`;
-	sed -ri "s/^$second\t/$first\t/g" ${file%gff3}gtf
+while read first second; do
+	echo "unplaceholding $line"; sed -ri "s/^$second\t/$first\t/g" ${file%gff3}gtf
 done < $file.placeholder.lookup
 rm $file*placeholder*
 ```
