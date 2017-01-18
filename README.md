@@ -26,7 +26,7 @@ If no output folder is specified then OrthoFiller will create one with a generic
 
 If OrthoFinder has already been run on a set of proteomes and the corresponding CDS nucleotide sequences are available, the `--prep` flag can be used, the input in this case being a genome FASTA file, GTF file, gene CDS sequences, and AA sequences for each species, along with the orthofinder results. This second method is intended to reduce processing time for proteomes that have already been analysed with OrthoFinder. All genomes and sequence files should be supplied in FASTA format. The locations of the genome, GTF, and sequence files should be put in a file in the following format:
 
-In the event that a GTF file contains coordinates not present in the genome fasta file, OrthoFuller will throw an error and will fail to run. Enaure that all chromosome names in the GTF file matxh thoa in the fasta before running.
+In the event that a GTF file contains coordinates not present in the genome fasta file, OrthoFuller will throw an error and will fail to run. Ensure that all chromosome names in the GTF file match those in the fasta before running.
 
 ```
 #protein			gtf                            genome				cds
@@ -49,7 +49,7 @@ OrthoFiller uses GTF files for both its input and output, due to the superior un
 python gff_to_gtf.py infile.gff3 > outfile.gtf
 ```
 
-Users should note that this tool truncates chromsome names to 15 characters. If this is going to be an issue, you may wish to use placeholder names in the conversion step, for example:
+Users should note that this tool truncates chromosome names to 15 characters. If this is going to be an issue, you may wish to use placeholder names in the conversion step, for example:
 
 ```
 #!bin/bash
