@@ -1109,8 +1109,13 @@ def callFunction(str_function):
 	subprocess.call([str_function], shell = True)
 
 def makeIfAbsent(path_dir):
-	if not os.path.exists(path_dir):
-		os.mkdir(path_dir)
+	try:
+		os.makedirs(path_dir)
+	except OSError as exc:  # Python >2.5
+		if exc.errno == errno.EEXIST and os.path.isdir(path_dir):
+			pass
+		else:
+			raise
 
 def deleteIfPresent(path):
 	"""Delete a folder which may or may not exist
