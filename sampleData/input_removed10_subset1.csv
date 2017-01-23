@@ -1,0 +1,6 @@
+#gtf	genome
+data/Ashgo1/Ashgo1_1_GeneCatalog_genes_20140830.gtf	data/Ashgo1/Ashgo1_1_AssemblyScaffolds.fasta
+data/Debha1/Debha1_GeneCatalog_genes_20130209.primary_transcript_only.gtf	data/Debha1/Debha1_AssemblyScaffolds.fasta
+data/Klula1/Klula1_GeneCatalog_genes_20130227.gtf	data/Klula1/Klula1_AssemblyScaffolds.fasta
+data/Yarli1/Yarli1_GeneCatalog_genes_20130122.gtf	data/Yarli1/Yarli1_AssemblyScaffolds.fasta
+data/Sacce_S288C/Sacce_S288C.genes.nomt.gtf	data/Sacce_S288C/Sacce_S288C.genome.nomt.fa
