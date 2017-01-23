@@ -1,27 +1,130 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+#
+# Copyright 2017 Michael Dunne
+#
+# This program (OrthoFiller) is distributed under the terms of the GNU General Public License v3
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#
+# For any enquiries send an email to Michael Dunne
+# michael.dunne@worc.ox.ac.uk
 
-__author__ = "Michael Dunne, Reed Roberts"
+__author__ = "Michael Dunne"
 __credits__ = "Michael Dunne, Reed Roberts, David Emms, Steve Kelly"
 
-import csv
-import re
-import os
-import sys
-import itertools
-import Bio
-import subprocess
-import multiprocessing
-import datetime
-import tempfile
-import random
-import string
-import commands
-import errno
-from Bio import SeqIO
-from Bio.Align.Applications import MafftCommandline
-from Bio.SeqRecord import SeqRecord
-import argparse
+
+########################################################
+################ Safely import packages ################
+########################################################
+errors=[]
+try:
+	import csv
+except ImportError as e:
+	errors.append(e)
+try:
+	import re
+except ImportError as e:
+        errors.append(e)
+try:
+	import os
+except ImportError as e:
+        errors.append(e)
+try:
+	import sys
+except ImportError as e:
+        errors.append(e)
+try:
+	import itertools
+except ImportError as e:
+        errors.append(e)
+try:
+	import Bio
+except ImportError as e:
+        errors.append(e)
+try:
+	import subprocess
+except ImportError as e:
+        errors.append(e)
+try:
+	import multiprocessing
+except ImportError as e:
+        errors.append(e)
+try:
+	import datetime
+except ImportError as e:
+        errors.append(e)
+try:
+	import tempfile
+except ImportError as e:
+        errors.append(e)
+try:
+	import random
+except ImportError as e:
+        errors.append(e)
+try:
+	import string
+except ImportError as e:
+        errors.append(e)
+try:
+	import commands
+except ImportError as e:
+        errors.append(e)
+try:
+	import errno
+except ImportError as e:
+        errors.append(e)
+try:
+	from Bio import SeqIO
+except ImportError as e:
+        errors.append(e)
+try:
+	from Bio.Align.Applications import MafftCommandline
+except ImportError as e:
+        errors.append(e)
+try:
+	from Bio.SeqRecord import SeqRecord
+except ImportError as e:
+        errors.append(e)
+try:
+	import argparse
+except ImportError as e:
+        errors.append(e)
+
+if errors:
+	print("The following module errors need to be resolved before running OrthoFiller:")
+	for error in errors:
+		print("-- " + str(error))
+	sys.exit()
+
+########################################################
+################ Check Linux Packages ##################
+########################################################
+
+def checkLinux():
+	""" Run quick checks to ensure the relevant packages are installed, and that they do
+	    the things I need them to do (applies in particular to bedtools and to R).
+		- awk
+		- sed
+		- bedtools
+		- R/Rscript
+	"""
+
+########################################################
+################ Function definitions ##################
+########################################################
 
 class SeqRef(object):
     def __init__(self, str_species, str_speciesNum, seqId):
@@ -229,18 +332,13 @@ def makeGffTrainingFile(path_inputGff, path_outputGff):
 	callFunction(function)
 	print("check st(art|op) codon consistency")
 	# Check each gene has a start codon and a stop codon and that they're in the right place
-	print("much")
-	callFunction("head " + path_tmp)
 	checkCdsHealth(path_tmp, path_outputGff)
-	print("duck")
-	callFunction("head " + path_outputGff)
 	print(path_tmp)
 	callFunction("rm " + path_tmp)
 	print("rein")
 	# Add exons as well as CDS
 	function="infile=\"" + path_outputGff + "\"; tmpfile=`mktemp`; tmpfile2=`mktemp`; grep -P \"\\tCDS\\t\" $infile | sed -r \"s/\\tCDS\\t/\\texon\\t/g\" | sed -r \"s/\\t[^\\t]*\\tgene_id/\\t\\.\\tgene_id/g\" > $tmpfile2; cat $infile $tmpfile2 | sort -u | sort -k1,1V -k4,4n > $tmpfile; mv $tmpfile $infile; rm $tmpfile2"
 	callFunction(function)
-	callFunction("head " + path_outputGff)
 
 def getBases(path_gtf, path_gtfBases):
         """Get the base for a gtf file
