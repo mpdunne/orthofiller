@@ -333,9 +333,7 @@ def makeGffTrainingFile(path_inputGff, path_outputGff):
 	print("check st(art|op) codon consistency")
 	# Check each gene has a start codon and a stop codon and that they're in the right place
 	checkCdsHealth(path_tmp, path_outputGff)
-	print(path_tmp)
-	callFunction("rm " + path_tmp)
-	print("rein")
+	os.remove(path_tmp)
 	# Add exons as well as CDS
 	function="infile=\"" + path_outputGff + "\"; tmpfile=`mktemp`; tmpfile2=`mktemp`; grep -P \"\\tCDS\\t\" $infile | sed -r \"s/\\tCDS\\t/\\texon\\t/g\" | sed -r \"s/\\t[^\\t]*\\tgene_id/\\t\\.\\tgene_id/g\" > $tmpfile2; cat $infile $tmpfile2 | sort -u | sort -k1,1V -k4,4n > $tmpfile; mv $tmpfile $infile; rm $tmpfile2"
 	callFunction(function)
