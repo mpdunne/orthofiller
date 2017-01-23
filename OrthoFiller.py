@@ -121,6 +121,7 @@ def checkLinux():
 		- bedtools
 		- R/Rscript
 	"""
+	pass
 
 ########################################################
 ################ Function definitions ##################
