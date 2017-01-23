@@ -12,7 +12,6 @@ import itertools
 import Bio
 import subprocess
 import multiprocessing
-import orthofinder
 import datetime
 import tempfile
 import random
@@ -20,7 +19,6 @@ import string
 import commands
 import errno
 from Bio import SeqIO
-from Bio import AlignIO
 from Bio.Align.Applications import MafftCommandline
 from Bio.SeqRecord import SeqRecord
 import argparse
@@ -173,7 +171,6 @@ def gffsForGroups(list_gff, orthogroups, path_ogDir, str_species, str_outsuffix,
 	for x in aa: c[x[0]].append(x[1])
 	e ={x[0]: [c[i] for i in itertools.ifilterfalse(lambda x: x=='', re.split("[ ,]*", x[int_speciesNum]))] for x in orthogroups}
 	for orthogroup in e:
-		toprint=list(itertools.chain.from_iterable(e[orthogroup]))
 		filename = path_ogDir + "/" + orthogroup+"." + str_species + str_outsuffix
 		with open(filename, 'w') as mycsvfile:
 			datawriter = csv.writer(mycsvfile, delimiter = '\t',quoting = csv.QUOTE_NONE, quotechar='')
@@ -189,7 +186,6 @@ def trainAugustus(dict_speciesInfo, path_wDir, pool):
 	speciesList = [ x for x in dict_speciesInfo ]
 	for str_species in speciesList:
 		path_genome = dict_speciesInfo[str_species]["genome"]
-		path_gff = dict_speciesInfo[str_species]["gff"]
 		path_gffForTraining=dict_speciesInfo[str_species]["gffForTraining"]
 		path_augustusSpecies=dict_speciesInfo[str_species]["augustusSpecies"]
 		path_augSpeciesWDir = path_augWDir + "/" + str_species
@@ -345,7 +341,6 @@ def getProteinSequences(sequencesHolder, dict_speciesInfoDict):
 	dict_proteinSequencesHolder = {}
 	for sequence in sequencesHolder:
 		seqRef = sequencesHolder[sequence]
-		speciesProteinPath = dict_speciesInfoDict[seqRef.species]["protein"]
 		proteinSequence = path_indexedProteinFiles[seqRef.species][seqRef.seqId]
 		# Replace the species-local id with the uniqueId
 		proteinSequence.id = seqRef.uniqueId
@@ -357,8 +352,7 @@ def writeSequencesToFastaFile(dict_proteinSequencesHolder, path_outputFile):
 	"""Write out sequences into fasta file. Overwrites file if necessary.
 	"""
 	actualSequences = dict_proteinSequencesHolder.values()
-	with open(path_outputFile, "w") as outfile:
-		SeqIO.write(actualSequences, path_outputFile, "fasta")
+	SeqIO.write(actualSequences, path_outputFile, "fasta")
 
 def makeProteinAlignment(path_proteinFastaFile, path_fastaOut):
 	"""Makes an alignment and save it in fasta format to the fastaOut.
@@ -506,7 +500,6 @@ def processOg(orthogroup, list_orthogroupSequenceIds, orthogroupProteinSequences
 	######################################################
 	# Search the genome of each species in turn.
 	######################################################
-	sequences = { x : dict_sequenceInfoById[x] for x in list_orthogroupSequenceIds }	
 	for species in dict_speciesInfo:
 		path_hitsFile = path_wDir + "/" + str_ogFolder + "/" + orthogroup + "." + species + ".hits"
 		print "Generating hits file: " + path_hitsFile
@@ -561,8 +554,6 @@ def prepareHmmDbs(dict_speciesInfo, path_wDir, int_cores):
 			async(hmmdbpool, makeHmmerDb,  args=(path_genomeFile, path_db))	
 	hmmdbpool.close()
 	hmmdbpool.join()
-
-
 
 def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_resultsDir, path_wDir, path_orthoFinderOutputFile, path_singletonsFile, int_cores=16, firstPass=False, augOnly=False, hitFilter=True, hintFilter=True):
 	"""Takes orthofinder output and a collection of genome info locations as input.
@@ -1237,7 +1228,6 @@ def checkSequences(path_gff, path_cds, path_aa):
 	if res != "":
 		sys.exit(res)
 
-
 def prepareFromScratch(path_infile, path_outDir):
 	#Pull out Gtf files, extract dna and then rna
 	#Then run orthofinder
@@ -1281,7 +1271,7 @@ def runOrthoFinder(path_aaDir):
 	else:
 		try:
 			callFunction("orthofinder -f " + path_aaDir)
-		except OSError as e:
+		except OSError:
 			sys.stderr.write("Error: Can't find orthofinder. Looked for orthofinder in the following order: OrthoFiller.py directory, execution directory, system PATH. Please ensure orthofinder is either installed and included in your PATH or that the orthofinder.py file is included in the same directory as the OrthoFiller.py file. Orthofinder can be downloaded from https://github.com/davidemms/OrthoFinder")
 
 ####################################
