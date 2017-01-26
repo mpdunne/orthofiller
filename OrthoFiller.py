@@ -464,7 +464,7 @@ def gffsForGroups(list_gff, orthogroups, path_ogDir, str_species, str_outsuffix,
 	c={};
 	for x in aa: c[x[0]]=[]
 	for x in aa: c[x[0]].append(x[1])
-	e = dict((x[0], c[i]) for i in itertools.ifilterfalse(lambda x: x=='', re.split("[ ,]*", x[int_speciesNum]))] for x in orthogroups)
+	e = dict((x[0], [c[i] for i in itertools.ifilterfalse(lambda x: x=='', re.split("[ ,]*", x[int_speciesNum]))]) for x in orthogroups)
 	for orthogroup in e:
 		filename = path_ogDir + "/" + orthogroup+"." + str_species + str_outsuffix
 		with open(filename, 'w') as mycsvfile:
