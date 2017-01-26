@@ -5,18 +5,18 @@
 #
 # This program (OrthoFiller) is distributed under the terms of the GNU General Public License v3
 #
-#    This program is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU General Public License as published by
-#    the Free Software Foundation, either version 3 of the License, or
-#    (at your option) any later version.
+#	This program is free software: you can redistribute it and/or modify
+#	it under the terms of the GNU General Public License as published by
+#	the Free Software Foundation, either version 3 of the License, or
+#	(at your option) any later version.
 #
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU General Public License for more details.
+#	This program is distributed in the hope that it will be useful,
+#	but WITHOUT ANY WARRANTY; without even the implied warranty of
+#	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#	GNU General Public License for more details.
 #
-#    You should have received a copy of the GNU General Public License
-#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#	You should have received a copy of the GNU General Public License
+#	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 #
 # For any enquiries send an email to Michael Dunne
@@ -37,71 +37,80 @@ except ImportError as e:
 try:
 	import re
 except ImportError as e:
-        errors.append(e)
+	errors.append(e)
 try:
 	import os
 except ImportError as e:
-        errors.append(e)
+	errors.append(e)
 try:
 	import sys
 except ImportError as e:
-        errors.append(e)
+	errors.append(e)
 try:
 	import itertools
 except ImportError as e:
-        errors.append(e)
+	errors.append(e)
 try:
 	import Bio
 except ImportError as e:
-        errors.append(e)
+	errors.append(e)
 try:
 	import subprocess
 except ImportError as e:
-        errors.append(e)
+	errors.append(e)
 try:
 	import multiprocessing
 except ImportError as e:
-        errors.append(e)
+	errors.append(e)
 try:
 	import datetime
 except ImportError as e:
-        errors.append(e)
+	errors.append(e)
 try:
 	import tempfile
 except ImportError as e:
-        errors.append(e)
+	errors.append(e)
 try:
 	import random
 except ImportError as e:
-        errors.append(e)
+	errors.append(e)
 try:
 	import string
 except ImportError as e:
-        errors.append(e)
+	errors.append(e)
 try:
 	import commands
 except ImportError as e:
-        errors.append(e)
+	errors.append(e)
 try:
 	import errno
 except ImportError as e:
-        errors.append(e)
+	errors.append(e)
 try:
 	from Bio import SeqIO
 except ImportError as e:
-        errors.append(e)
+	errors.append(e)
 try:
 	from Bio.Align.Applications import MafftCommandline
 except ImportError as e:
-        errors.append(e)
+	errors.append(e)
 try:
 	from Bio.SeqRecord import SeqRecord
 except ImportError as e:
-        errors.append(e)
+	errors.append(e)
 try:
 	import argparse
 except ImportError as e:
-        errors.append(e)
+	errors.append(e)
+try:
+	import time
+except ImportError as e:
+	errors.append(e)
+try:
+	import glob
+except ImportError as e:
+	errors.append(e)
+
 
 if errors:
 	print("The following module errors need to be resolved before running OrthoFiller:")
@@ -113,36 +122,219 @@ if errors:
 ################ Check Linux Packages ##################
 ########################################################
 
-def checkLinux():
+def callFunction(str_function):
+	"""Call a function in the shell
+	"""
+	subprocess.call([str_function], shell = True)
+
+def callFunctionQuiet(str_function):
+	"""Call a function in the shell, but suppress output.
+	"""
+	with open(os.devnull, 'w') as FNULL:
+		subprocess.call([str_function], shell = True, stdout=FNULL, stderr=subprocess.STDOUT)
+
+def CanRunCommand(command, qAllowStderr = False):
+	sys.stdout.write("Test can run \"%s\"" % command)
+	capture = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+	stdout = [x for x in capture.stdout]
+	stderr = [x for x in capture.stderr]
+	if len(stdout) > 0 and (qAllowStderr or len(stderr) == 0):
+		print(" - ok")
+		return True
+	else:
+		print(" - failed")
+		return False
+
+def CanRunMinusH(package, packageFormatted):
+	if CanRunCommand(package + " -h"):
+		return True
+	else:
+		print("ERROR: Cannot run " + packageFormatted)
+		print("Please check "+ packageFormatted +" is installed and that the executables are in the system path\n")
+		return False
+
+def CanRunMan(package, packageFormatted):
+        if CanRunCommand("man " + package):
+                return True
+        else:
+                print("ERROR: Cannot run " + packageFormatted)
+                print("Please check "+ packageFormatted +" is installed and that the executables are in the system path\n")
+                return False
+
+def CanRunBlank(package, packageFormatted):
+        if CanRunCommand(package):
+                return True
+        else:
+                print("ERROR: Cannot run " + packageFormatted)
+                print("Please check "+ packageFormatted +" is installed and that the executables are in the system path\n")
+                return False
+
+def CanRunOrthoFinder():
+	errmsg="Cannot find orthofinder.py file. Either install orthofinder in your system PATH or include the orthofinder.py file in the same directory as OrthoFiller."
+        if os.path.isfile(os.path.dirname(os.path.abspath(__file__)) + "/orthofinder.py"):
+        	if CanRunCommand("python " + os.path.dirname(os.path.abspath(__file__)) + "/orthofinder.py -h "):
+			return True
+		else:
+			print(errmsg)
+			return False
+        elif os.path.isfile("orthofinder.py"):
+                if CanRunCommand("python orthofinder.py -h"):
+			return True
+		else:
+			print(errmsg)
+			return False
+        else:
+                try:
+                        callFunction("orthofinder -h") #qgr
+                except OSError:
+			print(errmsg)
+			return False
+			
+                        sys.stderr.write("Error: Can't find orthofinder. Looked for orthofinder in the following order: OrthoFiller.py directory, execution directory, system PATH. Please ensure orthofinder is either installed and included in your PATH or that the orthofinder.py file is included in the same directory as the OrthoFiller.py file. Orthofinder can be downloaded from https://github.com/davidemms/OrthoFinder")
+
+def CanRunBedTools():
+	""" New versions of bedtools often seem to break things. Make extra sure that everything works as it needs to.
+	    This is not an exhaustive unit test.
+	"""
+	path_td = tempfile.mkdtemp()
+	print("Testing bedtools...")
+	try:
+		path_mockGenome = path_td + "/genome.fasta"
+		with open(path_mockGenome, "w") as f:
+			f.write('>chr1\nCCCACGTAGCTAAGTGAATAAGTAGCCGCGCTCGACACACAGTGATGGATACGGCAGCTGGCACCAACAAGGAGCGTGGGATGTACGCTATTTTGGCGAT\n>chr2\nGGGCTCGCAACGGTTGGCCACGGCGTCTCTCATATTCGTTTAGTAGATTAACTTTCAAGATGAAAACGAGCTCCTACTAGAGAATCTCTCAGCGCACTAT\n')
+		path_mockGtf1 = path_td + "/genes1.gtf"
+		with open(path_mockGtf1, "w") as f:
+			f.write('chr1\tfake\tCDS\t10\t39\t.\t+\t0\tgene_id "posGene"; transcript_id "posGene.t1"; exon_number "1"; gene_name "posGene";\nchr1\tfake\tCDS\t61\t90\t.\t+\t-\tgene_id "posGene"; transcript_id "posGene.t1"; exon_number "2"; gene_name "posGene";\nchr1\tfake\tstart_codon\t10\t12\t.\t+\t0\tgene_id "posGene"; transcript_id "posGene.t1"; exon_number "1"; gene_name "posGene";\nchr1\tfake\tstop_codon\t88\t90\t.\t+\t0\tgene_id "posGene"; transcript_id "posGene.t1"; exon_number "2"; gene_name "posGene";\nchr2\tfake\tCDS\t15\t29\t.\t-\t0\tgene_id "negGene"; transcript_id "negGene.t1"; exon_number "2"; gene_name "negGene";\nchr2\tfake\tCDS\t46\t60\t.\t-\t0\tgene_id "negGene"; transcript_id "negGene.t1"; exon_number "1"; gene_name "negGene";\nchr2\tfake\tstart_codon\t58\t60\t.\t+\t0\tgene_id "negGene"; transcript_id "negGene.t1"; exon_number "2"; gene_name "negGene";\nchr2\tfake\tstop_codon\t15\t17\t.\t+\t0\tgene_id "negGene"; transcript_id "negGene.t1"; exon_number "1"; gene_name "negGene";\n')
+		path_mockGtf2 = path_td + "/genes2.gtf"
+		with open(path_mockGtf2, "w") as f:
+			f.write('chr1\tfake\tCDS\t5\t34\t.\t+\t0\tgene_id "posGene"; transcript_id "posGene.t1"; exon_number "1"; gene_name "posGene";\nchr1\tfake\tCDS\t56\t85\t.\t+\t-\tgene_id "posGene"; transcript_id "posGene.t1"; exon_number "2"; gene_name "posGene";\nchr1\tfake\tstart_codon\t5\t7\t.\t+\t0\tgene_id "posGene"; transcript_id "posGene.t1"; exon_number "1"; gene_name "posGene";\nchr1\tfake\tstop_codon\t83\t85\t.\t+\t0\tgene_id "posGene"; transcript_id "posGene.t1"; exon_number "2"; gene_name "posGene";\nchr2\tfake\tCDS\t10\t24\t.\t-\t0\tgene_id "negGene"; transcript_id "negGene.t1"; exon_number "2"; gene_name "negGene";\nchr2\tfake\tCDS\t41\t55\t.\t-\t0\tgene_id "negGene"; transcript_id "negGene.t1"; exon_number "1"; gene_name "negGene";\nchr2\tfake\tstart_codon\t53\t55\t.\t+\t0\tgene_id "negGene"; transcript_id "negGene.t1"; exon_number "2"; gene_name "negGene";\nchr2\tfake\tstop_codon\t10\t12\t.\t+\t0\tgene_id "negGene"; transcript_id "negGene.t1"; exon_number "1"; gene_name "negGene";\n')
+		path_mockGtf3 = path_td + "/genes3.gtf"
+		with open(path_mockGtf3, "w") as f:
+			f.write('chr1\tfake\tCDS\t10\t30\t.\t+\t0\tgene_id "posGene"; transcript_id "posGene.t1"; exon_number "1"; gene_name "posGene";\nchr1\tfake\tCDS\t20\t50\t.\t+\t-\tgene_id "posGene"; transcript_id "posGene.t1"; exon_number "2"; gene_name "posGene";\nchr1\tfake\tstart_codon\t10\t12\t.\t+\t0\tgene_id "posGene"; transcript_id "posGene.t1"; exon_number "1"; gene_name "posGene";\nchr1\tfake\tstop_codon\t48\t50\t.\t+\t0\tgene_id "posGene"; transcript_id "posGene.t1"; exon_number "2"; gene_name "posGene";\nchr2\tfake\tCDS\t50\t80\t.\t-\t0\tgene_id "negGene"; transcript_id "negGene.t1"; exon_number "2"; gene_name "negGene";\nchr2\tfake\tCDS\t70\t90\t.\t-\t0\tgene_id "negGene"; transcript_id "negGene.t1"; exon_number "1"; gene_name "negGene";\nchr2\tfake\tstart_codon\t88\t90\t.\t-\t0\tgene_id "negGene"; transcript_id "negGene.t1"; exon_number "2"; gene_name "negGene";\nchr2\tfake\tstop_codon\t50\t52\t.\t-\t0\tgene_id "negGene"; transcript_id "negGene.t1"; exon_number "1"; gene_name "negGene";\n')
+		# Test merge
+		path_merged = path_td + "/merged.gtf"
+		callFunction("sort -k1,1V " + path_mockGtf3+ " | grep CDS | bedtools merge -i - -s > " + path_merged)
+		with open(path_merged, "r") as f:
+			if not f.read() == 'chr1\t9\t50\t+\nchr2\t49\t90\t-\n':
+				raise ValueError()
+		# Test intersect
+		path_intersected = path_td + "/intersected.gtf"
+		callFunction("bedtools intersect -wa -wb -a " + path_mockGtf1 + " -b "+ path_mockGtf2 + " > " + path_intersected)
+		with open(path_intersected, "r") as f:
+			if not f.read() == 'chr1\tfake\tCDS\t10\t39\t.\t+\t0\tgene_id "posGene"; transcript_id "posGene.t1"; exon_number "1"; gene_name "posGene";\tchr1\tfake\tCDS\t5\t34\t.\t+\t0\tgene_id "posGene"; transcript_id "posGene.t1"; exon_number "1"; gene_name "posGene";\nchr1\tfake\tCDS\t61\t90\t.\t+\t-\tgene_id "posGene"; transcript_id "posGene.t1"; exon_number "2"; gene_name "posGene";\tchr1\tfake\tCDS\t56\t85\t.\t+\t-\tgene_id "posGene"; transcript_id "posGene.t1"; exon_number "2"; gene_name "posGene";\nchr1\tfake\tCDS\t61\t90\t.\t+\t-\tgene_id "posGene"; transcript_id "posGene.t1"; exon_number "2"; gene_name "posGene";\tchr1\tfake\tstop_codon\t83\t85\t.\t+\t0\tgene_id "posGene"; transcript_id "posGene.t1"; exon_number "2"; gene_name "posGene";\nchr1\tfake\tstart_codon\t10\t12\t.\t+\t0\tgene_id "posGene"; transcript_id "posGene.t1"; exon_number "1"; gene_name "posGene";\tchr1\tfake\tCDS\t5\t34\t.\t+\t0\tgene_id "posGene"; transcript_id "posGene.t1"; exon_number "1"; gene_name "posGene";\nchr2\tfake\tCDS\t15\t29\t.\t-\t0\tgene_id "negGene"; transcript_id "negGene.t1"; exon_number "2"; gene_name "negGene";\tchr2\tfake\tCDS\t10\t24\t.\t-\t0\tgene_id "negGene"; transcript_id "negGene.t1"; exon_number "2"; gene_name "negGene";\nchr2\tfake\tCDS\t46\t60\t.\t-\t0\tgene_id "negGene"; transcript_id "negGene.t1"; exon_number "1"; gene_name "negGene";\tchr2\tfake\tCDS\t41\t55\t.\t-\t0\tgene_id "negGene"; transcript_id "negGene.t1"; exon_number "1"; gene_name "negGene";\nchr2\tfake\tCDS\t46\t60\t.\t-\t0\tgene_id "negGene"; transcript_id "negGene.t1"; exon_number "1"; gene_name "negGene";\tchr2\tfake\tstart_codon\t53\t55\t.\t+\t0\tgene_id "negGene"; transcript_id "negGene.t1"; exon_number "2"; gene_name "negGene";\nchr2\tfake\tstop_codon\t15\t17\t.\t+\t0\tgene_id "negGene"; transcript_id "negGene.t1"; exon_number "1"; gene_name "negGene";\tchr2\tfake\tCDS\t10\t24\t.\t-\t0\tgene_id "negGene"; transcript_id "negGene.t1"; exon_number "2"; gene_name "negGene";\n':
+				raise ValueError()
+		# Test subtract
+		path_subtracted = path_td + "/subtracted.gtf"
+		callFunction("bedtools subtract -a " + path_mockGtf1 + " -b " + path_mockGtf2 + " > " + path_subtracted)
+		with open(path_subtracted, "r") as f:
+			if not f.read() == 'chr1\tfake\tCDS\t34\t39\t.\t+\t0\tgene_id "posGene"; transcript_id "posGene.t1"; exon_number "1"; gene_name "posGene";\nchr1\tfake\tCDS\t85\t90\t.\t+\t-\tgene_id "posGene"; transcript_id "posGene.t1"; exon_number "2"; gene_name "posGene";\nchr1\tfake\tstop_codon\t88\t90\t.\t+\t0\tgene_id "posGene"; transcript_id "posGene.t1"; exon_number "2"; gene_name "posGene";\nchr2\tfake\tCDS\t24\t29\t.\t-\t0\tgene_id "negGene"; transcript_id "negGene.t1"; exon_number "2"; gene_name "negGene";\nchr2\tfake\tCDS\t55\t60\t.\t-\t0\tgene_id "negGene"; transcript_id "negGene.t1"; exon_number "1"; gene_name "negGene";\nchr2\tfake\tstart_codon\t58\t60\t.\t+\t0\tgene_id "negGene"; transcript_id "negGene.t1"; exon_number "2"; gene_name "negGene";\n':
+				raise ValueError()
+		# Test getfasta
+		path_getFasta = path_td + "/getfasta.fa"
+		callFunctionQuiet("infile=" +  path_mockGtf1 + "; outfile=" + path_getFasta + "; genome=" + path_mockGenome + """;
+			tf=`mktemp -d`
+			gffCds="$tf/gffCds"
+			gffBed="$tf/gffBed"
+
+			#Prepare the gff
+			echo "preparing gff..."
+			grep -vP "^$" $infile | awk '$3=="CDS"' > $gffCds
+			cut -f1-8 $gffCds > $gffBed.1
+			sed -r "s/.*transcript_id[ =]\\"?([^\\";]*)\\"?;?.*/\\1/g" $gffCds > $gffBed.2
+			paste $gffBed.1 $gffBed.2 | perl -ne 'chomp; @l=split; printf "$l[0]\\t%s\\t$l[4]\\t$l[8]\\t.\\t$l[6]\\n", $l[3]-1' | sort -u | sort -k1,1V -k2,2n > $gffBed
+			#Negative strand
+			#echo "negative strand..."
+			awk '$6=="-"' $gffBed > $gffBed.neg
+			bedtools getfasta -name -s -fullHeader -fi $genome -fo $gffBed.neg.tab -bed $gffBed.neg -tab
+			tac $gffBed.neg.tab | awk '{a[$1]=a[$1]""$2} END {for (i in a) {print ">"i"\\n"a[i]}}' > $gffBed.neg.fa
+
+			#Then positive strand
+			#echo "positive strand..."
+			awk '$6=="+"' $gffBed > $gffBed.pos
+			bedtools getfasta -name -s -fullHeader -fi $genome -fo $gffBed.pos.tab -bed $gffBed.pos -tab
+			cat $gffBed.pos.tab | awk '{a[$1]=a[$1]""$2} END {for (i in a) {print ">"i"\\n"a[i]}}' > $gffBed.pos.fa
+
+			cat $gffBed.pos.fa $gffBed.neg.fa | sed -r "s/^>(.*)$/£££>\\1###/g" | sed -r \"s/$/###/g\" | tr '\\n' ' ' | sed -r "s/£££/\\n/g" | sed -r "s/### //g" | grep -v XXX | grep -v "\*[A-Z]" | grep -v "###$" | sed -r "s/###/\\n/g" | grep -vP "^$" > $outfile
+
+			#echo $tf
+			rm -r $tf
+		""")
+		with open(path_getFasta, "r") as f:
+			if not f.read() == '>posGene.t1\nCTAAGTGAATAAGTAGCCGCGCTCGACACAGCACCAACAAGGAGCGTGGGATGTACGCTA\n>negGene.t1\nTCTTGAAAGTTAATCGAGACGCCGTGGCCA\n':
+				raise ValueError()
+		#######
+		callFunction("rm -r " + path_td)
+		print("     - ok")
+		return True
+	except ValueError:
+		callFunction("rm -r " + path_td)
+		return False
+
+def checkShell():
 	""" Run quick checks to ensure the relevant packages are installed, and that they do
-	    the things I need them to do (applies in particular to bedtools and to R).
+		the things we need them to do (applies in particular to bedtools and to R).
+		- perl
 		- awk
 		- sed
-		- bedtools
+		- echo
+		- cut
+		- sort
+		- find
+		- grep
+		- tac/cat
 		- R/Rscript
-	"""
-	pass
+		- hmmbuild/nhmmer/makehmmerdb
+		- augustus/autoAugTrain.pl
+		- orthofinder
+		- bedtools
+		"""
+	checks = []
+	checks.append(CanRunMinusH("perl", "PERL"))
+	checks.append(CanRunMinusH("awk", "awk"))
+	checks.append(CanRunMan("sed", "sed"))
+	checks.append(CanRunMan("echo", "echo"))
+	checks.append(CanRunMan("cut", "cut"))
+	checks.append(CanRunMan("sort", "sort"))
+	checks.append(CanRunMan("find", "find"))		
+	checks.append(CanRunMan("grep", "grep"))
+	checks.append(CanRunMan("uniq", "uniq"))
+	checks.append(CanRunMan("tac", "tac"))
+	checks.append(CanRunMan("cat", "cat"))
+	checks.append(CanRunMan("R", "R"))
+	checks.append(CanRunMan("Rscript", "Rscript"))
+	checks.append(CanRunMinusH("nhmmer", "nhmmer"))
+	checks.append(CanRunMinusH("hmmbuild", "hmmbuild"))
+	checks.append(CanRunMinusH("makehmmerdb", "makehmmerdb"))
+	checks.append(CanRunBlank("augustus", "augustus"))
+	checks.append(CanRunMinusH("bedtools", "bedtools"))
+	checks.append(CanRunMan("mktemp", "mktemp"))
+	checks.append(CanRunOrthoFinder())
+	if not all(checks):
+		sys.exit()
+	if not CanRunBedTools():
+		print("The version of BedTools you're using is causing problems with OrthoFiller.\nSometimes BedTools updates prevent BedTools itself from running properly.\nTry downloading bedtools v2.25.0 and run OrthoFiller again.")
+		sys.exit()
 
 ########################################################
 ################ Function definitions ##################
 ########################################################
 
 class SeqRef(object):
-    def __init__(self, str_species, str_speciesNum, seqId):
-	""" Basically a wrapper to hold information about each particular sequence.
-	    Because dictionaries are rubbish. 
-	"""
-	self.species = str_species
-	self.seqId = seqId
-	self.uniqueId = str(str_speciesNum) + "_" +  seqId.replace("|", "-").replace(";", "-").replace(" ", "-")
-    def __eq__(self, other):
-	return self.uniqueId == other.uniqueId
-    def __ne__(self, other):
-	return not self.__eq__(other)
-    def __repr__(self):
-	return self.ToString()
-    def ToString(self):
-	return "UniqueId:%s; Species: %s; SeqId: %s" % (self.uniqueId, self.species, self.seqId)
+	def __init__(self, str_species, str_speciesNum, seqId):
+		""" Basically a wrapper to hold information about each particular sequence.
+		    Because dictionaries are rubbish. 
+		"""
+		self.species = str_species
+		self.seqId = seqId
+		self.uniqueId = str(str_speciesNum) + "_" +  seqId.replace("|", "-").replace(";", "-").replace(" ", "-")
+	def __eq__(self, other):
+		return self.uniqueId == other.uniqueId
+	def __ne__(self, other):
+		return not self.__eq__(other)
+	def __repr__(self):
+		return self.ToString()
+	def ToString(self):
+		return "UniqueId:%s; Species: %s; SeqId: %s" % (self.uniqueId, self.species, self.seqId)
 
 def addSpecies(str_species, dict_speciesInfo):
 	if not str_species in dict_speciesInfo:
@@ -214,7 +406,7 @@ def readInputLocations(path_speciesInfoFile):
 	   The proteins string should be the same as the species element in the OrthoFinder output.
 	   As such, we use the basename of this file as the species name.
 	"""
-	print("loading and checking input data locations...")
+	print("Loading and checking input data locations...")
 	dict_speciesInfo = {}
 	with open(path_speciesInfoFile) as path_locationsFile:
 		# Ignore any commented lines, typically these are headers.
@@ -229,7 +421,7 @@ def readInputLocations(path_speciesInfoFile):
 			# Then just build up the dictionary with human-readable names
 			path_aa		= checkFileExists(line[0])
 			path_gff 	= checkFileExists(line[1])
-			path_genome     = checkFileExists(line[2])
+			path_genome	 = checkFileExists(line[2])
 			path_cds	= checkFileExists(line[3])
 			dict_speciesInfo[str_species]["protein"] = path_aa
 			dict_speciesInfo[str_species]["gff"]	 = path_gff
@@ -265,7 +457,6 @@ def gffsForOrthoGroups(path_ogDir, path_orthogroups, path_singletons, dict_speci
 		async(gffPool, gffsForGroups, args=(a, singletons, path_ogDir, str_species, "_singletonProtein.gtf", i))
 	gffPool.close()
 	gffPool.join()	
-	print ("Finished extracting " + str_species)
 	
 def gffsForGroups(list_gff, orthogroups, path_ogDir, str_species, str_outsuffix, int_speciesNum):
 	#Gff entries by transcript name
@@ -302,29 +493,28 @@ def makeGffTrainingFile(path_inputGff, path_outputGff):
 	"""For AUGUSTUS to train its algorithms correctly, we need to format
 	   the gff file in a certain way.
 	"""
-	print("making training file " + path_outputGff + " from  " + path_inputGff + "...")
+	#print("making training file " + path_outputGff + " from  " + path_inputGff + "...")
+	#print("making training file " + path_outputGff + "...")	
 	path_tmp=path_outputGff + ".tmp"
 	path_bases=path_outputGff + ".bases"
 	getBases(path_inputGff, path_bases)
 	# Make sure there are no overlaps, by randomly choosing between overlapping entries, and sort the file.
 	function="infile=\"" + path_inputGff + "\"; basefile=\"" + path_bases + "\"; outfile=\"" + path_tmp + "\"; " + """
 		td=`mktemp -d`
-		echo "temp directory is $td"
 		echo -n "" > $outfile
 
-		echo "Assuring transcripts..."
+		#echo "Assuring transcripts..."
 		infile_td=`mktemp $td/infile_tid.XXXXXX`
 		sed -r  '/transcript_id/! s/gene_id([ =])\\"([^\\"]*)\\";?( ?)/gene_id\\1\\"\\2\\"; transcript_id\\1\\"\\2.t999\\";\\3/g' $infile > $infile_td
 
-		echo "Grouping into regions.."
+		#echo "Grouping into regions.."
 		sort -k1,1V -k4,4n $basefile | bedtools merge -s -i - > $td/gffmerged.bed.tmp
 
 		cut -f1,2,3,4 $td/gffmerged.bed.tmp | sed -r "s/\\t([^\\t]*)$/\\t.\\t.\\t\\1/g" > $td/gffmerged.bed
 
-		echo "Intersecting..."
+		#echo "Intersecting..."
 		bedtools intersect -a $td/gffmerged.bed -b $infile_td -wa -wb > $td/gffis.bed
 		
-		echo  $td/gffis.bed
 		cat $td/gffis.bed | shuf | sed -r  "s/(.*transcript_id[ =]\\")([^\\"]*)(\\".*)/\\2\\t\\1\\2\\3\\t\\2/g" | awk 'BEGIN {FS="\\t"} {if (a[$2"."$3"."$4"."$7] == "") { a[$2"."$3"."$4"."$7]=$1 } ; if (a[$2"."$3"."$4"."$7]==$1) {v[$2"."$3"."$4"."$7]=v[$2"."$3"."$4"."$7]"\\n"$0"\\t"$2"."$3"."$4"."$7 } } END { for ( i in a ) {print v[i] } } ' | awk 'NF' | cut -f8- | sed -r "s/.\tgene_id/.\tgene_id/g" | sed -r "s/\.\-/\.neg/g" | sed -r "s/\.\+/\.pos/g" > $td/tmp1
 		awk -F "\\t" '{print $1"\\t"$2"\\t"$3"\\t"$4"\\t"$5"\\t.\\t"$7"\\t.\\tgene_id \\""$11".gene\\"; transcript_id \\""$11".gene.t1\\";\t"$11}' $td/tmp1 | sort -u > $outfile
 		
@@ -340,10 +530,10 @@ def makeGffTrainingFile(path_inputGff, path_outputGff):
 	callFunction(function)
 
 def getBases(path_gtf, path_gtfBases):
-        """Get the base for a gtf file
-        """
-        with open(path_gtf) as c:
-                gtf = [line for line in csv.reader(c, delimiter="\t") if ''.join(line).strip()]
+	"""Get the base for a gtf file
+	"""
+	with open(path_gtf) as c:
+		gtf = [line for line in csv.reader(c, delimiter="\t") if ''.join(line).strip()]
 	coords={}
 	entries={}
 	for line in gtf:
@@ -357,10 +547,10 @@ def getBases(path_gtf, path_gtfBases):
 	for t_id in entries:
 		entries[t_id][3] = min(coords[t_id])
 		entries[t_id][4] = max(coords[t_id])
-        with open(path_gtfBases, "w") as p:
-                writer = csv.writer(p, delimiter="\t", quoting = csv.QUOTE_NONE, quotechar='')
+	with open(path_gtfBases, "w") as p:
+		writer = csv.writer(p, delimiter="\t", quoting = csv.QUOTE_NONE, quotechar='')
 		for entry in entries:
-	                writer.writerow(entries[entry])
+			writer.writerow(entries[entry])
 
 def checkCdsHealth(path_inputGtf, path_outputGtf):
 	with open(path_inputGtf) as c:
@@ -467,7 +657,7 @@ def getAlignmentStats(path_proteinAlignmentFastaFile):
 	# We're going to write the sequences into a matrix of characters.
 	protAlSequencesCharArray = []
 	for sequence in protAl:
-		protAlSequencesCharArray.append(list(sequence.seq.tostring()))
+		protAlSequencesCharArray.append(list(str(sequence.seq)))
 	# The sequences should all be the same length
 	# Count the number of gaps in each sequence and output it as a percentage of
 	# The total length of the sequence.
@@ -532,7 +722,7 @@ def getNucleotideAlignment(alignedProteinsFastaIn, fastaOut, sequencesHolder, di
 			# Construct the new sequences
 			cdsRecord = path_indexedCdsFiles[str_species][localId]
 			# The ungapped dna sequence
-			dnaSourceSequence = cdsRecord.seq.tostring()
+			dnaSourceSequence = str(cdsRecord.seq)
 			# The gapped protein sequence
 			gappedProteinSequence = record.seq
 			# Get the gapped dna sequence
@@ -550,18 +740,17 @@ def getNucleotideAlignment(alignedProteinsFastaIn, fastaOut, sequencesHolder, di
 def buildHmm(nucAlignment, path_outputFile):
 	"""Build an hmm based on a nucleotide alignment. Inputs are file names.
 	"""
-	callFunction("hmmbuild " + path_outputFile + " " + nucAlignment)
+	callFunctionQuiet("hmmbuild " + path_outputFile + " " + nucAlignment) #qgr
 
 def makeHmmerDb(path_genomeFile, path_dbOutput):
 	"""Makes a database per cds file for use with hmmer.
 	"""
-	callFunction("makehmmerdb --block_size=10 " + path_genomeFile + " " + path_dbOutput)
+	callFunction("makehmmerdb --block_size=10 " + path_genomeFile + " " + path_dbOutput) #qgr
 
 def implementHmmSearch(path_hmmFile, path_db, path_hitsFileName):
 	"""Runs across the genome and finds hmm hits
 	"""
-	print("nhmmer --tformat hmmerfm --dna --cpu 1 --tblout " + path_hitsFileName + " " +     path_hmmFile + " " + path_db)
-	callFunctionQuiet("nhmmer --tformat hmmerfm --dna --cpu 1 --tblout " + path_hitsFileName + " " + 	path_hmmFile + " " + path_db)
+	callFunctionQuiet("nhmmer --tformat hmmerfm --dna --cpu 1 --tblout " + path_hitsFileName + " " + 	path_hmmFile + " " + path_db) #qgr
 
 def processOg(orthogroup, list_orthogroupSequenceIds, orthogroupProteinSequences, dict_sequenceInfoById, dict_speciesInfo, path_wDir, str_ogFolder):
 	"""Runs all alignments and markov models for a particular orthogroup.
@@ -599,7 +788,7 @@ def processOg(orthogroup, list_orthogroupSequenceIds, orthogroupProteinSequences
 	######################################################
 	for species in dict_speciesInfo:
 		path_hitsFile = path_wDir + "/" + str_ogFolder + "/" + orthogroup + "." + species + ".hits"
-		print "Generating hits file: " + path_hitsFile
+		#print "Generating hits file: " + path_hitsFile
 		implementHmmSearch(path_hmmFile, dict_speciesInfo[species]["hmmdb"], path_hitsFile)
 		#Form a bed file from the resultant hits file
 		path_hitsFileBed = path_hitsFile + ".bed"
@@ -607,7 +796,7 @@ def processOg(orthogroup, list_orthogroupSequenceIds, orthogroupProteinSequences
 				'chomp;@l=split; printf \"%s\\t%s\\t%s\\t.\\t.\\t%s\\t" + species + "\\t" + orthogroup +
 				"\\n\", $l[0], ($l[1] + $l[2] - abs($l[1] - $l[2])) / 2, ($l[1] + $l[2] + abs($l[2] - $l[1])) / 2,\
 				 join(\"\\t\", @l[3..6])' > " + path_hitsFileBed)
-	print("Finished " + orthogroup)
+	#print("Finished " + orthogroup)
 
 def proposeNewGenes(path_hitsOgIntersectionFileNameAnnotated, path_allHitsOgIntersectionFileNameAnnotated, str_speciesName, path_candidatesFile, hitFilter):
 	# Use R to find candidates.
@@ -625,7 +814,7 @@ def fitDistributions(path_hitsOgIntersectionFileNameAnnotated, path_allHitsOgInt
 		unpackFitDistributionScript(rfile)
 	else:
 		unpackFitDistributionScript_noFilter(rfile)
-	callFunction("rfile=\""+rfile+"\"; Rscript $rfile " + path_hitsOgIntersectionFileNameAnnotated + " " + \
+	callFunctionQuiet("rfile=\""+rfile+"\"; Rscript $rfile " + path_hitsOgIntersectionFileNameAnnotated + " " + \
 				path_allHitsOgIntersectionFileNameAnnotated + " "  + path_candidatesFile + "; rm $rfile")
 
 def prepareOutputFolder(path_outDir):
@@ -682,39 +871,56 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 		######################################################
 		# Set up an hmm database for each species
 		######################################################
+		print("\n2.1. Preparing HMM databases")
+	        print(  "============================")
 		prepareHmmDbs(dict_speciesInfo, path_wDir, int_cores)#ql
 		#####################################################
 		# Produce gff files for each orthogroup/species pair
 		#####################################################		
 		str_ogDir = "orthogroups"	
 		path_ogDir = path_wDir + "/" + str_ogDir
+	        print("\n2.2. Extracting orthogroup gtf files")
+                print(  "====================================")
 		gffsForOrthoGroups(path_ogDir, path_orthoFinderOutputFile, path_singletonsFile, dict_speciesInfo, int_cores)#ql
 		#####################################################
 		# Process each individual orthogroup in parallel
 		#####################################################
 		proteinSequences = getProteinSequences(dict_sequenceInfoById, dict_speciesInfo)
 		og_pool = multiprocessing.Pool(int_cores)
+		jobs=[]
 		int_counter = 1
 		str_total = str(len(orthogroups))
+		print("\n2.2. Processing orthogroup HMMs")
+                print(  "==============================================")
 		for orthogroup in orthogroups:
-			print "Submitting " + orthogroup + "; " + str(int_counter) + " of " + str_total + " submitted."
+			#print "Submitting " + orthogroup + "; " + str(int_counter) + " of " + str_total + " submitted."
 			orthogroupProteinSequences = { x: proteinSequences[x] for x in orthogroups[orthogroup] }
-			async(og_pool, processOg, args=(orthogroup, \
+			jobs.append(async(og_pool, processOg, args=(orthogroup, \
 							orthogroups[orthogroup], \
 							orthogroupProteinSequences, \
 							dict_sequenceInfoById, \
 							dict_speciesInfo, \
 							path_wDir, \
-							str_ogDir))#qr
+							str_ogDir)))#qr
 			int_counter = int_counter + 1
 		og_pool.close()
+		# Keep track of how many orthogroups have been processed.
+		while True:
+			k=[j.ready() for j in jobs]
+			sys.stdout.write("\r" + str(sum(k)) + " out of " + str_total +  " orthogroups processed")
+			sys.stdout.flush()
+			if all(k):
+				print("Finished processing orthogroups")
+				break
+			time.sleep(2)
 		og_pool.join()
 		####################################################
 		# Start a new pool for processing the hmm outfiles.
 		####################################################
 		pool = multiprocessing.Pool(int_cores)
 		dict_ogIntersectionFileNamesAnnotated = {}
-		print("Processing HMM output files...")
+		print("\n3. Processing HMM output files")
+		print(  "==============================")
 		for str_speciesName in dict_speciesInfo:
 			print("Submitting HMM output files for species " + str_speciesName + "...")
 			# Prepare file names
@@ -747,7 +953,15 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 		deleteIfPresent(path_allHitsOgIntersectionFileNameAnnotated)#ql
 		for str_speciesName in dict_ogIntersectionFileNamesAnnotated:
 			path_annotatedFile = dict_ogIntersectionFileNamesAnnotated[str_speciesName]
-			callFunction("cat " + path_annotatedFile + " >> " + path_allHitsOgIntersectionFileNameAnnotated)#ql
+			appendFileToFile(path_annotatedFile, path_allHitsOgIntersectionFileNameAnnotated)
+		print("Checking quantity of reference hits...")
+		with open(path_allHitsOgIntersectionFileNameAnnotated, "r") as f:
+			data = list(csv.reader(f, delimiter="\t"))
+			match_good = [a for a in data if a[20] == "match_good"]
+			match_bad  = [a for a in data if a[20] == "match_bad"]
+			if match_good < 1000 or match_bad < 1000:
+				print("Error: hit quantity is not sufficient to classify potential new genes.")
+				sys.exit()			
 		####################################################
 		# Fit a model for each individual species. If data
 		# is insufficient, use aggregated data.
@@ -768,6 +982,8 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 	print("Waiting for training to finish before continuing...")
 	trainingPool.close()
 	trainingPool.join()
+        print("\n4. Running Augustus")
+        print(  "==============================")
 	augustusPool = multiprocessing.Pool(int_cores)
 	for str_speciesName in dict_speciesInfo:
 		path_proposedGenes = dict_speciesInfo[str_speciesName]["proposedgenes"]
@@ -817,6 +1033,9 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 	# Get a hint f score for the new genes and abandon
 	# those genes whose score is not adequate.
 	####################################################
+	if hintFilter:
+	        print("\n5.1 Filtering by hint F-score")
+	        print(  "=============================")
 	pool=multiprocessing.Pool(int_cores)
 	for str_speciesName in dict_speciesInfo:
 		path_augustusParsed=dict_speciesInfo[str_speciesName]["augustusparsed"]
@@ -838,8 +1057,10 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 	# Reinsert the sequences into the proteome and 
 	# rerun OrthoFiller
 	####################################################
+	print("\n5.2 Re-running OrthoFinder")
+        print(  "==========================")
 	path_newProteomesDir = path_wDirS + "/newProteomes"
-	callFunction("rm -rf " + path_newProteomesDir)
+	deleteIfPresent(path_newProteomesDir)
 	makeIfAbsent(path_newProteomesDir)
 	for str_speciesName in dict_speciesInfo:
 		path_newProteome = path_newProteomesDir + "/" + str_speciesName + "newProteome.fasta"
@@ -847,19 +1068,20 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 		dict_speciesInfo[str_speciesName]["newProtein"] = path_newProteome
 		dict_speciesInfo[str_speciesName]["newSpeciesName"] =  str_speciesName + "newProteome.fasta"
 		path_predictedProteinSequences = dict_speciesInfo[str_speciesName]["augustussequences_hintfiltered"]
-		callFunction("cat " + path_oldProteome + " " + path_predictedProteinSequences + " | sed -r \"s/^>(.*)$/£££>\\1###/g\" | sed -r \"s/$/###/g\" | tr '\\n' ' ' | sed -r \"s/£££/\\n/g\" | sed -r \"s/### //g\" | grep -v \"###$\" | sed -r \"s/###/\\n/g\" | grep -vP \"^$\" > " + path_newProteome)
+		makeNewProteome(path_oldProteome, path_predictedProteinSequences, path_newProteome)
 	runOrthoFinder(path_newProteomesDir)
 	####################################################
 	# Check genes have ended up in the right orthogroup
 	####################################################
 	# Fetch the original species set before we add the new ones.
 	dict_speciesInfo_modern=dict(dict_speciesInfo)
-	print(path_newProteomesDir)
+	print("\n5.3 Running orthogroup membership test")
+        print(  "======================================")
 	path_orthofinderOutputNew=find("OrthologousGroups.csv", path_newProteomesDir)
 	path_orthofinderSingletonsNew=find("OrthologousGroups_UnassignedGenes.csv", path_newProteomesDir)
 	
 	silNew, oNew, sNew = readOrthoFinderOutput(path_orthofinderOutputNew, \
-								    path_orthofinderSingletonsNew, dict_speciesInfo_modern)
+									path_orthofinderSingletonsNew, dict_speciesInfo_modern)
 	for str_speciesName in dict_speciesInfo:
 		print("Double-checking membership for species " + str_speciesName)
 		#Prepare file names.
@@ -917,6 +1139,7 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 		for s in sequences:
 			protSequences.append(s)
 		protSequencesAccepted = [x for x in protSequences if x.description.replace(" ", "").replace("\"", "") in acceptedSequences]
+		dict_speciesInfo[str_speciesName]["newGenes"] = protSequencesAccepted
 		###########################################################
 		# Have to make sure gene names are not being duplicated,
 		# which can be a problem with iterated runs, for example.
@@ -929,8 +1152,17 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 		path_resultsFasta = path_resultsDir + "/" + str_speciesName + ".results.aa.fasta"
 		path_resultsGff =path_resultsDir + "/" + str_speciesName + ".results.gtf"
 		dict_speciesInfo[str_speciesName]["resultsgff"]=path_resultsGff
-		callFunction("cat " + dict_speciesInfo[str_speciesName]["gff"] + " " +  path_acceptedGff + " > " + path_resultsGff)
-		callFunction("cat " + dict_speciesInfo[str_speciesName]["protein"] + " " +  path_acceptedSequencesOut + " > " + path_resultsFasta)
+		# write out the gtf results file
+		appendFileToFile(dict_speciesInfo[str_speciesName]["gff"], path_resultsGff)
+		appendFileToFile(path_acceptedGff, path_resultsGff)
+		# write out the fasta results file
+		appendFileToFile(dict_speciesInfo[str_speciesName]["protein"], path_resultsFasta)
+		appendFileToFile(path_acceptedSequencesOut, path_resultsFasta)
+	print("\n6. Finishing up!")
+	print(  "================")
+	print("Results directory is " + path_resultsDir)
+	for str_species in dict_speciesInfo:
+		print("-------" + str(len(dict_speciesInfo[str_species]["newGenes"])) + " new genes found for " + str_species)
 
 def compareOutputSequences(seq1, seq2):
 	if seq1.replace(" ", "").replace("\"", "") == seq2.replace(" ", "").replace("\"", ""):
@@ -938,14 +1170,20 @@ def compareOutputSequences(seq1, seq2):
 	else:
 		return False
 
+def makeNewProteome(path_oldProteome, path_predictedProteinSequences, path_newProteome):
+	oldSeqs = [a for a in SeqIO.parse(path_oldProteome, "fasta") if a.seq != ""]
+	newSeqs = [a for a in SeqIO.parse(path_predictedProteinSequences, "fasta") if a.seq != ""]
+	SeqIO.write(oldSeqs + newSeqs, path_newProteome, "fasta")
+
 def assignNames(str_speciesName, path_acceptedGff, path_geneNameConversionTable, protSequencesAccepted, dict_sequenceInfoById, path_augustusParsed, path_acceptedSequencesOut):
 	originalNames = [dict_sequenceInfoById[x].seqId for x in dict_sequenceInfoById if dict_sequenceInfoById[x].species == str_speciesName]
 	originalNamesStubs = [x.split(".")[0] for x in originalNames ]
 	allNames= originalNames + originalNamesStubs
-	callFunction("echo -n \"\" > " + path_geneNameConversionTable)
 	# for each new gene, give it a nice name and check that it hasn't been used before.
 	counter=1
 	print("updating names....")
+	f = open(path_geneNameConversionTable, "w")
+	writer = csv.writer(f, delimiter = '\t',quoting = csv.QUOTE_NONE, quotechar='')
 	for s in protSequencesAccepted:
 		newNameFound=False
 		proposedGeneName=""
@@ -954,11 +1192,12 @@ def assignNames(str_speciesName, path_acceptedGff, path_geneNameConversionTable,
 			if not proposedGeneName in allNames:
 				newNameFound=True
 			counter = counter + 1
-		callFunction("echo \"" + s.description + "\\t " + proposedGeneName + "\" >> " + path_geneNameConversionTable)
+		writer.writerow([s.description , proposedGeneName])
 		s.id=proposedGeneName
 		s.description=proposedGeneName
 		s.name=proposedGeneName
 	# Write stuff out.
+	f.close()
 	SeqIO.write(protSequencesAccepted,  path_acceptedSequencesOut, "fasta")
 	print("writing out results....")
 	callFunction("echo -n \"\" > "+path_acceptedGff + ";\
@@ -1065,7 +1304,9 @@ def makeHintsFile(path_goodHits, path_hitsHintsGff):
 def parseAugustusOutput(path_augustusOutput, path_outputGff, path_outputFasta, path_sourcegff):
 	function = "infile=\"" + path_augustusOutput + "\"; outfile=\"" +\
 			path_outputGff + "\"; fastaout=\"" + path_outputFasta + "\"; sourcegff=\"" + path_sourcegff + "\";"+ \
-			"""ot=`mktemp -d`; mkdir $ot/augsplit; echo "parsing in $ot"; awk -v RS="# start gene" -v ot="$ot" '{print "#"$0 > ot"/augsplit/augSplit."NR }' $infile
+			"""ot=`mktemp -d`; mkdir $ot/augsplit;
+			#echo "parsing in $ot";
+			awk -v RS="# start gene" -v ot="$ot" '{print "#"$0 > ot"/augsplit/augSplit."NR }' $infile
 			mkdir $ot/success
 			echo -n "" > $fastaout
 			echo -n "" > $outfile
@@ -1075,7 +1316,7 @@ def parseAugustusOutput(path_augustusOutput, path_outputGff, path_outputFasta, p
 				possibleOrthos=`echo "$flatstring" | sed -r "s/.*hint groups fully obeyed://g" | grep -oP "OG[0-9]{7}" | paste -sd, | sed -r "s/^,//g" | sed -r "s/,$//g"`
 				grep -v "#" $file | grep -P "\\tAUGUSTUS\\t" | grep -v "^$" | sed -r "s/$/\\tpossibleOrthos=$possibleOrthos/g" >> $outfile
 				id=`grep "transcript_id" $file | sed -r "s/.*(transcript_id \\"[^\\"]*\\"; gene_id \\"[^\\"]*\\";).*/\\1/g" | sort | head -n1 `
-				echo "printing sequences for $id"
+				#echo "printing sequences for $id"
 				sequence=`echo "$flatstring" | sed -r "s/.*protein sequence = \[([A-Z ]*)\].*/\\1/g" | sed -r "s/[ \\t]//g"`
 				echo ">$id###$sequence" >> $fastaout.tmp
 			done
@@ -1119,9 +1360,10 @@ def implementHintFscoreFilter(path_augustusParsed, path_hintFile, path_outFile, 
 	sed -r "s/.*gene_id=\\"([^\\"]*)\\";.*/\\1/g" $augParsedBed | sort -u > $gids
 
 	IFS='\n'
-
+	successes=0
+	failures=0
 	for gid in `cat $gids`; do
-		echo "checking hint scores for $gid from $augParsed"
+		#echo "checking hint scores for $gid from $augParsed"
 		entrytmp=`mktemp`
 		grep -P "gene_id[ =]\\"$gid\\"" $augParsedBed > $entrytmp
 		compatibleHints=`bedtools intersect -wa -s -b $entrytmp -a $hintsFileBed | sort -u`
@@ -1137,12 +1379,13 @@ def implementHintFscoreFilter(path_augustusParsed, path_hintFile, path_outFile, 
 			successes="$successestmp"
 		done
 		if [ "$successes" != "" ]; then
-			echo "success"
+			successes=`echo $[$successes+1]`
 			grep -P "(gene_id[= ]\\"$gid\\";|\\t$gid\\t|\\t$gid\\.t.*\\t)" $augParsed | sort -u >> $of
 		else
-			echo "failure"
+			failures=`echo $[$failures+1]`
 		fi
 	done
+	echo "Finished implementing hint score filter for $augParsed. $successes survivors and $failures non-survivors."
 	sort -u $of > $of.tmp; mv $of.tmp $of
 
 	rm $gids
@@ -1155,7 +1398,7 @@ def extractFromFastaByName(path_gffFile, path_fastaFile, path_fastaOut):
 	echo -n "" > $fastaout; tids=`grep -P "\\ttranscript_id[ =]\\"[^\\"]*\\"; ?gene_id[ =]\\"[^\\"]*\\";" $gff | sed -r "s/.*\\ttranscript_id[ =]\\"([^\\"]*)\\"; ?gene_id[= ]\\"[^\\"]*\\";.*/\\1/g" | sort -u `
 	IFS='\n'
 	for tid in `echo "$tids"`; do
-		echo "fetching sequence for $tid"
+		#echo "fetching sequence for $tid"
 		awk -v patt=".*transcript_id[= ]\\"$tid\\";.*\\n" 'BEGIN {RS=">"} $0 ~ patt {print ">"$0}' $fasta | grep -v "^$" >> $fastaout
 	done"""
 	callFunction(function)
@@ -1176,20 +1419,20 @@ def fetchSequences(path_gffIn, path_genome, path_cdsFastaOut, path_aaFastaOut, i
 		paste $gffBed.1 $gffBed.2 | perl -ne 'chomp; @l=split; printf "$l[0]\\t%s\\t$l[4]\\t$l[8]\\t.\\t$l[6]\\n", $l[3]-1' | sort -u | sort -k1,1V -k2,2n > $gffBed
 
 		#Negative strand
-		echo "negative strand..."
+		#echo "negative strand..."
 		awk '$6=="-"' $gffBed > $gffBed.neg
 		bedtools getfasta -name -s -fullHeader -fi $genome -fo $gffBed.neg.tab -bed $gffBed.neg -tab
 		tac $gffBed.neg.tab | awk '{a[$1]=a[$1]""$2} END {for (i in a) {print ">"i"\\n"a[i]}}' > $gffBed.neg.fa
 
 		#Then positive strand
-		echo "positive strand..."
+		#echo "positive strand..."
 		awk '$6=="+"' $gffBed > $gffBed.pos
 		bedtools getfasta -name -s -fullHeader -fi $genome -fo $gffBed.pos.tab -bed $gffBed.pos -tab
 		cat $gffBed.pos.tab | awk '{a[$1]=a[$1]""$2} END {for (i in a) {print ">"i"\\n"a[i]}}' > $gffBed.pos.fa
 
 		cat $gffBed.pos.fa $gffBed.neg.fa | sed -r "s/^>(.*)$/£££>\\1###/g" | sed -r \"s/$/###/g\" | tr '\\n' ' ' | sed -r "s/£££/\\n/g" | sed -r "s/### //g" | grep -v XXX | grep -v "\*[A-Z]" | grep -v "###$" | sed -r "s/###/\\n/g" | grep -vP "^$" > $outfile
 
-		echo $tf
+		#echo $tf
 		rm -r $tf
 		""")
 	print("translating to protein...")
@@ -1207,6 +1450,8 @@ def start(path_speciesInfoFile, path_orthoFinderOutputFile, path_singletonsFile,
 	# orthofinder output.
 	# MD-CC: will need to have a consistency check for this.:
 	######################################################
+        print("\n1.1. Reading and checking orthofinder output and sequence info files")
+        print(  "===================================================================")
 	dict_speciesInfo = readInputLocations(path_speciesInfoFile)
 	dict_sequenceInfoById, orthogroups, singletons = readOrthoFinderOutput(path_orthoFinderOutputFile, path_singletonsFile, dict_speciesInfo)
 	#####################################################
@@ -1214,6 +1459,8 @@ def start(path_speciesInfoFile, path_orthoFinderOutputFile, path_singletonsFile,
 	# species has less than 100, it needs special training.
 	#####################################################
 	firstPassMode=False
+	print("\n1.2. Preparing gtf files for Augustus training")
+        print(  "==============================================")
 	pool = multiprocessing.Pool(int_cores)
 	for str_species in dict_speciesInfo:
 		sequences = [ dict_sequenceInfoById[x].seqId for x in dict_sequenceInfoById if dict_sequenceInfoById[x].species == str_species ]
@@ -1265,21 +1512,19 @@ def start(path_speciesInfoFile, path_orthoFinderOutputFile, path_singletonsFile,
 		run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_resultsDir, path_wDir, path_orthoFinderOutputFile, path_singletonsFile, int_cores, False, False, hitFilter, hintFilter)
 
 def unpackFitDistributionScript(path_scriptDestination):
-	callFunction("echo \"outputting to " + path_scriptDestination + "\"")
 	str_script='library("gamlss")\n\nargs <- commandArgs(TRUE)\n\n\nsourceF=args[1]\naltSourceF= args[2]\noutF=args[3]\n\nprint(paste("reading in source table: ", args[1], sep=""))\na <- read.table(sourceF, sep="\\t", header=FALSE)\n\nnames(a) <- c("hitChr", "hitStart", "hitEnd", "mystery1", "mystery2", "hitStrand", "eVal", "score", "bias", "hitSpecies", "hitOg", "targetChr", "targetStart", "targetEnd", "mystery5", "mystery6", "targetStrand", "geneLabel", "targetSpecies", "targetOg", "match")\n\na <- cbind(a, score_adj=a$score/(a$hitEnd - a$hitStart))\n\nh <- hist(a$score_adj, breaks=50, plot=FALSE)\nb <- h$breaks\n\na_none <- a[a$match=="match_none",]\na_good <- a[a$match=="match_good",]\n\n#Declare variables\ng_good = ""\ng_bad = ""\n\ng_prob_good = ""\ng_prob_bad = "" \n\n# Sampling 1000 data points makes the curve-fitting quicker and hardly affects the fit.\ngetGamlss <- function(theData) { print(theData$t); theData_s <- as.data.frame(sample(theData$t, 1000)); colnames(theData_s) <- c("t"); gamlss(t ~ 1, data=theData_s, family="ST1", method=RS(), gd.tol=10000000, c.cyc=0.001, control=gamlss.control(n.cyc=200)) } \n\nif(nrow(a_good) > 1000) {\n\tprint("source table is good, going ahead...")\n\ta_bad_og <- a[a$match=="match_bad",]\n\ta_bad_singleton <- a[a$match=="match_singleton",]\n\ta_bad <- rbind(a_bad_og, a_bad_singleton)\n\n\tprint("fitting good hits")\n\tgoodScores=as.data.frame(a_good$score_adj); colnames(goodScores) <- c("t")\n\t\n\tg_good <- getGamlss(goodScores)\n\tprint("fitting bad hits")\
-\n\tbadScores=as.data.frame(a_bad$score_adj); colnames(badScores) <- c("t")\n\tg_bad <- getGamlss(badScores)\n\t\n\tg_prob_good =  nrow(a_good) / (nrow(a_bad) + nrow(a_good))\n\tg_prob_bad =  1 - g_prob_good\n\n} else {\n\tprint("source table too sparse, using aggregate distribution")\n\tz = read.table(altSourceF, sep="\\t", header=FALSE)\n\n\tnames(z) <- c("hitChr", "hitStart", "hitEnd", "mystery1", "mystery2", "hitStrand", "eVal", "score", "bias", "hitSpecies", "hitOg", "targetChr", "targetStart", "targetEnd", "mystery5", "mystery6", "targetStrand", "geneLabel", "targetSpecies", "targetOg", "match")\n\n\tz <- cbind(z, score_adj=z$score/(z$hitEnd - z$hitStart))\n\t\n\tz_good <- z[z$match=="match_good",]\n\tz_bad_og <- z[z$match=="match_bad",]\n	z_bad_singleton <- z[z$match=="match_singleton",]\n\tz_bad <- rbind(z_bad_og, z_bad_singleton)\n\n\tprint("fitting good hits")\t\n\tgoodScores=as.data.frame(z_good$score_adj); colnames(goodScores) <- c("t")\n	g_good <- getGamlss(goodScores)\n    \tprint("fitting bad hits")\n\tbadScores=as.data.frame(z_bad$score_adj); colnames(badScores) <- c("t")\n	g_bad <- getGamlss(badScores)\n\n	g_prob_good =  nrow(z_good) / (nrow(z_bad) + nrow(z_good))\n	g_prob_bad =  1 - g_prob_good\n\n}\n\nxg_fun <- function(x) { k=dST1(x, mu=g_good$mu.coefficients ,sigma=exp(g_good$sigma.coefficients), nu=g_good$nu.coefficients, tau=exp(g_good$tau.coefficients)) }\nxb_fun <- function(x) { k=dST1(x, mu=g_bad$mu.coefficients ,sigma=exp(g_bad$sigma.coefficients), nu=g_bad$nu.coefficients, tau=exp(g_bad$tau.coefficients)) }\n\ng_val <- function(x) { (xg_fun(x)*g_prob_good - xb_fun(x)*g_prob_bad) / (g_prob_good*xg_fun(x) + g_prob_bad*xb_fun(x)) }\n\nnone_g_scores = cbind(a_none, g_val=g_val(a_none$score_adj))\nnone_good = none_g_scores[none_g_scores$g_val >= 0,]\nnone_bad = none_g_scores[none_g_scores$g_val < 0,]\n\nprint(paste("writing to ", outF, sep=""))\n\nwrite.table(none_good, outF, quote=FALSE, row.names = FALSE, col.names = FALSE, sep="\\t")\n'
+\n\tbadScores=as.data.frame(a_bad$score_adj); colnames(badScores) <- c("t")\n\tg_bad <- getGamlss(badScores)\n\t\n\tg_prob_good =  nrow(a_good) / (nrow(a_bad) + nrow(a_good))\n\tg_prob_bad =  1 - g_prob_good\n\n} else {\n\tprint("source table too sparse, using aggregate distribution")\n\tz = read.table(altSourceF, sep="\\t", header=FALSE)\n\n\tnames(z) <- c("hitChr", "hitStart", "hitEnd", "mystery1", "mystery2", "hitStrand", "eVal", "score", "bias", "hitSpecies", "hitOg", "targetChr", "targetStart", "targetEnd", "mystery5", "mystery6", "targetStrand", "geneLabel", "targetSpecies", "targetOg", "match")\n\n\tz <- cbind(z, score_adj=z$score/(z$hitEnd - z$hitStart))\n\t\n\tz_good <- z[z$match=="match_good",]\n\tz_bad_og <- z[z$match=="match_bad",]\n	z_bad_singleton <- z[z$match=="match_singleton",]\n\tz_bad <- rbind(z_bad_og, z_bad_singleton)\n\n\tprint("fitting good hits")\t\n\tgoodScores=as.data.frame(z_good$score_adj); colnames(goodScores) <- c("t")\n	g_good <- getGamlss(goodScores)\n	\tprint("fitting bad hits")\n\tbadScores=as.data.frame(z_bad$score_adj); colnames(badScores) <- c("t")\n	g_bad <- getGamlss(badScores)\n\n	g_prob_good =  nrow(z_good) / (nrow(z_bad) + nrow(z_good))\n	g_prob_bad =  1 - g_prob_good\n\n}\n\nxg_fun <- function(x) { k=dST1(x, mu=g_good$mu.coefficients ,sigma=exp(g_good$sigma.coefficients), nu=g_good$nu.coefficients, tau=exp(g_good$tau.coefficients)) }\nxb_fun <- function(x) { k=dST1(x, mu=g_bad$mu.coefficients ,sigma=exp(g_bad$sigma.coefficients), nu=g_bad$nu.coefficients, tau=exp(g_bad$tau.coefficients)) }\n\ng_val <- function(x) { (xg_fun(x)*g_prob_good - xb_fun(x)*g_prob_bad) / (g_prob_good*xg_fun(x) + g_prob_bad*xb_fun(x)) }\n\nnone_g_scores = cbind(a_none, g_val=g_val(a_none$score_adj))\nnone_good = none_g_scores[none_g_scores$g_val >= 0,]\nnone_bad = none_g_scores[none_g_scores$g_val < 0,]\n\nprint(paste("writing to ", outF, sep=""))\n\nwrite.table(none_good, outF, quote=FALSE, row.names = FALSE, col.names = FALSE, sep="\\t")\n'
 	f=open(path_scriptDestination, "w")
 	f.write(str_script)
 
 def unpackFitDistributionScript_noFilter(path_scriptDestination):
-	callFunction("echo \"outputting to " + path_scriptDestination + "\"")
 	str_script='library("gamlss")\n\nargs <- commandArgs(TRUE)\n#args=c("all_coverage_annotated.orthogroupintersection.Ashgo1_1_GeneCatalog_proteins_20140830.aa.fasta.bed.hitTypes.new.tmp")\n\nsourceF=args[1]\naltSourceF= args[2]\noutF=args[3]\n\nprint(paste("reading in source table: ", args[1], sep=""))\na <- read.table(sourceF, sep="\\t", header=FALSE)\n\nnames(a) <- c("hitChr", "hitStart", "hitEnd", "mystery1", "mystery2", "hitStrand", "eVal", "score", "bias", "hitSpecies", "hitOg", "targetChr", "targetStart", "targetEnd", "mystery5", "mystery6", "targetStrand", "geneLabel", "targetSpecies", "targetOg", "match")\n\na <- cbind(a, score_adj=a$score/(a$hitEnd - a$hitStart))\n\nh <- hist(a$score_adj, breaks=50, plot=FALSE)\nb <- h$breaks\n\na_none <- a[a$match=="match_none",]\na_good <- a[a$match=="match_good",]\n\n#Declare variables\ng_good = ""\ng_bad = ""\n\ng_prob_good = ""\ng_prob_bad = "" \n\n# Sampling 1000 data points makes the curve-fitting quicker and hardly affects the fit.\n#getGamlss <- function(theData) { print(theData$t); theData_s <- as.data.frame(sample(theData$t, 1000)); colnames(theData_s) <- c("t"); gamlss(t ~ 1, data=theData_s, family="ST1", method=RS(), gd.tol=10000000, c.cyc=0.001, control=gamlss.control(n.cyc=200)) } \ngetGamlss <- function(theData) {}\n\nif(nrow(a_good) > 1000) {\n\tprint("source table is good, going ahead...")\n\ta_bad_og <- a[a$match=="match_bad",]\n\ta_bad_singleton <- a[a$match=="match_singleton",]\n\ta_bad <- rbind(a_bad_og, a_bad_singleton)\n\n\tprint("fitting good hits")\n\tgoodScores=as.data.frame(a_good$score_adj); colnames(goodScores) <- c("t")\n\t\n\tg_good <- getGamlss(goodScores)\n\tprint("fitting bad hits")\
-		\n\tbadScores=as.data.frame(a_bad$score_adj); colnames(badScores) <- c("t")\n\tg_bad <- getGamlss(badScores)\n\t\n\tg_prob_good =  nrow(a_good) / (nrow(a_bad) + nrow(a_good))\n\tg_prob_bad =  1 - g_prob_good\n\n} else {\n\tprint("source table too sparse, using aggregate distribution")\n\tz = read.table(altSourceF, sep="\\t", header=FALSE)\n\n\tnames(z) <- c("hitChr", "hitStart", "hitEnd", "mystery1", "mystery2", "hitStrand", "eVal", "score", "bias", "hitSpecies", "hitOg", "targetChr", "targetStart", "targetEnd", "mystery5", "mystery6", "targetStrand", "geneLabel", "targetSpecies", "targetOg", "match")\n\n\tz <- cbind(z, score_adj=z$score/(z$hitEnd - z$hitStart))\n\t\n\tz_good <- z[z$match=="match_good",]\n\tz_bad_og <- z[z$match=="match_bad",]\n	z_bad_singleton <- z[z$match=="match_singleton",]\n\tz_bad <- rbind(z_bad_og, z_bad_singleton)\n\n\tprint("fitting good hits")\t\n\tgoodScores=as.data.frame(z_good$score_adj); colnames(goodScores) <- c("t")\n	g_good <- getGamlss(goodScores)\n    \tprint("fitting bad hits")\n\tbadScores=as.data.frame(z_bad$score_adj); colnames(badScores) <- c("t")\n	g_bad <- getGamlss(badScores)\n\n	g_prob_good =  nrow(z_good) / (nrow(z_bad) + nrow(z_good))\n	g_prob_bad =  1 - g_prob_good\n\n}\n\nnone_good = a_none\n\nprint(paste("writing to ", outF, sep=""))\n\nwrite.table(none_good, outF, quote=FALSE, row.names = FALSE, col.names = FALSE, sep="\\t")\n'
+		\n\tbadScores=as.data.frame(a_bad$score_adj); colnames(badScores) <- c("t")\n\tg_bad <- getGamlss(badScores)\n\t\n\tg_prob_good =  nrow(a_good) / (nrow(a_bad) + nrow(a_good))\n\tg_prob_bad =  1 - g_prob_good\n\n} else {\n\tprint("source table too sparse, using aggregate distribution")\n\tz = read.table(altSourceF, sep="\\t", header=FALSE)\n\n\tnames(z) <- c("hitChr", "hitStart", "hitEnd", "mystery1", "mystery2", "hitStrand", "eVal", "score", "bias", "hitSpecies", "hitOg", "targetChr", "targetStart", "targetEnd", "mystery5", "mystery6", "targetStrand", "geneLabel", "targetSpecies", "targetOg", "match")\n\n\tz <- cbind(z, score_adj=z$score/(z$hitEnd - z$hitStart))\n\t\n\tz_good <- z[z$match=="match_good",]\n\tz_bad_og <- z[z$match=="match_bad",]\n	z_bad_singleton <- z[z$match=="match_singleton",]\n\tz_bad <- rbind(z_bad_og, z_bad_singleton)\n\n\tprint("fitting good hits")\t\n\tgoodScores=as.data.frame(z_good$score_adj); colnames(goodScores) <- c("t")\n	g_good <- getGamlss(goodScores)\n	\tprint("fitting bad hits")\n\tbadScores=as.data.frame(z_bad$score_adj); colnames(badScores) <- c("t")\n	g_bad <- getGamlss(badScores)\n\n	g_prob_good =  nrow(z_good) / (nrow(z_bad) + nrow(z_good))\n	g_prob_bad =  1 - g_prob_good\n\n}\n\nnone_good = a_none\n\nprint(paste("writing to ", outF, sep=""))\n\nwrite.table(none_good, outF, quote=FALSE, row.names = FALSE, col.names = FALSE, sep="\\t")\n'
 	f=open(path_scriptDestination, "w")
 	f.write(str_script)
 
 def checkChromosomes(path_gff, path_genome):
-	print("checking chromosomes")
+	print("checking chromosomes...")
 	res=commands.getstatusoutput("gff=\"" + path_gff + "\"; genome=\"" + path_genome + "\"; " + """
 		a=`mktemp`; b=`mktemp`;
 		grep ">" $genome | sed -r "s/>//g" > $a;
@@ -1335,7 +1580,6 @@ def prepareFromScratch(path_infile, path_outDir):
 	makeIfAbsent(path_cdsDir)
 	makeIfAbsent(path_aaDir)
 	path_speciesInfoFile=path_seqDir + "/inputs.csv"
-	callFunction("echo \"#protein\tgff\tgenome\tcds\" > " + path_speciesInfoFile)
 	dict_basicInfo={}
 	with open(path_infile) as p:
 		# Ignore any commented lines, typically these are headers.
@@ -1344,17 +1588,21 @@ def prepareFromScratch(path_infile, path_outDir):
 			# Use genome name as key in dictionary
 			key = os.path.basename(line[1])
 			dict_basicInfo[key]={}
-			dict_basicInfo[key]["gff"]    = checkFileExists(line[0])
-			dict_basicInfo[key]["genome"] = checkFileExists(line[1])
-	for key in dict_basicInfo:
-		path_gffIn=dict_basicInfo[key]["gff"]
-		path_genome=dict_basicInfo[key]["genome"]
-		checkChromosomes(path_gffIn, path_genome)
-		path_cdsFastaOut=path_cdsDir+"/"+key+".cds.fasta"
-		path_aaFastaOut=path_aaDir+"/"+key+".aa.fasta"
-		fetchSequences(path_gffIn, path_genome, path_cdsFastaOut, path_aaFastaOut, 1)
-		callFunction("echo \"" + path_aaFastaOut + "\t" + path_gffIn + "\t" + path_genome + "\t" + path_cdsFastaOut + "\" >> " + path_speciesInfoFile)
-	callFunction("rm -rf " + path_aaDir + "/Results*")#ql
+			dict_basicInfo[key]["gff"]	= checkFileExists(line[0])
+			dict_basicInfo[key]["genome"]	= checkFileExists(line[1])
+	with open(path_speciesInfoFile, "w") as f:
+		writer = csv.writer(f, delimiter = '\t',quoting = csv.QUOTE_NONE, quotechar='')
+		writer.writerow(["#protein", "gff", "genome", "cds"])
+		for key in dict_basicInfo:
+			path_gffIn=dict_basicInfo[key]["gff"]
+			path_genome=dict_basicInfo[key]["genome"]
+			checkChromosomes(path_gffIn, path_genome)
+			path_cdsFastaOut=path_cdsDir+"/"+key+".cds.fasta"
+			path_aaFastaOut=path_aaDir+"/"+key+".aa.fasta"
+			fetchSequences(path_gffIn, path_genome, path_cdsFastaOut, path_aaFastaOut, 1)
+			writer.writerow([path_aaFastaOut, path_gffIn, path_genome, path_cdsFastaOut])
+	for path_file in glob.glob(path_aaDir + "/Results*"):
+		deleteIfPresent(path_file)
 	runOrthoFinder(path_aaDir)
 	path_orthoFinderOutputFile=find("OrthologousGroups.csv", path_aaDir)
 	path_singletonsFile=find("OrthologousGroups_UnassignedGenes.csv", path_aaDir)
@@ -1362,12 +1610,12 @@ def prepareFromScratch(path_infile, path_outDir):
 
 def runOrthoFinder(path_aaDir):
 	if os.path.isfile(os.path.dirname(os.path.abspath(__file__)) + "/orthofinder.py"):
-		callFunction("python " + os.path.dirname(os.path.abspath(__file__)) + "/orthofinder.py -f " + path_aaDir)
+		callFunction("python " + os.path.dirname(os.path.abspath(__file__)) + "/orthofinder.py -f " + path_aaDir) #qgr
 	elif os.path.isfile("orthofinder.py"):
-		callFunction("python orthofinder.py -f " + path_aaDir)	
+		callFunction("python orthofinder.py -f " + path_aaDir)	#qgr
 	else:
 		try:
-			callFunction("orthofinder -f " + path_aaDir)
+			callFunction("orthofinder -f " + path_aaDir)  #qgr
 		except OSError:
 			sys.stderr.write("Error: Can't find orthofinder. Looked for orthofinder in the following order: OrthoFiller.py directory, execution directory, system PATH. Please ensure orthofinder is either installed and included in your PATH or that the orthofinder.py file is included in the same directory as the OrthoFiller.py file. Orthofinder can be downloaded from https://github.com/davidemms/OrthoFinder")
 
@@ -1378,7 +1626,7 @@ def runOrthoFinder(path_aaDir):
 def async(pool, function, args):
 	"""Run asynchronously
 	"""
-	pool.apply_async(function, args=args) 
+	return pool.apply_async(function, args=args) 
 
 def suppressStdOut():
 	"""http://thesmithfam.org/blog/2012/10/25/temporarily-suppress-console-output-in-python/#
@@ -1398,11 +1646,6 @@ def find(name, path):
 		if name in files:
 			return os.path.join(root, name)
 
-def callFunction(str_function):
-	"""Call a function in the shell
-	"""
-	subprocess.call([str_function], shell = True)
-
 def makeIfAbsent(path_dir):
 	try:
 		os.makedirs(path_dir)
@@ -1412,17 +1655,19 @@ def makeIfAbsent(path_dir):
 		else:
 			raise
 
-def callFunctionQuiet(str_function):
-        """Call a function in the shell, but suppress output.
-        """
-	with open(os.devnull, 'w') as FNULL:
-		subprocess.call([str_function], shell = True, stdout=FNULL, stderr=subprocess.STDOUT)
+def appendFileToFile(path_source, path_dest):
+	with open(path_dest, "a") as f:
+		with open(path_source, "r") as g:
+			f.write(g.read())
 
 def deleteIfPresent(path):
 	"""Delete a folder which may or may not exist
 	"""
 	try:
-		os.remove(path)
+		if os.path.isdir(path):
+			callFunction("rm -r " + path)
+		else:
+			os.remove(path)
 	except OSError:
 		pass
 
@@ -1463,6 +1708,13 @@ if __name__ == '__main__':
 
 	path_outDir = args.OD
 	int_cores = args.CO
+
+	print("\n0.1. Checking installed programs")
+	print(  "================================")
+	checkShell()
+	
+	print("\n0.2. Checking and unpacking input data")
+	print(  "======================================")
 
 	path_resultsDir, path_wDir = prepareOutputFolder(path_outDir)
 	
