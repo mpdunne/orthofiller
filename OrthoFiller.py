@@ -149,7 +149,7 @@ def CanRunMinusH(package, packageFormatted):
 		return True
 	else:
 		print("ERROR: Cannot run " + packageFormatted)
-		print("Please check "+ packageFormatted +" is installed and that the executables are in the system path\n")
+		print("    Please check "+ packageFormatted +" is installed and that the executables are in the system path\n")
 		return False
 
 def CanRunMan(package, packageFormatted):
@@ -157,7 +157,7 @@ def CanRunMan(package, packageFormatted):
                 return True
         else:
                 print("ERROR: Cannot run " + packageFormatted)
-                print("Please check "+ packageFormatted +" is installed and that the executables are in the system path\n")
+                print("    Please check "+ packageFormatted +" is installed and that the executables are in the system path\n")
                 return False
 
 def CanRunBlank(package, packageFormatted):
@@ -165,36 +165,50 @@ def CanRunBlank(package, packageFormatted):
                 return True
         else:
                 print("ERROR: Cannot run " + packageFormatted)
-                print("Please check "+ packageFormatted +" is installed and that the executables are in the system path\n")
+                print("    Please check "+ packageFormatted +" is installed and that the executables are in the system path\n")
                 return False
 
 def CanRunOrthoFinder():
-	errmsg="Cannot find orthofinder.py file. Either install orthofinder in your system PATH or include the orthofinder.py file in the same directory as OrthoFiller."
         if os.path.isfile(os.path.dirname(os.path.abspath(__file__)) + "/orthofinder.py"):
-        	if CanRunCommand("python " + os.path.dirname(os.path.abspath(__file__)) + "/orthofinder.py -h "):
-			return True
-		else:
-			print(errmsg)
-			return False
+		return CanRunCommand("python " + os.path.dirname(os.path.abspath(__file__)) + "/orthofinder.py -h ")
         elif os.path.isfile("orthofinder.py"):
-                if CanRunCommand("python orthofinder.py -h"):
-			return True
-		else:
-			print(errmsg)
-			return False
+                return CanRunCommand("python orthofinder.py -h")
+	elif "ORTHOFINDER_DIR" in os.environ:
+		return CanRunCommand("python " + os.environ["ORTHOFINDER_DIR"] + "/orthofinder.py -h")
         else:
-                try:
-                        callFunction("orthofinder -h") #qgr
-                except OSError:
-			print(errmsg)
-                        return False	
+                return CanRunCommand("orthofinder -h")	
+
+def CanRunAwk():
+	sys.stdout.write("Test can run \"awk '{print 4 + 5}'\"")
+	path_tf = tempfile.mktemp()
+	with open(path_tf, "w") as f:
+		f.write("a")
+	a=commands.getstatusoutput("awk '{print 4 + 5}' " + path_tf)
+	os.remove(path_tf)
+	if not a == 9:
+		print(" - ok")
+		return True
+	else:
+		print(" - failed")
+		return False
+		
+def CanRunAugTrain():
+	sys.stdout.write("Test can run \"autoAugTrain.pl\"")
+	runit = subprocess.call("type " + "autoAugTrain.pl", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE) == 0
+	if runit:
+		print(" - ok")
+		return True
+	else:
+		print(" - failed")
+		print("    The path to the AUGUSTUS scripts folder must be exported into the path before running, i.e.\n        export PATH=$PATH:path_to_aug_scripts_folder")
+		return false
 
 def CanRunBedTools():
 	""" New versions of bedtools often seem to break things. Make extra sure that everything works as it needs to.
 	    This is not an exhaustive unit test.
 	"""
 	path_td = tempfile.mkdtemp()
-	print("Testing bedtools...")
+	sys.stdout.write("Testing bedtools")
 	try:
 		path_mockGenome = path_td + "/genome.fasta"
 		with open(path_mockGenome, "w") as f:
@@ -261,10 +275,11 @@ def CanRunBedTools():
 				raise ValueError()
 		#######
 		callFunction("rm -r " + path_td)
-		print("     - ok")
+		print(" - ok")
 		return True
 	except ValueError:
 		callFunction("rm -r " + path_td)
+		print(" - fail")
 		return False
 
 def checkShell():
@@ -276,7 +291,6 @@ def checkShell():
 		- echo
 		- cut
 		- sort
-		- find
 		- grep
 		- tac/cat
 		- R/Rscript
@@ -287,12 +301,10 @@ def checkShell():
 		"""
 	checks = []
 	checks.append(CanRunMinusH("perl", "PERL"))
-	checks.append(CanRunMinusH("awk", "awk"))
 	checks.append(CanRunMan("sed", "sed"))
 	checks.append(CanRunMan("echo", "echo"))
 	checks.append(CanRunMan("cut", "cut"))
 	checks.append(CanRunMan("sort", "sort"))
-	checks.append(CanRunMan("find", "find"))		
 	checks.append(CanRunMan("grep", "grep"))
 	checks.append(CanRunMan("uniq", "uniq"))
 	checks.append(CanRunMan("tac", "tac"))
@@ -303,9 +315,15 @@ def checkShell():
 	checks.append(CanRunMinusH("hmmbuild", "hmmbuild"))
 	checks.append(CanRunMinusH("makehmmerdb", "makehmmerdb"))
 	checks.append(CanRunBlank("augustus", "augustus"))
+	checks.append(CanRunAugTrain())
 	checks.append(CanRunMinusH("bedtools", "bedtools"))
 	checks.append(CanRunMan("mktemp", "mktemp"))
-	checks.append(CanRunOrthoFinder())
+	checks.append(CanRunAwk())
+	#Check presence of orthofinder
+	ortho=CanRunOrthoFinder()
+	checks.append(ortho)
+	if not ortho:
+		print("    Cannot find the orthofinder.py file. Either\n        1) Set the orthofinder location as an environment variable using \"export ORTHOFINDER_DIR=dir\", where dir is the path to the directory containing orthofinder.py\n        2) include orthofinder.py in the same directory as OrthoFiller; or\n        3) install an orthofinder executable in your system PATH\n    Orthofinder can be downloaded from https://github.com/davidemms/OrthoFinder")
 	if not all(checks):
 		sys.exit()
 	if not CanRunBedTools():
@@ -1610,6 +1628,8 @@ def runOrthoFinder(path_aaDir):
 		callFunction("python " + os.path.dirname(os.path.abspath(__file__)) + "/orthofinder.py -f " + path_aaDir) #qgr
 	elif os.path.isfile("orthofinder.py"):
 		callFunction("python orthofinder.py -f " + path_aaDir)	#qgr
+	elif "ORTHOFINDER_DIR" in os.environ:
+		callFunction("python" + os.environ["ORTHOFINDER_DIR"] + "/orthofinder.py -f" + path_aaDir)
 	else:
 		try:
 			callFunction("orthofinder -f " + path_aaDir)  #qgr
@@ -1689,9 +1709,19 @@ if __name__ == '__main__':
 	parser.add_argument("-g", "--orthogroups", metavar="orthogroups", help="An orthofinder output file (orthogroups)", dest="OG")
 	parser.add_argument("-s", "--singletons", metavar="singletons", help="An orthofinder output file (singles)", dest="SN")
 	parser.add_argument("-t", "--translationtable", metavar="transtable", help="Which translation table to use", dest="TT")
+	parser.add_argument("--checkPrograms", action="store_true", dest="checkOnly", default=False)
 
 	args = parser.parse_args()
 	prep=args.prep
+
+
+	print("\n0.1. Checking installed programs")
+	print(  "================================")
+	checkShell()
+	if args.checkOnly:
+		print("Finished checking installed programs. Everything looks fine.")
+		sys.exit()
+	
 
 	#Check existence and non-confliction of arguments
 	if args.IN == None:
@@ -1706,10 +1736,6 @@ if __name__ == '__main__':
 	path_outDir = args.OD
 	int_cores = args.CO
 
-	print("\n0.1. Checking installed programs")
-	print(  "================================")
-	checkShell()
-	
 	print("\n0.2. Checking and unpacking input data")
 	print(  "======================================")
 
