@@ -111,9 +111,8 @@ try:
 except ImportError as e:
 	errors.append(e)
 
-
 if errors:
-	print("The following module errors need to be resolved before running OrthoFiller:")
+	print("Missing modules :(\nThe following module errors need to be resolved before running OrthoFiller:")
 	for error in errors:
 		print("-- " + str(error))
 	sys.exit()
