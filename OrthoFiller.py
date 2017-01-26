@@ -187,8 +187,7 @@ def CanRunOrthoFinder():
                         callFunction("orthofinder -h") #qgr
                 except OSError:
 			print(errmsg)
-                        sys.stderr.write("Error: Can't find orthofinder. Looked for orthofinder in the following order: OrthoFiller.py directory, execution directory, system PATH. Please ensure orthofinder is either installed and included in your PATH or that the orthofinder.py file is included in the same directory as the OrthoFiller.py file. Orthofinder can be downloaded from https://github.com/davidemms/OrthoFinder")
-			return False	
+                        return False	
 
 def CanRunBedTools():
 	""" New versions of bedtools often seem to break things. Make extra sure that everything works as it needs to.
