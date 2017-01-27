@@ -1630,7 +1630,7 @@ def runOrthoFinder(path_aaDir):
 	elif os.path.isfile("orthofinder.py"):
 		callFunction("python orthofinder.py -f " + path_aaDir)	#qgr
 	elif "ORTHOFINDER_DIR" in os.environ:
-		callFunction("python " + os.environ["ORTHOFINDER_DIR"] + "/orthofinder.py -f" + path_aaDir)
+		callFunction("python " + os.environ["ORTHOFINDER_DIR"] + "/orthofinder.py -f " + path_aaDir)
 	else:
 		try:
 			callFunction("orthofinder -f " + path_aaDir)  #qgr
