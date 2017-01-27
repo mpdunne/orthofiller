@@ -193,9 +193,9 @@ def CanRunAwk():
 	path_tf = tempfile.mktemp()
 	with open(path_tf, "w") as f:
 		f.write("a")
-	a=commands.getstatusoutput("awk '{print 4 + 5}' " + path_tf)
+	a=commands.getstatusoutput("awk '{print 4 + 5}' " + path_tf)[1]
 	os.remove(path_tf)
-	if not a == 9:
+	if a == "9":
 		print(" - ok")
 		return True
 	else:
@@ -1117,8 +1117,8 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 	dict_speciesInfo_modern=dict(dict_speciesInfo)
 	print("\n5.3 Running orthogroup membership test")
         print(  "======================================")
-	path_orthofinderOutputNew=find("OrthologousGroups.csv", path_newProteomesDir)
-	path_orthofinderSingletonsNew=find("OrthologousGroups_UnassignedGenes.csv", path_newProteomesDir)
+	path_orthofinderOutputNew	= getOrthogroupsFile(path_newProteomesDir)
+	path_orthofinderSingletonsNew	= getSingletonsFile(path_newProteomesDir)
 	
 	silNew, oNew, sNew = readOrthoFinderOutput(path_orthofinderOutputNew, \
 									path_orthofinderSingletonsNew, dict_speciesInfo_modern)
@@ -1214,6 +1214,30 @@ def makeNewProteome(path_oldProteome, path_predictedProteinSequences, path_newPr
 	oldSeqs = [a for a in SeqIO.parse(path_oldProteome, "fasta") if a.seq != ""]
 	newSeqs = [a for a in SeqIO.parse(path_predictedProteinSequences, "fasta") if a.seq != ""]
 	SeqIO.write(oldSeqs + newSeqs, path_newProteome, "fasta")
+
+def getOrthogroupsFile(path):
+	a = find("OrthologousGroups.csv", path_aaDir)
+	if a:
+		return a
+	else:
+		b = find("Orthogroups.csv", path_aaDir)
+		if b: 
+			return b
+		else:
+			print("Can't find Orthogroup output file... exiting...")
+			sys.exit()
+ 
+def getSingletonsFile(path):
+	a = find("OrthologousGroups_UnassignedGenes.csv", path_aaDir)
+	if a:
+		return a
+	else:
+		b = find("Orthogroups_UnassignedGenes.csv", path_aaDir)
+		if b:
+			return b
+		else:
+			print("Can't find Singletons output file... exiting...")
+			sys.exit()
 
 def assignNames(str_speciesName, path_acceptedGff, path_geneNameConversionTable, protSequencesAccepted, dict_sequenceInfoById, path_augustusParsed, path_acceptedSequencesOut):
 	originalNames = [dict_sequenceInfoById[x].seqId for x in dict_sequenceInfoById if dict_sequenceInfoById[x].species == str_speciesName]
@@ -1644,22 +1668,32 @@ def prepareFromScratch(path_infile, path_outDir):
 	for path_file in glob.glob(path_aaDir + "/Results*"):
 		deleteIfPresent(path_file)
 	runOrthoFinder(path_aaDir)
-	path_orthoFinderOutputFile=find("OrthologousGroups.csv", path_aaDir)
-	path_singletonsFile=find("OrthologousGroups_UnassignedGenes.csv", path_aaDir)
+	path_orthoFinderOutputFile	= getOrthogroupsFile(path_aaDir)
+	path_singletonsFile		= getSingletonsFile(path_aaDir)
 	return path_speciesInfoFile, path_orthoFinderOutputFile, path_singletonsFile
 
 def runOrthoFinder(path_aaDir):
 	if os.path.isfile(os.path.dirname(os.path.abspath(__file__)) + "/orthofinder.py"):
-		callFunction("python " + os.path.dirname(os.path.abspath(__file__)) + "/orthofinder.py -f " + path_aaDir) #qgr
+		finderString="python " + os.path.dirname(os.path.abspath(__file__)) + "/orthofinder.py"
 	elif os.path.isfile("orthofinder.py"):
-		callFunction("python orthofinder.py -f " + path_aaDir)	#qgr
+		finderString="python orthofinder.py -f "
 	elif "ORTHOFINDER_DIR" in os.environ:
-		callFunction("python " + os.environ["ORTHOFINDER_DIR"] + "/orthofinder.py -f " + path_aaDir)
+		finderString="python " + os.environ["ORTHOFINDER_DIR"] + "/orthofinder.py"
 	else:
 		try:
-			callFunction("orthofinder -f " + path_aaDir)  #qgr
+			callFunctionQuiet("orthofinder -h")
+			finderString="python orthofinder.py -f"
 		except OSError:
 			sys.stderr.write("Error: Can't find orthofinder. Looked for orthofinder in the following order: OrthoFiller.py directory, execution directory, system PATH. Please ensure orthofinder is either installed and included in your PATH or that the orthofinder.py file is included in the same directory as the OrthoFiller.py file. Orthofinder can be downloaded from https://github.com/davidemms/OrthoFinder")
+			sys.exit()
+	# Call orthofinder
+	version=tuple([int(i) for i in commands.getstatusoutput(finderString + " -h | head -n1 | sed -r \"s/.*version ([0-9.]+).*/\\1/g\"")[1].split(".")])
+	if version < (1,0,2):
+		callFunction(finderString + " -f " + path_aaDir)
+	elif version < (1,1,2):
+		callFunction(finderString + " -g -f " + path_aaDir)
+	else:
+		callFunction(finderString + " -og -f " + path_aaDir)
 
 ####################################
 ############ Utilities #############
