@@ -153,6 +153,15 @@ def CanRunMinusH(package, packageFormatted):
 		print("    Please check "+ packageFormatted +" is installed and that the executables are in the system path\n")
 		return False
 
+def CanRunHelp(package, packageFormatted):
+	if CanRunCommand(package + " -help"):
+                return True
+        else:
+                print("ERROR: Cannot run " + packageFormatted)
+                print("    Please check "+ packageFormatted +" is installed and that the executables are in the system path\n")
+                return False
+
+
 def CanRunMan(package, packageFormatted):
         if CanRunCommand("man " + package):
                 return True
@@ -192,6 +201,18 @@ def CanRunAwk():
 	else:
 		print(" - failed")
 		return False
+
+def CanRunGeneric(package, packageFormatted):
+	sys.stdout.write("Test can run \"" + package + "\"")
+	runit = subprocess.call("type " + package, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE) == 0
+	if runit:
+                print(" - ok")
+                return True
+        else:
+                print(" - failed")
+		print("ERROR: Cannot run " + packageFormatted)
+                print("    Please check "+ packageFormatted +" is installed and that the executables are in the system path\n")
+                return False
 		
 def CanRunAugTrain():
 	sys.stdout.write("Test can run \"autoAugTrain.pl\"")
@@ -202,7 +223,7 @@ def CanRunAugTrain():
 	else:
 		print(" - failed")
 		print("    The path to the AUGUSTUS scripts folder must be exported into the path before running, i.e.\n        export PATH=$PATH:path_to_aug_scripts_folder")
-		return false
+		return False
 
 def CanRunBedTools():
 	""" New versions of bedtools often seem to break things. Make extra sure that everything works as it needs to.
@@ -320,12 +341,15 @@ def checkShell():
 	checks.append(CanRunMinusH("bedtools", "bedtools"))
 	checks.append(CanRunMan("mktemp", "mktemp"))
 	checks.append(CanRunAwk())
+	checks.append(CanRunGeneric("makeblastdb", "blast+"))
+	checks.append(CanRunGeneric("mcl", "mcl"))
 	#Check presence of orthofinder
 	ortho=CanRunOrthoFinder()
 	checks.append(ortho)
 	if not ortho:
 		print("    Cannot find the orthofinder.py file. Either\n        1) Set the orthofinder location as an environment variable using \"export ORTHOFINDER_DIR=dir\", where dir is the path to the directory containing orthofinder.py\n        2) include orthofinder.py in the same directory as OrthoFiller; or\n        3) install an orthofinder executable in your system PATH\n    Orthofinder can be downloaded from https://github.com/davidemms/OrthoFinder")
 	if not all(checks):
+		print("\nSome programs required to run orthoFiller are not installed or are not callable.\nPlease ensure all of the above programs are installed and in the system path.")
 		sys.exit()
 	if not CanRunBedTools():
 		print("The version of BedTools you're using is causing problems with OrthoFiller.\nSometimes BedTools updates prevent BedTools itself from running properly.\nTry downloading bedtools v2.25.0 and run OrthoFiller again.")
@@ -1715,14 +1739,12 @@ if __name__ == '__main__':
 	args = parser.parse_args()
 	prep=args.prep
 
-
 	print("\n0.1. Checking installed programs")
 	print(  "================================")
 	checkShell()
 	if args.checkOnly:
 		print("Finished checking installed programs. Everything looks fine.")
 		sys.exit()
-	
 
 	#Check existence and non-confliction of arguments
 	if args.IN == None:
