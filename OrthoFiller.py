@@ -129,6 +129,7 @@ def callFunction(str_function):
 def callFunctionQuiet(str_function):
 	"""Call a function in the shell, but suppress output.
 	"""
+	#callFunction(str)
 	with open(os.devnull, 'w') as FNULL:
 		subprocess.call([str_function], shell = True, stdout=FNULL, stderr=subprocess.STDOUT)
 
@@ -248,7 +249,7 @@ def CanRunBedTools():
 			gffBed="$tf/gffBed"
 
 			#Prepare the gff
-			echo "preparing gff..."
+			#echo "preparing gff..."
 			grep -vP "^$" $infile | awk '$3=="CDS"' > $gffCds
 			cut -f1-8 $gffCds > $gffBed.1
 			sed -r "s/.*transcript_id[ =]\\"?([^\\";]*)\\"?;?.*/\\1/g" $gffCds > $gffBed.2
@@ -1629,7 +1630,7 @@ def runOrthoFinder(path_aaDir):
 	elif os.path.isfile("orthofinder.py"):
 		callFunction("python orthofinder.py -f " + path_aaDir)	#qgr
 	elif "ORTHOFINDER_DIR" in os.environ:
-		callFunction("python" + os.environ["ORTHOFINDER_DIR"] + "/orthofinder.py -f" + path_aaDir)
+		callFunction("python " + os.environ["ORTHOFINDER_DIR"] + "/orthofinder.py -f" + path_aaDir)
 	else:
 		try:
 			callFunction("orthofinder -f " + path_aaDir)  #qgr
