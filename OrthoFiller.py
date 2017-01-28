@@ -780,7 +780,7 @@ def getNucleotideAlignment(alignedProteinsFastaIn, fastaOut, sequencesHolder, di
 def buildHmm(nucAlignment, path_outputFile):
 	"""Build an hmm based on a nucleotide alignment. Inputs are file names.
 	"""
-	callFunctionQuiet("hmmbuild " + path_outputFile + " " + nucAlignment) #qgr
+	callFunctionQuiet("hmmbuild -informat afa " + path_outputFile + " " + nucAlignment) #qgr
 
 def makeHmmerDb(path_genomeFile, path_dbOutput):
 	"""Makes a database per cds file for use with hmmer.
@@ -950,7 +950,7 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 			sys.stdout.write("\r" + str(sum(k)) + " out of " + str_total +  " orthogroups processed")
 			sys.stdout.flush()
 			if all(k):
-				print("Finished processing orthogroups")
+				print("\nFinished processing orthogroups")
 				break
 			time.sleep(2)
 		og_pool.join()
