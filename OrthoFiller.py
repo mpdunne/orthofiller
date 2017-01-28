@@ -1676,18 +1676,18 @@ def runOrthoFinder(path_aaDir):
 	if os.path.isfile(os.path.dirname(os.path.abspath(__file__)) + "/orthofinder.py"):
 		finderString="python " + os.path.dirname(os.path.abspath(__file__)) + "/orthofinder.py"
 	elif os.path.isfile("orthofinder.py"):
-		finderString="python orthofinder.py -f "
+		finderString="python orthofinder.py"
 	elif "ORTHOFINDER_DIR" in os.environ:
 		finderString="python " + os.environ["ORTHOFINDER_DIR"] + "/orthofinder.py"
 	else:
 		try:
 			callFunctionQuiet("orthofinder -h")
-			finderString="python orthofinder.py -f"
+			finderString="python orthofinder.py"
 		except OSError:
 			sys.stderr.write("Error: Can't find orthofinder. Looked for orthofinder in the following order: OrthoFiller.py directory, execution directory, system PATH. Please ensure orthofinder is either installed and included in your PATH or that the orthofinder.py file is included in the same directory as the OrthoFiller.py file. Orthofinder can be downloaded from https://github.com/davidemms/OrthoFinder")
 			sys.exit()
 	# Call orthofinder
-	version=tuple([int(i) for i in commands.getstatusoutput(finderString + " -h | head -n1 | sed -r \"s/.*version ([0-9.]+).*/\\1/g\"")[1].split(".")])
+	version=tuple([int(i) for i in commands.getstatusoutput(finderString + " -h | grep -P \"version +[0-9\.]+\" | sed -r \"s/.*version ([0-9.]+).*/\\1/g\"")[1].split(".")])
 	if version < (1,0,2):
 		callFunction(finderString + " -f " + path_aaDir)
 	elif version < (1,1,2):
