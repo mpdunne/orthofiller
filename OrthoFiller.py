@@ -1215,7 +1215,7 @@ def makeNewProteome(path_oldProteome, path_predictedProteinSequences, path_newPr
 	newSeqs = [a for a in SeqIO.parse(path_predictedProteinSequences, "fasta") if a.seq != ""]
 	SeqIO.write(oldSeqs + newSeqs, path_newProteome, "fasta")
 
-def getOrthogroupsFile(path):
+def getOrthogroupsFile(path_aaDir):
 	a = find("OrthologousGroups.csv", path_aaDir)
 	if a:
 		return a
@@ -1227,7 +1227,7 @@ def getOrthogroupsFile(path):
 			print("Can't find Orthogroup output file... exiting...")
 			sys.exit()
  
-def getSingletonsFile(path):
+def getSingletonsFile(path_aaDir):
 	a = find("OrthologousGroups_UnassignedGenes.csv", path_aaDir)
 	if a:
 		return a
