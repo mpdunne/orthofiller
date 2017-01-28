@@ -1772,7 +1772,7 @@ if __name__ == '__main__':
 
 	args = parser.parse_args()
 	prep=args.prep
-
+	
 	print("\n0.1. Checking installed programs")
 	print(  "================================")
 	checkShell()
