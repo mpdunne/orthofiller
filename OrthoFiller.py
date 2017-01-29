@@ -928,6 +928,7 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 		proteinSequences = getProteinSequences(dict_sequenceInfoById, dict_speciesInfo)
 		og_pool = multiprocessing.Pool(int_cores)
 		jobs=[]
+		#jobs_n={}
 		int_counter = 1
 		str_total = str(len(orthogroups))
 		print("\n2.2. Processing orthogroup HMMs")
@@ -935,13 +936,15 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 		for orthogroup in orthogroups:
 			#print "Submitting " + orthogroup + "; " + str(int_counter) + " of " + str_total + " submitted."
 			orthogroupProteinSequences = dict((x, proteinSequences[x]) for x in orthogroups[orthogroup] )
-			jobs.append(async(og_pool, processOg, args=(orthogroup, \
+			job=async(og_pool, processOg, args=(orthogroup, \
 							orthogroups[orthogroup], \
 							orthogroupProteinSequences, \
 							dict_sequenceInfoById, \
 							dict_speciesInfo, \
 							path_wDir, \
-							str_ogDir)))#qr
+							str_ogDir))#qr
+			jobs.append(job)
+			#jobs_n[orthogroup]=job
 			int_counter = int_counter + 1
 		og_pool.close()
 		# Keep track of how many orthogroups have been processed.
@@ -952,6 +955,7 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 			if all(k):
 				print("\nFinished processing orthogroups")
 				break
+			#print([k for k in jobs_n if not jobs_n[k].ready()])
 			time.sleep(2)
 		og_pool.join()
 		####################################################
@@ -1424,8 +1428,8 @@ def implementHintFscoreFilter(path_augustusParsed, path_hintFile, path_outFile, 
 	sed -r "s/.*gene_id=\\"([^\\"]*)\\";.*/\\1/g" $augParsedBed | sort -u > $gids
 
 	IFS='\n'
-	successes=0
-	failures=0
+	nsuccess=0
+	nfailure=0
 	for gid in `cat $gids`; do
 		#echo "checking hint scores for $gid from $augParsed"
 		entrytmp=`mktemp`
@@ -1439,17 +1443,15 @@ def implementHintFscoreFilter(path_augustusParsed, path_hintFile, path_outFile, 
 			hL=`awk -F'\\t' 'BEGIN{SUM=0}{ SUM+=$3-$2 }END{print SUM}' $hEntry`
 			iL=`bedtools intersect -s -a $hEntry -b $entrytmp | awk -F'\\t' 'BEGIN{SUM=0}{ SUM+=$3-$2 }END{print SUM}'`
 			suc=`awk -v gL="$gL" -v hL="$hL" -v iL="$iL" -v thresh="$threshold" 'BEGIN{hR=iL/hL; hP=iL/gL; hF=2*hR*hP/(hP+hR); if (hF >= thresh) {print "success"}}'`
-			successestmp=`echo "$successes\\n$suc"`
-			successes="$successestmp"
 		done
 		if [ "$successes" != "" ]; then
-			successes=`echo $[$successes+1]`
+			nsuccess=`echo $[$nsuccess+1]`
 			grep -P "(gene_id[= ]\\"$gid\\";|\\t$gid\\t|\\t$gid\\.t.*\\t)" $augParsed | sort -u >> $of
 		else
-			failures=`echo $[$failures+1]`
+			nfailure=`echo $[$nfailure+1]`
 		fi
 	done
-	echo "Finished implementing hint score filter for $augParsed. $successes survivors and $failures non-survivors."
+	echo "Finished implementing hint score filter for $augParsed. $nsuccess survivors and $nfailure non-survivors."
 	sort -u $of > $of.tmp; mv $of.tmp $of
 
 	rm $gids
