@@ -343,6 +343,7 @@ def checkShell():
 	checks.append(CanRunAwk())
 	checks.append(CanRunGeneric("makeblastdb", "blast+"))
 	checks.append(CanRunGeneric("mcl", "mcl"))
+	checks.append(CanRunGeneric("mafft", "mafft"))
 	#Check presence of orthofinder
 	ortho=CanRunOrthoFinder()
 	checks.append(ortho)
@@ -780,12 +781,12 @@ def getNucleotideAlignment(alignedProteinsFastaIn, fastaOut, sequencesHolder, di
 def buildHmm(nucAlignment, path_outputFile):
 	"""Build an hmm based on a nucleotide alignment. Inputs are file names.
 	"""
-	callFunctionQuiet("hmmbuild --informat afa " + path_outputFile + " " + nucAlignment) #qgr
+	callFunction("hmmbuild --informat afa " + path_outputFile + " " + nucAlignment) #qgr
 
 def makeHmmerDb(path_genomeFile, path_dbOutput):
 	"""Makes a database per cds file for use with hmmer.
 	"""
-	callFunction("makehmmerdb --block_size=10 " + path_genomeFile + " " + path_dbOutput) #qgr
+	callFunctionQuiet("makehmmerdb --block_size=10 " + path_genomeFile + " " + path_dbOutput) #qgr
 
 def implementHmmSearch(path_hmmFile, path_db, path_hitsFileName):
 	"""Runs across the genome and finds hmm hits
