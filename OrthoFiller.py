@@ -1693,11 +1693,11 @@ def runOrthoFinder(path_aaDir, int_cores=16):
 	# Call orthofinder
 	version=tuple([int(i) for i in commands.getstatusoutput(finderString + " -h | grep -P \"version +[0-9\.]+\" | sed -r \"s/.*version ([0-9.]+).*/\\1/g\"")[1].split(".")])
 	if version < (1,0,2):
-		callFunction(finderString + " -t " + str(int_cores) + " -f " + path_aaDir)
+		callFunction(finderString + " -f " + path_aaDir + " -t " + str(int_cores)) 
 	elif version < (1,1,2):
-		callFunction(finderString + " -g -t " + str(int_cores) + " -f " + path_aaDir)
+		callFunction(finderString + " -f " + path_aaDir + " -t " + str(int_cores) + " -g")
 	else:
-		callFunction(finderString + " -og -t " + str(int_cores) + " -f " + path_aaDir)
+		callFunction(finderString + " -f " + path_aaDir + " -t " + str(int_cores) + " -og")
 
 ####################################
 ############ Utilities #############
