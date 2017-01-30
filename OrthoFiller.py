@@ -1674,9 +1674,9 @@ def prepareFromScratch(path_infile, path_outDir, int_cores):
 			path_aaFastaOut=path_aaDir+"/"+key+".aa.fasta"
 			fetchSequences(path_gffIn, path_genome, path_cdsFastaOut, path_aaFastaOut, 1)
 			writer.writerow([path_aaFastaOut, path_gffIn, path_genome, path_cdsFastaOut])
-#	for path_file in glob.glob(path_aaDir + "/Results*"):
-#		deleteIfPresent(path_file)
-#	runOrthoFinder(path_aaDir, int_cores)
+	for path_file in glob.glob(path_aaDir + "/Results*"):
+		deleteIfPresent(path_file)
+	runOrthoFinder(path_aaDir, int_cores)
 	path_orthoFinderOutputFile	= getOrthogroupsFile(path_aaDir)
 	path_singletonsFile		= getSingletonsFile(path_aaDir)
 	return path_speciesInfoFile, path_orthoFinderOutputFile, path_singletonsFile
