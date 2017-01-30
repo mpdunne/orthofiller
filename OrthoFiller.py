@@ -412,22 +412,7 @@ def readOrthoFinderOutputIndividual(path_orthoFinderOutputFile, dict_speciesInfo
 		speciesList_original	= list(dict_speciesInfo.keys())
 		# The useful species list is just a copy of the dict_speciesInfo species, just making sure that 
 		# it's in the same order as the species listed in the orthofinder output file header.
-		speciesList_useful	= [""]
-		for i in range(1,len(speciesList_og)):
-			species_og = speciesList_og[i]
-			catch = ""
-			for species_or in speciesList_original:
-				species_or_noxt = os.path.splitext(species_or)[0]
-				species_or_fdot = species_or.split(".")[0]
-				if species_og in [species_or, species_or_noxt, species_or_fdot]:
-					catch = species_or
-					break
-			if not catch == "":
-				speciesList_useful.append(catch)
-				speciesList_original.remove(catch)
-			else:
-				print("OrthoFinder output contains one or more names that do not corrrespond to the inputted fasta names.\n Please ensure all protein fasta names are unique.\n If you ran OrthoFiller without using the --prep option, make sure you have the latest version of OrthoFinder and try again.")
-				sys.exit(1)
+		speciesList_useful = convertOrthoFinderSpeciesNames(speciesList_og, speciesList_original)
 		# Each subsequent line has orthogroup as first entry, and grouped sequence IDs
 		# for each numbered column.
 		for line in data:
@@ -445,6 +430,24 @@ def readOrthoFinderOutputIndividual(path_orthoFinderOutputFile, dict_speciesInfo
 					sequences_local[seqRef.uniqueId] = seqRef
 	return dict_groups, sequences_local
 				
+def convertOrthoFinderSpeciesNames(speciesList_og, speciesList_original):
+	speciesList_useful      = [""]
+	for i in range(1,len(speciesList_og)):
+		species_og = speciesList_og[i]
+		catch = ""
+		for species_or in speciesList_original:
+			species_or_noxt = os.path.splitext(species_or)[0]
+			species_or_fdot = species_or.split(".")[0]
+			if species_og in [species_or, species_or_noxt, species_or_fdot]:
+				catch = species_or
+				break
+		if not catch == "":
+			speciesList_useful.append(catch)
+			speciesList_original.remove(catch)
+		else:
+			print("OrthoFinder output contains one or more names that do not corrrespond to the inputted fasta names.\n Please ensure all protein fasta names are unique.\n If you ran OrthoFiller without using the --prep option, make sure you have the latest version of OrthoFinder and try again.")
+			sys.exit(1)
+	return speciesList_useful
 
 def readInputLocations(path_speciesInfoFile):
 	"""Read CSV file containing the locations for the sequence files, etc.
@@ -487,12 +490,14 @@ def gffsForOrthoGroups(path_ogDir, path_orthogroups, path_singletons, dict_speci
 		data = csv.reader(f, delimiter="\t")
 		for line in data:
 			bs.append(line)
-	speciesList = b[0]
+	speciesList_og		= b[0]
+	speciesList_original    = list(dict_speciesInfo.keys())
+	speciesList_useful	= convertOrthoFinderSpeciesNames(speciesList_og, speciesList_original)
 	orthogroups = b[1:]
 	singletons  = bs[1:]
 	gffPool=multiprocessing.Pool(int_cores)
-	for i in range(1,len(speciesList)):
-		str_species=speciesList[i]
+	for i in range(1,len(speciesList_useful)):
+		str_species=speciesList_useful[i]
 		a=[];
 		with open(dict_speciesInfo[str_species]["gff"]) as f:
 			data = csv.reader(f, delimiter="\t")
@@ -1669,9 +1674,9 @@ def prepareFromScratch(path_infile, path_outDir, int_cores):
 			path_aaFastaOut=path_aaDir+"/"+key+".aa.fasta"
 			fetchSequences(path_gffIn, path_genome, path_cdsFastaOut, path_aaFastaOut, 1)
 			writer.writerow([path_aaFastaOut, path_gffIn, path_genome, path_cdsFastaOut])
-	for path_file in glob.glob(path_aaDir + "/Results*"):
-		deleteIfPresent(path_file)
-	runOrthoFinder(path_aaDir, int_cores)
+#	for path_file in glob.glob(path_aaDir + "/Results*"):
+#		deleteIfPresent(path_file)
+#	runOrthoFinder(path_aaDir, int_cores)
 	path_orthoFinderOutputFile	= getOrthogroupsFile(path_aaDir)
 	path_singletonsFile		= getSingletonsFile(path_aaDir)
 	return path_speciesInfoFile, path_orthoFinderOutputFile, path_singletonsFile
