@@ -1116,7 +1116,7 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 		dict_speciesInfo[str_speciesName]["newSpeciesName"] =  str_speciesName + "newProteome.fasta"
 		path_predictedProteinSequences = dict_speciesInfo[str_speciesName]["augustussequences_hintfiltered"]
 		makeNewProteome(path_oldProteome, path_predictedProteinSequences, path_newProteome)
-	runOrthoFinder(path_newProteomesDir)
+	runOrthoFinder(path_newProteomesDir, int_cores)
 	####################################################
 	# Check genes have ended up in the right orthogroup
 	####################################################
@@ -1638,7 +1638,7 @@ def checkSequences(path_gff, path_cds, path_aa):
 	if res != "":
 		sys.exit(res)
 
-def prepareFromScratch(path_infile, path_outDir):
+def prepareFromScratch(path_infile, path_outDir, int_cores):
 	#Pull out Gtf files, extract dna and then rna
 	#Then run orthofinder
 	path_seqDir=path_outDir + "/sequences"
@@ -1671,12 +1671,12 @@ def prepareFromScratch(path_infile, path_outDir):
 			writer.writerow([path_aaFastaOut, path_gffIn, path_genome, path_cdsFastaOut])
 	for path_file in glob.glob(path_aaDir + "/Results*"):
 		deleteIfPresent(path_file)
-	runOrthoFinder(path_aaDir)
+	runOrthoFinder(path_aaDir, int_cores)
 	path_orthoFinderOutputFile	= getOrthogroupsFile(path_aaDir)
 	path_singletonsFile		= getSingletonsFile(path_aaDir)
 	return path_speciesInfoFile, path_orthoFinderOutputFile, path_singletonsFile
 
-def runOrthoFinder(path_aaDir):
+def runOrthoFinder(path_aaDir, int_cores=16):
 	if "ORTHOFINDER_DIR" in os.environ:
 		finderString="python " + os.environ["ORTHOFINDER_DIR"] + "/orthofinder.py"		
 	elif os.path.isfile(os.path.dirname(os.path.abspath(__file__)) + "/orthofinder.py"):
@@ -1693,11 +1693,11 @@ def runOrthoFinder(path_aaDir):
 	# Call orthofinder
 	version=tuple([int(i) for i in commands.getstatusoutput(finderString + " -h | grep -P \"version +[0-9\.]+\" | sed -r \"s/.*version ([0-9.]+).*/\\1/g\"")[1].split(".")])
 	if version < (1,0,2):
-		callFunction(finderString + " -f " + path_aaDir)
+		callFunction(finderString + " -c " + str(int_cores) + " -f " + path_aaDir)
 	elif version < (1,1,2):
-		callFunction(finderString + " -g -f " + path_aaDir)
+		callFunction(finderString + " -g -c " + str(int_cores) + " -f " + path_aaDir)
 	else:
-		callFunction(finderString + " -og -f " + path_aaDir)
+		callFunction(finderString + " -og -c " + str(int_cores) + " -f " + path_aaDir)
 
 ####################################
 ############ Utilities #############
@@ -1805,7 +1805,7 @@ if __name__ == '__main__':
 	#If the data isn't pre-prepared, we must prepare it.
 	#Else simply check each file exists. Later we will make sure every entry in the info file exists.
 	if not prep:
-		path_speciesInfoFile, path_orthoFinderOutputFile, path_singletonsFile = prepareFromScratch(args.IN, path_outDir)
+		path_speciesInfoFile, path_orthoFinderOutputFile, path_singletonsFile = prepareFromScratch(args.IN, path_outDir, int_cores)
 	else:
 		path_orthoFinderOutputFile = checkFileExists(args.OG)
 		path_singletonsFile = checkFileExists(args.SN)
