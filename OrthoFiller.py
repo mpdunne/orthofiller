@@ -430,9 +430,6 @@ def readOrthoFinderOutputIndividual(path_orthoFinderOutputFile, dict_speciesInfo
 				sys.exit(1)
 		# Each subsequent line has orthogroup as first entry, and grouped sequence IDs
 		# for each numbered column.
-		print(speciesList_og)
-		print(speciesList_useful)
-		callFunction("sleep 10000")
 		for line in data:
 			groupId = line[0]
 			dict_groups[groupId] = []
