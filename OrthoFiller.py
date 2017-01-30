@@ -397,7 +397,7 @@ def readOrthoFinderOutput(path_orthoFinderOutputFile, path_orthoFinderSingletons
 	dict_orthogroups, sequences_orthogroups = readOrthoFinderOutputIndividual(path_orthoFinderOutputFile, dict_speciesInfo)
 	print("Reading singletons from " + path_orthoFinderSingletonsFile)
 	dict_singletons, sequences_singletons = readOrthoFinderOutputIndividual(path_orthoFinderSingletonsFile, dict_speciesInfo)
-	sequences_all = sequences_orthogroups + sequences_singletons
+	sequences_all = merge_dicts(sequences_orthogroups, sequences_singletons)
 	return sequences_all, dict_orthogroups, dict_singletons
 	
 
@@ -1702,6 +1702,16 @@ def runOrthoFinder(path_aaDir, int_cores=16):
 ####################################
 ############ Utilities #############
 ####################################
+
+def merge_dicts(*dict_args):
+	"""
+	Given any number of dicts, shallow copy and merge into a new dict,
+	precedence goes to key value pairs in latter dicts.
+	"""
+	result = {}
+	for dictionary in dict_args:
+		result.update(dictionary)
+	return result
 
 def async(pool, function, args):
 	"""Run asynchronously
