@@ -1114,6 +1114,7 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 	path_newProteomesDir = path_wDirS + "/newProteomes"
 	deleteIfPresent(path_newProteomesDir)
 	makeIfAbsent(path_newProteomesDir)
+	dict_speciesInfo_modern = {}
 	for str_speciesName in dict_speciesInfo:
 		path_newProteome = path_newProteomesDir + "/" + str_speciesName + "newProteome.fasta"
 		path_oldProteome = dict_speciesInfo[str_speciesName]["protein"]
@@ -1121,12 +1122,13 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 		dict_speciesInfo[str_speciesName]["newSpeciesName"] =  str_speciesName + "newProteome.fasta"
 		path_predictedProteinSequences = dict_speciesInfo[str_speciesName]["augustussequences_hintfiltered"]
 		makeNewProteome(path_oldProteome, path_predictedProteinSequences, path_newProteome)
+		dict_speciesInfo_modern[str_speciesName + "newProteome.fasta"] = {}
+		dict_speciesInfo_modern[str_speciesName + "newProteome.fasta"]["number"] = dict_speciesInfo[str_speciesName]["number"]
 	runOrthoFinder(path_newProteomesDir, int_cores)
 	####################################################
 	# Check genes have ended up in the right orthogroup
 	####################################################
 	# Fetch the original species set before we add the new ones.
-	dict_speciesInfo_modern=dict(dict_speciesInfo)
 	print("\n5.3 Running orthogroup membership test")
         print(  "======================================")
 	path_orthofinderOutputNew	= getOrthogroupsFile(path_newProteomesDir)
