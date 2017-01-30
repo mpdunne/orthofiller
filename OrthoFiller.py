@@ -179,12 +179,12 @@ def CanRunBlank(package, packageFormatted):
                 return False
 
 def CanRunOrthoFinder():
-        if os.path.isfile(os.path.dirname(os.path.abspath(__file__)) + "/orthofinder.py"):
+	if "ORTHOFINDER_DIR" in os.environ:
+		return CanRunCommand("python " + os.environ["ORTHOFINDER_DIR"] + "/orthofinder.py -h")	
+        elif os.path.isfile(os.path.dirname(os.path.abspath(__file__)) + "/orthofinder.py"):
 		return CanRunCommand("python " + os.path.dirname(os.path.abspath(__file__)) + "/orthofinder.py -h ")
         elif os.path.isfile("orthofinder.py"):
                 return CanRunCommand("python orthofinder.py -h")
-	elif "ORTHOFINDER_DIR" in os.environ:
-		return CanRunCommand("python " + os.environ["ORTHOFINDER_DIR"] + "/orthofinder.py -h")
         else:
                 return CanRunCommand("orthofinder -h")	
 
@@ -1672,12 +1672,12 @@ def prepareFromScratch(path_infile, path_outDir):
 	return path_speciesInfoFile, path_orthoFinderOutputFile, path_singletonsFile
 
 def runOrthoFinder(path_aaDir):
-	if os.path.isfile(os.path.dirname(os.path.abspath(__file__)) + "/orthofinder.py"):
+	if "ORTHOFINDER_DIR" in os.environ:
+		finderString="python " + os.environ["ORTHOFINDER_DIR"] + "/orthofinder.py"		
+	elif os.path.isfile(os.path.dirname(os.path.abspath(__file__)) + "/orthofinder.py"):
 		finderString="python " + os.path.dirname(os.path.abspath(__file__)) + "/orthofinder.py"
 	elif os.path.isfile("orthofinder.py"):
 		finderString="python orthofinder.py"
-	elif "ORTHOFINDER_DIR" in os.environ:
-		finderString="python " + os.environ["ORTHOFINDER_DIR"] + "/orthofinder.py"
 	else:
 		try:
 			callFunctionQuiet("orthofinder -h")
