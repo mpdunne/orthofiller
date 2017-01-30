@@ -385,61 +385,69 @@ def addSpecies(str_species, dict_speciesInfo):
 		dict_speciesInfo[str_species] = {}
 		dict_speciesInfo[str_species]["number"] = highestVal + 1
 
+
 def readOrthoFinderOutput(path_orthoFinderOutputFile, path_orthoFinderSingletonsFile, dict_speciesInfo):
-	"""Read CSV file into 3-tiered dictionary: orthogoup > species > sequences.	
+	"""Read CSV file into 3-tiered dictionary: orthogoup > species > sequences.
 	   The last entry is an array of sequence strings.
-	   The "species" are just the names of whichever protein fasta files were fed in to Finder.
+	   The species names need a little extra attention, since some versions of orthofinder change the names
+		of the input files to auto-generate a species name.
 	   Output is a dictionary, keyed by unique id valued by a seqRef object, and a list of the orthogroups, and of the singletons.
 	"""
-	sequences_local = {}
-	dict_orthogroups = {}
-	dict_singletons = {}
 	print("Reading orthogroups from " + path_orthoFinderOutputFile)
+	dict_orthogroups, sequences_orthogroups = readOrthoFinderOutputIndividual(path_orthoFinderOutputFile, dict_speciesInfo)
+	print("Reading singletons from " + path_orthoFinderSingletonsFile)
+	dict_singletons, sequences_singletons = readOrthoFinderOutputIndividual(path_orthoFinderSingletonsFile, dict_speciesInfo)
+	sequences_all = sequences_orthogroups + sequences_singletons
+	return sequences_all, dict_orthogroups, dict_singletons
+	
+
+def readOrthoFinderOutputIndividual(path_orthoFinderOutputFile, dict_speciesInfo):
+	dict_groups = {}
+	sequences_local = {}
 	with open(path_orthoFinderOutputFile) as csvfile:
 		data = csv.reader(csvfile, delimiter="\t")
-		# First line contains the source protein files, typically species.
-		# (The first entry is always blank, but that's fine).
-		speciesList = data.next()
+		# First line contains the names of the species, which orthoFinder automatically
+		# generates from the fasta input names. Need to double check these names against the ones we have.
+		speciesList_og		= data.next()
+		speciesList_original	= list(dict_speciesInfo.keys())
+		# The useful species list is just a copy of the dict_speciesInfo species, just making sure that 
+		# it's in the same order as the species listed in the orthofinder output file header.
+		speciesList_useful	= [""]
+		for i in range(1,len(speciesList_og)):
+			species_og = speciesList_og[i]
+			catch = ""
+			for species_or in speciesList_original:
+				species_or_noxt = os.path.splitext(species_or)[0]
+				species_or_fdot = species_or.split(".")[0]
+				if species_og in [species_or, species_or_noxt, species_or_fdot]:
+					catch = species_or
+					break
+			if not catch == "":
+				speciesList_useful.append(catch)
+				speciesList_original.remove(catch)
+			else:
+				print("OrthoFinder output contains one or more names that do not corrrespond to the inputted fasta names.\n Please ensure all protein fasta names are unique.\n If you ran OrthoFiller without using the --prep option, make sure you have the latest version of OrthoFinder and try again.")
+				sys.exit(1)
 		# Each subsequent line has orthogroup as first entry, and grouped sequence IDs
 		# for each numbered column.
+		print(speciesList_og)
+		print(speciesList_useful)
+		callFunction("sleep 10000")
 		for line in data:
-			orthogroup = line[0]
-			dict_orthogroups[orthogroup] = []
-			for i in range(1,len(speciesList)):
-				species = speciesList[i]
-				addSpecies(species, dict_speciesInfo)
+			groupId = line[0]
+			dict_groups[groupId] = []
+			for i in range(1,len(speciesList_useful)):
+				species = speciesList_useful[i]
 				speciesNum = dict_speciesInfo[species]["number"]
 				entry = re.split("[,]*", line[i])
 				# Get rid of any empty entries.
 				entryClean = itertools.ifilterfalse(lambda x: x=='', entry)
 				for sequence in entryClean:
 					seqRef = SeqRef(species, speciesNum, sequence.strip('"').strip(" "))
-					dict_orthogroups[orthogroup].append(seqRef.uniqueId)
+					dict_groups[groupId].append(seqRef.uniqueId)
 					sequences_local[seqRef.uniqueId] = seqRef
-					#print("adding ortho" + seqRef.uniqueId)
-	print("Reading singletons from " + path_orthoFinderSingletonsFile)
-	with open(path_orthoFinderSingletonsFile) as csvfile:
-		data = csv.reader(csvfile, delimiter="\t")
-		# First line contains the source protein files, typically species.
-		# (The first entry is always blank, but that's fine).
-		speciesList = data.next()
-		# Each subsequent line has orthogroup as first entry, and grouped sequence IDs
-		# for each numbered column.
-		for line in data:
-			singletonId = line[0]
-			dict_singletons[singletonId] = []
-			for i in range(1,len(speciesList)):
-				species = speciesList[i]
-				speciesNum = dict_speciesInfo[species]["number"]
-				entry = re.split("[,]*", line[i])
-				# Get rid of any empty entries.
-				entryClean = itertools.ifilterfalse(lambda x: x=='', entry)
-				for sequence in entryClean:
-					seqRef = SeqRef(species, speciesNum, sequence.strip('"').strip(" "))
-					dict_singletons[singletonId].append(seqRef.uniqueId)
-					sequences_local[seqRef.uniqueId] = seqRef
-					#print("adding singleton" + seqRef.uniqueId)
-	return sequences_local, dict_orthogroups, dict_singletons
+	return dict_groups, sequences_local
+				
 
 def readInputLocations(path_speciesInfoFile):
 	"""Read CSV file containing the locations for the sequence files, etc.
@@ -1121,7 +1129,6 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
         print(  "======================================")
 	path_orthofinderOutputNew	= getOrthogroupsFile(path_newProteomesDir)
 	path_orthofinderSingletonsNew	= getSingletonsFile(path_newProteomesDir)
-	
 	silNew, oNew, sNew = readOrthoFinderOutput(path_orthofinderOutputNew, \
 									path_orthofinderSingletonsNew, dict_speciesInfo_modern)
 	for str_speciesName in dict_speciesInfo:
