@@ -789,7 +789,7 @@ def getNucleotideAlignment(alignedProteinsFastaIn, fastaOut, sequencesHolder, di
 def buildHmm(nucAlignment, path_outputFile):
 	"""Build an hmm based on a nucleotide alignment. Inputs are file names.
 	"""
-	callFunction("hmmbuild --informat afa " + path_outputFile + " " + nucAlignment) #qgr
+	callFunctionQuiet("hmmbuild --informat afa " + path_outputFile + " " + nucAlignment) #qgr
 
 def makeHmmerDb(path_genomeFile, path_dbOutput):
 	"""Makes a database per cds file for use with hmmer.
