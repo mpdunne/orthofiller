@@ -1449,7 +1449,7 @@ def implementHintFscoreFilter(path_augustusParsed, path_hintFile, path_outFile, 
 			echo "$compatibleHints" | awk -v a="$hint" '$7 == a' > $hEntry
 			hL=`awk -F'\\t' 'BEGIN{SUM=0}{ SUM+=$3-$2 }END{print SUM}' $hEntry`
 			iL=`bedtools intersect -s -a $hEntry -b $entrytmp | awk -F'\\t' 'BEGIN{SUM=0}{ SUM+=$3-$2 }END{print SUM}'`
-			suc=`awk -v gL="$gL" -v hL="$hL" -v iL="$iL" -v thresh="$threshold" 'BEGIN{hR=iL/hL; hP=iL/gL; hF=2*hR*hP/(hP+hR); if (hF >= thresh) {print "success"}}'`
+			successes=`awk -v gL="$gL" -v hL="$hL" -v iL="$iL" -v thresh="$threshold" 'BEGIN{hR=iL/hL; hP=iL/gL; hF=2*hR*hP/(hP+hR); if (hF >= thresh) {print "success"}}'`
 		done
 		if [ "$successes" != "" ]; then
 			nsuccess=`echo $[$nsuccess+1]`
