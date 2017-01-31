@@ -552,7 +552,7 @@ def makeGffTrainingFile(path_inputGff, path_outputGff):
 	# Make sure there are no overlaps, by randomly choosing between overlapping entries, and sort the file.
 	function="infile=\"" + path_inputGff + "\"; basefile=\"" + path_bases + "\"; outfile=\"" + path_tmp + "\"; " + """
 		td=`mktemp -d`
-		echo -n "" > $outfile
+		rm -f $outfile
 
 		#echo "Assuring transcripts..."
 		infile_td=`mktemp $td/infile_tid.XXXXXX`
@@ -984,7 +984,7 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 			# Get all orthos and singletons into one file
 			# Bedtools gets upset if we try to intersect with an empty file, so as a hack also provide a fake
 			# entry in the same format. Hope that this never pops up in real life.
-			callFunction("(find  " + path_ogDir + " -name \"OG*" + str_speciesName + "*Protein.gtf\" | xargs -n 32 cat | grep -v \"inary\" | awk '$3==\"CDS\"' | sed -r \"s/ \\\"/\\\"/g\" | sed -r \"s/; /;/g\" | cut -f1,4,5,6,7,9,10,11 | perl -ne 'chomp;@l=split; printf \"$l[0]\\t%s\\t%s\\t.\\t%s\\t\\n\", $l[1]-1, $l[2]-1, join(\"\\t\", @l[3..7])' > " + path_ogBedFileName + "; echo \"chr_FAKE_QKlWlKgGS4\\t0\\t1\\t.\\t.\\t-\\tgene_id=\\\"FAKE\\\"\\tfake.fasta\\tOG9999999\") |  sort -k1,1 -k2,2n >> " + path_ogBedFileName)
+			callFunction("(find  " + path_ogDir + " -name \"OG*" + str_speciesName + "*Protein.gtf\" | xargs -n 32 cat | grep -v \"inary\" | awk '$3==\"CDS\"' | sed -r \"s/ \\\"/\\\"/g\" | sed -r \"s/; /;/g\" | cut -f1,4,5,6,7,9,10,11 | perl -ne 'chomp;@l=split; printf \"$l[0]\\t%s\\t%s\\t.\\t%s\\t\\n\", $l[1]-1, $l[2]-1, join(\"\\t\", @l[3..7])' > " + path_ogBedFileName + "; printf \"chr_FAKE_QKlWlKgGS4\\t0\\t1\\t.\\t.\\t-\\tgene_id=\\\"FAKE\\\"\\tfake.fasta\\tOG9999999\") |  sort -k1,1 -k2,2n >> " + path_ogBedFileName)
 			#Now intersect
 			callFunction("bedtools intersect -nonamecheck -a " + path_hitsBedFileName + " -b " + path_ogBedFileName + " -wa -wb > " + path_hitsOgIntersectionFileName)#ql
 			callFunction("cat " + path_hitsOgIntersectionFileName + " " + path_hitsBedFileName + " | cut -f1-11 | sort | uniq -u | sed -r \"s/$/\\t.\\t.\\t.\\t.\\t.\\t.\\t.\\t.\\t./g\" > " + path_hitsOgIntersectionFileName + ".tmp; cat " + path_hitsOgIntersectionFileName + ".tmp " + path_hitsOgIntersectionFileName + " > " + path_hitsOgIntersectionFileName + ".tmp.tmp ; mv " + path_hitsOgIntersectionFileName + ".tmp.tmp " + path_hitsOgIntersectionFileName + "; rm " + path_hitsOgIntersectionFileName + ".tmp")#ql
@@ -1277,7 +1277,7 @@ def assignNames(str_speciesName, path_acceptedGff, path_geneNameConversionTable,
 	f.close()
 	SeqIO.write(protSequencesAccepted,  path_acceptedSequencesOut, "fasta")
 	print("writing out results....")
-	callFunction("echo -n \"\" > "+path_acceptedGff + ";\
+	callFunction("rm -f "+path_acceptedGff + ";\
 		while read line ; do \
 			echo $line; \
 			sourceId=`echo \"$line\" | cut -f1`; \
@@ -1294,7 +1294,7 @@ def assignNames(str_speciesName, path_acceptedGff, path_geneNameConversionTable,
 
 def annotateIntersectedOutput(path_hitsOgIntersectionFileName, path_hitsOgIntersectionFileNameAnnotated):
 	callFunction("infile=\""+ path_hitsOgIntersectionFileName+"\"; outfile=\""+path_hitsOgIntersectionFileNameAnnotated+"\";\
-		echo -n \"\" > $outfile; \
+		rm -f > $outfile; \
 		awk -F \"\\t\" '$20 == \".\"' $infile | sed -r \"s/_id[= ]*[^\\\"]*\\\"/_id=\\\"/g\" | sed -r \"s/$/\\tmatch_none/g\" >> $outfile ;\
 		awk -F \"\\t\" '$20 != \".\"' $infile | awk '$20 != $11' | sed -r \"s/_id[ =]*[^\\\"]*\\\"/_id=\\\"/g\" | sed -r \"s/$/\\tmatch_bad/g\" >> $outfile;\
 		awk -F \"\\t\" '$20 != \".\"' $infile | awk '$20 == $11' | sed -r \"s/_id[ =]*[^\\\"]*\\\"/_id=\\\"/g\" | sed -r \"s/$/\\tmatch_good/g\" >> $outfile;")
@@ -1385,8 +1385,8 @@ def parseAugustusOutput(path_augustusOutput, path_outputGff, path_outputFasta, p
 			#echo "parsing in $ot";
 			awk -v RS="# start gene" -v ot="$ot" '{print "#"$0 > ot"/augsplit/augSplit."NR }' $infile
 			mkdir $ot/success
-			echo -n "" > $fastaout
-			echo -n "" > $outfile
+			rm -f > $fastaout
+			rm -f > $outfile
 			find $ot/augsplit -type "f" | xargs grep -P "transcript supported by hints \(any source\): [^0]" | cut -f 1 -d ":" | xargs -I '{}' mv '{}' $ot/success/
 			for file in `find $ot/success -type "f"`; do
 				flatstring=`grep "#" $file | sed -r "s/# //g" | sed ':a;N;$!ba;s/\\n/ /g'`
@@ -1426,7 +1426,7 @@ def hintFscoreFilter(path_augustusParsed, path_hintFile, path_augustusParsedHint
 def implementHintFscoreFilter(path_augustusParsed, path_hintFile, path_outFile, num_threshold):
 	function="augParsed=\"" + path_augustusParsed + "\"; hintFile=\"" + path_hintFile + "\"; of=\"" + path_outFile + "\"; threshold=\"" + str(num_threshold) + "\"" + """
 	augParsedBed="$augParsed.bed"
-	echo "" > $of
+	rm -f $of
 	grep -P "\\tCDS\\t" $augParsed | sed -r "s/transcript_id \\"([^\\"]*)\\"; gene_id \\"([^\\"]*)\\";/transcript_id=\\"\\1\\";gene_id=\\"\\2\\";/g" | sort -u | perl -ne 'chomp; @l=split; printf "%s\\t%d\\t%d\\t.\\t.\\t%s\\t%s\\n", $l[0], $l[3]-1, $l[4], $l[6], $l[8]' > $augParsedBed
 
 	hintsFileBed="$hintFile.bed"
@@ -1470,7 +1470,7 @@ def implementHintFscoreFilter(path_augustusParsed, path_hintFile, path_outFile, 
 
 def extractFromFastaByName(path_gffFile, path_fastaFile, path_fastaOut):
 	function="gff=\""+path_gffFile+"\"; fasta=\""+path_fastaFile+"\"; fastaout=\"" + path_fastaOut + "\"; " + """
-	echo -n "" > $fastaout; tids=`grep -P "\\ttranscript_id[ =]\\"[^\\"]*\\"; ?gene_id[ =]\\"[^\\"]*\\";" $gff | sed -r "s/.*\\ttranscript_id[ =]\\"([^\\"]*)\\"; ?gene_id[= ]\\"[^\\"]*\\";.*/\\1/g" | sort -u `
+	rm -f $fastaout; tids=`grep -P "\\ttranscript_id[ =]\\"[^\\"]*\\"; ?gene_id[ =]\\"[^\\"]*\\";" $gff | sed -r "s/.*\\ttranscript_id[ =]\\"([^\\"]*)\\"; ?gene_id[= ]\\"[^\\"]*\\";.*/\\1/g" | sort -u `
 	IFS='\n'
 	for tid in `echo "$tids"`; do
 		#echo "fetching sequence for $tid"
