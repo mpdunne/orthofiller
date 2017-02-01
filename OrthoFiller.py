@@ -225,6 +225,44 @@ def CanRunAugTrain():
 		print("    The path to the AUGUSTUS scripts folder must be exported into the path before running, i.e.\n        export PATH=$PATH:path_to_aug_scripts_folder")
 		return False
 
+def CanRunR():
+	sys.stdout.write("Test can run \"R, Rscript\"")
+	runit = subprocess.call("type " + "R", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE) == 0
+	rsunit = subprocess.call("type " + "Rscript", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE) == 0
+	# Check R can run
+	path_r = tempfile.mktemp()
+	with open(path_r, "w") as f:
+		f.write("print(\"hello world\")")
+	capture = subprocess.Popen("Rscript " + path_r, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout = [x for x in capture.stdout]
+        stderr = [x for x in capture.stderr]
+	if not (len(stdout) > 0 and len(stderr) == 0):
+		print(" - failed")
+		print("    R was unable to run. The following error was outputted:")
+		for line in stderr:
+			print("    " + line)
+		return False
+	# Check gamlss is installed
+	with open(path_r, "w") as f:
+		f.write("library(\"gamlss\"); search(); print(\"blue whale\")")
+	capture = subprocess.Popen("Rscript " + path_r, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+	gamlFound = any(["blue whale" in i for i in capture.stdout])
+	stderr = [x for x in capture.stderr]
+	if not gamlFound:
+		print(" - failed")
+		print("    R was unable to run. Please make sure you have the \"gamlss\" package installed.")
+		return False
+
+	os.remove(path_r)
+	a=commands.getstatusoutput("Rscript " + path_r)[1]
+	if "WARNING: ignoring environment value of R_HOME" in a:
+		print(" - failed")
+		print("    R R_HOME WARNING encountered: please call \"unset R_HOME\" in bash before running OrthoFiller\n")
+		return False
+	else:
+		print(" - ok")
+		return True
+
 def CanRunBedTools():
 	""" New versions of bedtools often seem to break things. Make extra sure that everything works as it needs to.
 	    This is not an exhaustive unit test.
@@ -331,7 +369,6 @@ def checkShell():
 	checks.append(CanRunMan("uniq", "uniq"))
 	checks.append(CanRunMan("tac", "tac"))
 	checks.append(CanRunMan("cat", "cat"))
-	checks.append(CanRunMan("R", "R"))
 	checks.append(CanRunMan("Rscript", "Rscript"))
 	checks.append(CanRunMinusH("nhmmer", "nhmmer"))
 	checks.append(CanRunMinusH("hmmbuild", "hmmbuild"))
@@ -341,6 +378,7 @@ def checkShell():
 	checks.append(CanRunMinusH("bedtools", "bedtools"))
 	checks.append(CanRunMan("mktemp", "mktemp"))
 	checks.append(CanRunAwk())
+	checks.append(CanRunR())
 	checks.append(CanRunGeneric("makeblastdb", "blast+"))
 	checks.append(CanRunGeneric("mcl", "mcl"))
 	checks.append(CanRunGeneric("mafft", "mafft"))
@@ -884,6 +922,7 @@ def prepareOutputFolder(path_outDir):
 def prepareHmmDbs(dict_speciesInfo, path_wDir, int_cores):
 	hmmdbpool=multiprocessing.Pool(int_cores)
 	for str_speciesName in dict_speciesInfo:
+		print("Preparing database for " + str_speciesName)
 		if not "hmmdb" in dict_speciesInfo[str_speciesName]:
 			path_genomeFile = dict_speciesInfo[str_speciesName]["genome"]
 			path_db = path_wDir + "/" + str_speciesName + ".hmmdb"
@@ -1385,8 +1424,8 @@ def parseAugustusOutput(path_augustusOutput, path_outputGff, path_outputFasta, p
 			#echo "parsing in $ot";
 			awk -v RS="# start gene" -v ot="$ot" '{print "#"$0 > ot"/augsplit/augSplit."NR }' $infile
 			mkdir $ot/success
-			rm -f > $fastaout
-			rm -f > $outfile
+			rm -f $fastaout
+			rm -f $outfile
 			find $ot/augsplit -type "f" | xargs grep -P "transcript supported by hints \(any source\): [^0]" | cut -f 1 -d ":" | xargs -I '{}' mv '{}' $ot/success/
 			for file in `find $ot/success -type "f"`; do
 				flatstring=`grep "#" $file | sed -r "s/# //g" | sed ':a;N;$!ba;s/\\n/ /g'`
@@ -1414,7 +1453,7 @@ def parseAugustusOutput(path_augustusOutput, path_outputGff, path_outputFasta, p
 
 			mv $outfile.tmp.out $outfile
 
-			rm $outfile.tmp.genes $outfile.tmp.genes.remove $outfile.tmp $fastaout.tmp
+			rm -f $outfile.tmp.genes $outfile.tmp.genes.remove $outfile.tmp $fastaout.tmp
 			rm -r $ot
 			"""
 	callFunction(function)
