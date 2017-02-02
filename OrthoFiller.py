@@ -379,9 +379,9 @@ def checkShell():
 	checks.append(CanRunMan("mktemp", "mktemp"))
 	checks.append(CanRunAwk())
 	checks.append(CanRunR())
-	checks.append(CanRunGeneric("makeblastdb", "blast+"))
-	checks.append(CanRunGeneric("mcl", "mcl"))
-	checks.append(CanRunGeneric("mafft", "mafft"))
+	checks.append(CanRunMinusH("makeblastdb", "blast+"))
+	checks.append(CanRunMinusH("mcl", "mcl"))
+	checks.append(CanRunMinusH("mafft", "mafft"))
 	#Check presence of orthofinder
 	ortho=CanRunOrthoFinder()
 	checks.append(ortho)
@@ -855,6 +855,7 @@ def processOg(orthogroup, list_orthogroupSequenceIds, orthogroupProteinSequences
 	#######################################################
 	writeSequencesToFastaFile(orthogroupProteinSequences, path_protSeqFile)
 	makeProteinAlignment(path_protSeqFile, path_proteinAlignmentFile)
+	print("cc")
 	getNucleotideAlignment(path_proteinAlignmentFile, path_nucAlignmentFile, dict_sequenceInfoById, dict_speciesInfo)
 	#######################################################
 	# Debug - get some stats on the alignments
@@ -985,6 +986,7 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 		for orthogroup in orthogroups:
 			#print "Submitting " + orthogroup + "; " + str(int_counter) + " of " + str_total + " submitted."
 			orthogroupProteinSequences = dict((x, proteinSequences[x]) for x in orthogroups[orthogroup] )
+			#processOg(orthogroup, orthogroups[orthogroup], orthogroupProteinSequences, dict_sequenceInfoById, dict_speciesInfo, path_wDir, str_ogDir)
 			jobs[orthogroup] = async(og_pool, processOg, args=(orthogroup, \
 							orthogroups[orthogroup], \
 							orthogroupProteinSequences, \
