@@ -202,6 +202,24 @@ def CanRunAwk():
 		print(" - failed")
 		return False
 
+def CanRunMafft():
+	sys.stdout.write("Test can run \"mafft\"")
+	path_tf = tempfile.mktemp()
+	with open(path_tf, "w") as f:
+		f.write(">1\nAAABBBCCCDDD\n>2\nAAACCCDDD\n")
+	path_tf2 = tempfile.mktemp()
+	callFunctionQuiet("mafft " + path_tf + " > " + path_tf2)
+	with open(path_tf2, "r") as g:
+		a=g.read()
+	os.remove(path_tf)
+	os.remove(path_tf2)
+	if not a == ">1\nAAABBBCCCDDD\n>2\nAAA---CCCDDD\n":
+                print(" - failed")
+		return False
+	else:
+		print(" - ok")
+		return True
+
 def CanRunGeneric(package, packageFormatted):
 	sys.stdout.write("Test can run \"" + package + "\"")
 	runit = subprocess.call("type " + package, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE) == 0
@@ -373,15 +391,15 @@ def checkShell():
 	checks.append(CanRunMinusH("nhmmer", "nhmmer"))
 	checks.append(CanRunMinusH("hmmbuild", "hmmbuild"))
 	checks.append(CanRunMinusH("makehmmerdb", "makehmmerdb"))
+	checks.append(CanRunMinusH("makeblastdb", "blast+"))
+	checks.append(CanRunMinusH("bedtools", "bedtools"))
 	checks.append(CanRunBlank("augustus", "augustus"))
 	checks.append(CanRunAugTrain())
-	checks.append(CanRunMinusH("bedtools", "bedtools"))
 	checks.append(CanRunMan("mktemp", "mktemp"))
 	checks.append(CanRunAwk())
 	checks.append(CanRunR())
-	checks.append(CanRunMinusH("makeblastdb", "blast+"))
+	checks.append(CanRunMafft())
 	checks.append(CanRunMinusH("mcl", "mcl"))
-	checks.append(CanRunMinusH("mafft", "mafft"))
 	#Check presence of orthofinder
 	ortho=CanRunOrthoFinder()
 	checks.append(ortho)
