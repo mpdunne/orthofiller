@@ -11,6 +11,8 @@ export ORTHOFINDER_DIR=$loc_orthofinder
 export AUGUSTUS_CONFIG_PATH=$cfg_augustus
 PATH="$bin_hmmer:$bin_augustus:$scr_augustus:$PATH"
 
+unset R_HOME
+
 python OrthoFiller.py --prep \
 	-g    \ #[orthogroups file]
 	-s    \ #[singletons file]
