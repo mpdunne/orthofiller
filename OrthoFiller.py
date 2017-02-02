@@ -1073,6 +1073,7 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 	print("Waiting for training to finish before continuing...")
 	trainingPool.close()
 	trainingPool.join()
+	print("Done training.")
         print("\n4. Running Augustus")
         print(  "==============================")
 	augustusPool = multiprocessing.Pool(int_cores)
@@ -1513,7 +1514,7 @@ def extractFromFastaByName(path_gffFile, path_fastaFile, path_fastaOut):
 	IFS='\n'
 	for tid in `echo "$tids"`; do
 		#echo "fetching sequence for $tid"
-		awk -v patt=".*transcript_id[= ]\\"$tid\\";.*\\n" 'BEGIN {RS=">"} $0 ~ patt {print ">"$0}' $fasta | grep -v "^$" >> $fastaout
+		awk -v patt=".*transcript_id[= ][^a-zA-Z0-9_.]$tid[^a-zA-Z0-9._];.*;" 'BEGIN {RS=">"} $0 ~ patt {print ">"$0}' $fasta | grep -v "^$" >> $fastaout
 	done"""
 	callFunction(function)
 
