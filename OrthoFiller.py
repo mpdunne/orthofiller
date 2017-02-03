@@ -133,6 +133,12 @@ def callFunctionQuiet(str_function):
 	with open(os.devnull, 'w') as FNULL:
 		subprocess.call([str_function], shell = True, stdout=FNULL, stderr=subprocess.STDOUT)
 
+def callFunctionMezzoPiano(str_function):
+	"""Call function in the shell, and suppress output but not stderr.
+	"""
+	with open(os.devnull, 'w') as FNULL:
+		subprocess.call([str_function], shell = True, stdout=FNULL)
+
 def CanRunCommand(command, qAllowStderr = False):
 	sys.stdout.write("Test can run \"%s\"" % command)
 	capture = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -320,7 +326,7 @@ def CanRunBedTools():
 				raise ValueError()
 		# Test getfasta
 		path_getFasta = path_td + "/getfasta.fa"
-		callFunctionQuiet("infile=" +  path_mockGtf1 + "; outfile=" + path_getFasta + "; genome=" + path_mockGenome + """;
+		callFunctionMezzoPiano("infile=" +  path_mockGtf1 + "; outfile=" + path_getFasta + "; genome=" + path_mockGenome + """;
 			tf=`mktemp -d`
 			gffCds="$tf/gffCds"
 			gffBed="$tf/gffBed"
@@ -847,17 +853,17 @@ def getNucleotideAlignment(alignedProteinsFastaIn, fastaOut, sequencesHolder, di
 def buildHmm(nucAlignment, path_outputFile):
 	"""Build an hmm based on a nucleotide alignment. Inputs are file names.
 	"""
-	callFunctionQuiet("hmmbuild --informat afa " + path_outputFile + " " + nucAlignment) #qgr
+	callFunctionMezzoPiano("hmmbuild --informat afa " + path_outputFile + " " + nucAlignment) #qgr
 
 def makeHmmerDb(path_genomeFile, path_dbOutput):
 	"""Makes a database per cds file for use with hmmer.
 	"""
-	callFunctionQuiet("makehmmerdb --block_size=10 " + path_genomeFile + " " + path_dbOutput) #qgr
+	callFunctionMezzoPiano("makehmmerdb --block_size=10 " + path_genomeFile + " " + path_dbOutput) #qgr
 
 def implementHmmSearch(path_hmmFile, path_db, path_hitsFileName):
 	"""Runs across the genome and finds hmm hits
 	"""
-	callFunctionQuiet("nhmmer --tformat hmmerfm --dna --cpu 1 --tblout " + path_hitsFileName + " " + 	path_hmmFile + " " + path_db) #qgr
+	callFunctionMezzoPiano("nhmmer --tformat hmmerfm --dna --cpu 1 --tblout " + path_hitsFileName + " " + 	path_hmmFile + " " + path_db) #qgr
 
 def processOg(orthogroup, list_orthogroupSequenceIds, orthogroupProteinSequences, dict_sequenceInfoById, dict_speciesInfo, path_wDir, str_ogFolder):
 	"""Runs all alignments and markov models for a particular orthogroup.
