@@ -873,7 +873,6 @@ def processOg(orthogroup, list_orthogroupSequenceIds, orthogroupProteinSequences
 	#######################################################
 	writeSequencesToFastaFile(orthogroupProteinSequences, path_protSeqFile)
 	makeProteinAlignment(path_protSeqFile, path_proteinAlignmentFile)
-	print("cc")
 	getNucleotideAlignment(path_proteinAlignmentFile, path_nucAlignmentFile, dict_sequenceInfoById, dict_speciesInfo)
 	#######################################################
 	# Debug - get some stats on the alignments
