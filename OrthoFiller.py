@@ -1752,7 +1752,7 @@ def runOrthoFinder(path_aaDir, int_cores=16):
 	else:
 		try:
 			callFunctionQuiet("orthofinder -h")
-			finderString="python orthofinder.py"
+			finderString="orthofinder"
 		except OSError:
 			sys.stderr.write("Error: Can't find orthofinder. Looked for orthofinder in the following order: OrthoFiller.py directory, execution directory, system PATH. Please ensure orthofinder is either installed and included in your PATH or that the orthofinder.py file is included in the same directory as the OrthoFiller.py file. Orthofinder can be downloaded from https://github.com/davidemms/OrthoFinder")
 			sys.exit()
