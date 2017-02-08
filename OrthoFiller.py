@@ -1490,49 +1490,84 @@ def hintFscoreFilter(path_augustusParsed, path_hintFile, path_augustusParsedHint
 	extractFromFastaByName(path_augustusParsedHintFiltered, path_augustusSequences, path_augustusSequencesHintFiltered)
 
 def implementHintFscoreFilter(path_augustusParsed, path_hintFile, path_outFile, num_threshold):
-	function="augParsed=\"" + path_augustusParsed + "\"; hintFile=\"" + path_hintFile + "\"; of=\"" + path_outFile + "\"; threshold=\"" + str(num_threshold) + "\"" + """
-	augParsedBed="$augParsed.bed"
-	rm -f $of
-	grep -P "\\tCDS\\t" $augParsed | sed -r "s/transcript_id \\"([^\\"]*)\\"; gene_id \\"([^\\"]*)\\";/transcript_id=\\"\\1\\";gene_id=\\"\\2\\";/g" | sort -u | perl -ne 'chomp; @l=split; printf "%s\\t%d\\t%d\\t.\\t.\\t%s\\t%s\\n", $l[0], $l[3]-1, $l[4], $l[6], $l[8]' > $augParsedBed
+	data = readCsv(path_augustusParsed)
+	cds ={}; out =[]
+	survivors = 0; 	nonSurvivors = 0
+	for i in [a for a in data if a[2] == "CDS"]:
+		key=re.sub(r".*transcript_id[ =]\"([^\"]*)\".*", r"\1", i[8])
+		if not key in cds: cds[key] = []
+		cds[key].append(i)
+	data_entries = {}
+	gene_entries = {}
+	geneLookup = {}
+	for i in data:
+		if "transcript_id" in i[8]:
+			tid=re.sub(r".*transcript_id[ =]\"([^\"]*)\".*", r"\1", i[8])
+			gid=re.sub(r".*gene_id[ =]\"([^\"]*)\".*", r"\1", i[8])
+			if not tid in data_entries: data_entries[tid] = []
+			data_entries[tid].append(i)
+			geneLookup[tid]=gid
+		elif i[2] == "gene":
+			gid = i[8]
+			if not gid in gene_entries: gene_entries[gid]=[]
+			gene_entries[gid].append(i)
+		elif i[2] == "transcript":
+			tid=i[8]
+			if not tid in data_entries: data_entries[tid]=[]
+			data_entries[tid].append(i)
+	for tid in cds.keys():
+		print("checking hint scores for " + tid + " from " + path_augustusParsed)
+		path_entry	= tempfile.mktemp()
+		entry		= cds[tid]
+		writeCsv(entry, path_entry)
+		gL=sum(int(x[4]) + 1 for x in entry) - sum(int(x[3]) for x in entry)
+		path_compatibleHints = tempfile.mktemp()
+		path_hintIs = tempfile.mktemp()
+		callFunction("bedtools intersect -wa -s -b " + path_entry + " -a " + path_hintFile +" | sort -u > " + path_compatibleHints)
+		compatibleHints = readCsv(path_compatibleHints)
+		deleteIfPresent(path_compatibleHints)
+		hintGroups = {}
+		for i in compatibleHints:
+			key = i[8]
+			if not key in hintGroups: hintGroups[key]=[]
+			hintGroups[key].append(i)
+		success=False
+		for hg in hintGroups:
+			path_hg = tempfile.mktemp()
+			path_hintIs = th_hintIs = tempfile.mktemp()
+                        writeCsv(hintGroups[hg], path_hg)
+                        callFunction("bedtools intersect -s -a " + path_hg + " -b " + path_entry + " > " + path_hintIs)
+			intersection = readCsv(path_hintIs)
+			deleteIfPresent(path_hg)
+			deleteIfPresent(path_hintIs)
+			hL=sum(int(x[4]) + 1 for x in hintGroups[hg]) - sum(int(x[3]) for x in hintGroups[hg])
+			iL=sum(int(x[4]) + 1 for x in intersection) - sum(int(x[3]) for x in intersection)
+			hR=iL/float(hL)
+			hP=iL/float(gL)
+			hFsc= 2 * hR * hP / (hR + hP)
+			if hFsc >= num_threshold:
+				success=True
+				break
+		if success:
+			survivors +=1
+			out += data_entries[tid]
+			if tid in geneLookup and geneLookup[tid] in gene_entries:
+				out += gene_entries[geneLookup[tid]]
+		else:
+			nonSurvivors += 1
+	print("Finished implementing hint score filter for " + path_augustusParsed + ". " + str(survivors) + " survivors and " + str(nonSurvivors) + " non-survivors.")
+	writeCsv(out, path_outFile)
+	deleteIfPresent(path_entry)
 
-	hintsFileBed="$hintFile.bed"
+def readCsv(path_csv):
+	with open(path_csv, "r") as p:
+		data = list(csv.reader((row for row in p if not row.startswith('#')), delimiter="\t"))
+	return data
 
-	perl -ne 'chomp; @l=split; printf "%s\\t%d\\t%d\\t.\\t.\\t%s\\t%s\\n", $l[0], $l[3]-1, $l[4], $l[6], $l[8]' $hintFile > $hintsFileBed
-
-	gids=`mktemp`
-	sed -r "s/.*gene_id=\\"([^\\"]*)\\";.*/\\1/g" $augParsedBed | sort -u > $gids
-
-	IFS='\n'
-	nsuccess=0
-	nfailure=0
-	for gid in `cat $gids`; do
-		#echo "checking hint scores for $gid from $augParsed"
-		entrytmp=`mktemp`
-		grep -P "gene_id[ =]\\"$gid\\"" $augParsedBed > $entrytmp
-		compatibleHints=`bedtools intersect -wa -s -b $entrytmp -a $hintsFileBed | sort -u`
-		gL=`awk -F'\\t' 'BEGIN{SUM=0}{ SUM+=$3-$2 }END{print SUM}' $entrytmp`
-		successes=""
-		for hint in `echo "$compatibleHints" | cut -f7`; do
-			hEntry=`mktemp`
-			echo "$compatibleHints" | awk -v a="$hint" '$7 == a' > $hEntry
-			hL=`awk -F'\\t' 'BEGIN{SUM=0}{ SUM+=$3-$2 }END{print SUM}' $hEntry`
-			iL=`bedtools intersect -s -a $hEntry -b $entrytmp | awk -F'\\t' 'BEGIN{SUM=0}{ SUM+=$3-$2 }END{print SUM}'`
-			successes=`awk -v gL="$gL" -v hL="$hL" -v iL="$iL" -v thresh="$threshold" 'BEGIN{hR=iL/hL; hP=iL/gL; hF=2*hR*hP/(hP+hR); if (hF >= thresh) {print "success"}}'`
-		done
-		if [ "$successes" != "" ]; then
-			nsuccess=`echo $[$nsuccess+1]`
-			grep -P "(gene_id[= ]\\"$gid\\";|\\t$gid\\t|\\t$gid\\.t.*\\t)" $augParsed | sort -u >> $of
-		else
-			nfailure=`echo $[$nfailure+1]`
-		fi
-	done
-	echo "Finished implementing hint score filter for $augParsed. $nsuccess survivors and $nfailure non-survivors."
-	sort -u $of > $of.tmp; mv $of.tmp $of
-
-	rm $gids
-	"""
-	callFunction(function)
-
+def writeCsv(data, path_csv):
+	with open(path_csv, "w") as f:
+		writer = csv.writer(f, delimiter = '\t',quoting = csv.QUOTE_NONE, quotechar='')
+		writer.writerows(data)
 
 def extractFromFastaByName(path_gffFile, path_fastaFile, path_fastaOut):
 	function="gff=\""+path_gffFile+"\"; fasta=\""+path_fastaFile+"\"; fastaout=\"" + path_fastaOut + "\"; " + """
