@@ -538,6 +538,7 @@ def readInputLocations(path_speciesInfoFile):
 			dict_speciesInfo[str_species]["gff"]	 = path_gff
 			dict_speciesInfo[str_species]["genome"]  = path_genome
 			dict_speciesInfo[str_species]["cds"]	 = path_cds
+			print("Checking chromosomes...")
 			checkChromosomes(path_gff, path_genome)
 			checkSequences(path_gff, path_cds, path_aa)
 	return dict_speciesInfo
@@ -1545,14 +1546,14 @@ def extractFromFastaByName(path_gffFile, path_fastaFile, path_fastaOut):
 
 def fetchSequences(path_gffIn, path_genome, path_cdsFastaOut, path_aaFastaOut, int_translationTable):
 	path_nucleotideSequences=path_cdsFastaOut
-	print("fetching nucleotide sequences for " + path_gffIn)
+	#print("fetching nucleotide sequences for " + path_gffIn)
 	callFunction("infile=" +  path_gffIn+ "; outfile=" + path_nucleotideSequences + "; genome=" + path_genome + """;
 		tf=`mktemp -d`
 		gffCds="$tf/gffCds"
 		gffBed="$tf/gffBed"
 		
 		#Prepare the gff
-		echo "preparing gff..."
+		#echo "preparing gff..."
 		grep -vP "^$" $infile | awk '$3=="CDS"' > $gffCds
 		cut -f1-8 $gffCds > $gffBed.1
 		sed -r "s/.*transcript_id[ =]\\"?([^\\";]*)\\"?;?.*/\\1/g" $gffCds > $gffBed.2
@@ -1575,7 +1576,7 @@ def fetchSequences(path_gffIn, path_genome, path_cdsFastaOut, path_aaFastaOut, i
 		#echo $tf
 		rm -r $tf
 		""")
-	print("translating to protein...")
+	#print("translating to protein...")
 	sequences=SeqIO.parse(path_nucleotideSequences, "fasta")
 	protSequences=[]
 	for s in sequences:
@@ -1664,7 +1665,7 @@ def unpackFitDistributionScript_noFilter(path_scriptDestination):
 	f.write(str_script)
 
 def checkChromosomes(path_gff, path_genome):
-	print("checking chromosomes...")
+	#print("checking chromosomes...")
 	res=commands.getstatusoutput("gff=\"" + path_gff + "\"; genome=\"" + path_genome + "\"; " + """
 		a=`mktemp`; b=`mktemp`;
 		grep ">" $genome | sed -r "s/>//g" > $a;
@@ -1730,23 +1731,31 @@ def prepareFromScratch(path_infile, path_outDir, int_cores):
 			dict_basicInfo[key]={}
 			dict_basicInfo[key]["gff"]	= checkFileExists(line[0])
 			dict_basicInfo[key]["genome"]	= checkFileExists(line[1])
+	pool = multiprocessing.Pool(int_cores)
 	with open(path_speciesInfoFile, "w") as f:
 		writer = csv.writer(f, delimiter = '\t',quoting = csv.QUOTE_NONE, quotechar='')
 		writer.writerow(["#protein", "gff", "genome", "cds"])
 		for key in dict_basicInfo:
 			path_gffIn=dict_basicInfo[key]["gff"]
 			path_genome=dict_basicInfo[key]["genome"]
-			checkChromosomes(path_gffIn, path_genome)
 			path_cdsFastaOut=path_cdsDir+"/"+key+".cds.fasta"
 			path_aaFastaOut=path_aaDir+"/"+key+".aa.fasta"
-			fetchSequences(path_gffIn, path_genome, path_cdsFastaOut, path_aaFastaOut, 1)
 			writer.writerow([path_aaFastaOut, path_gffIn, path_genome, path_cdsFastaOut])
+			async(pool, prepareSpecies, args=(path_gffIn, path_genome, path_cdsFastaOut, path_aaFastaOut))
+	pool.close()
+	pool.join()
 	for path_file in glob.glob(path_aaDir + "/Results*"):
 		deleteIfPresent(path_file)
 	runOrthoFinder(path_aaDir, int_cores)
 	path_orthoFinderOutputFile	= getOrthogroupsFile(path_aaDir)
 	path_singletonsFile		= getSingletonsFile(path_aaDir)
 	return path_speciesInfoFile, path_orthoFinderOutputFile, path_singletonsFile
+
+def prepareSpecies(path_gffIn, path_genome, path_cdsFastaOut, path_aaFastaOut):
+	print("Extracting sequences from " + path_gffIn)
+	checkChromosomes(path_gffIn, path_genome)
+	fetchSequences(path_gffIn, path_genome, path_cdsFastaOut, path_aaFastaOut, 1)
+	print("Finished extracting sequences from " + path_gffIn)
 
 def runOrthoFinder(path_aaDir, int_cores=16):
 	if "ORTHOFINDER_DIR" in os.environ:
@@ -1877,7 +1886,7 @@ if __name__ == '__main__':
 			sys.exit("Options -g and -s can only be used with option --prep for pre-prepared data.")
 
 	path_outDir = args.OD
-	int_cores = args.CO
+	int_cores = int(args.CO)
 
 	print("\n0.2. Checking and unpacking input data")
 	print(  "======================================")
@@ -1893,5 +1902,5 @@ if __name__ == '__main__':
 		path_singletonsFile = checkFileExists(args.SN)
 		path_speciesInfoFile = checkFileExists(args.IN)
 
-	start(path_speciesInfoFile, path_orthoFinderOutputFile, path_singletonsFile, path_outDir, path_resultsDir, path_wDir, not args.noHitFilter, not args.noHintFilter, int(int_cores))
+	start(path_speciesInfoFile, path_orthoFinderOutputFile, path_singletonsFile, path_outDir, path_resultsDir, path_wDir, not args.noHitFilter, not args.noHintFilter, int_cores)
 
