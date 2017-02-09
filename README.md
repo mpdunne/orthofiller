@@ -49,28 +49,60 @@ OrthoFiller uses GTF files for both its input and output, due to the superior un
 python gff_to_gtf.py infile.gff3 > outfile.gtf
 ```
 
-Users should note that this tool truncates chromsome names to 15 characters. If this is going to be an issue, you may wish to use placeholder names in the conversion step, for example:
+Users should note that this tool truncates chromsome names to 15 characters. If this is going to be an issue, you may wish to use placeholder names in the conversion step, for example, by using this python script:
 
 ```
-#!bin/bash
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
-file="file_to_convert.gff3"
+import subprocess
+import csv
+import sys
+import os
 
-cut -f1 $file | sort -u | grep -v "#" > $file.placeholder
-awk '{print $1"\tPLACEHOLDER_"NR}' $file.placeholder > $file.placeholder.lookup
+def placehold(path_in, path_out):
+        lookup={}
+        with open(path_in, "r") as p:
+                data = list(csv.reader(p, delimiter="\t"))
+                chroms = list(set([x[0] for x in data]))
+                for i, x in enumerate(chroms):
+                        lookup["placeholder_" + str(i)] = x
+                        lookup[x] = "placeholder_" + str(i)
+                for l in data: l[0] = lookup[l[0]]
+                write(data, path_out)
+        return lookup
 
-cp $file $file.placeholder.replaced
-while read first second; do
-	echo "placeholding $first $second"; sed -ri "s/^$first\t/$second\t/g" $file.placeholder.replaced
-done < $file.placeholder.lookup
+def unplacehold(path_in, path_out, lookup):
+        with open(path_in, "r") as p:
+                data = list(csv.reader(p, delimiter="\t"))
+                for l in data: l[0] = lookup[l[0]]
+                write(data, path_out)
 
-python gff_to_gtf.py $file.placeholder.replaced > $file.placeholder.nearly;
+def write(data, path_out):
+        with open(path_out, "w") as o:
+                datawriter = csv.writer(o, delimiter = '\t',quoting = csv.QUOTE_NONE, quotechar='')
+                datawriter.writerows(data)
 
-cp $file.placeholder.nearly ${file%gff3}gtf
-while read first second; do
-	echo "unplaceholding $first $second"; sed -ri "s/^$second\t/$first\t/g" ${file%gff3}gtf
-done < $file.placeholder.lookup
-rm $file*placeholder*
+def convert(path_in, path_out):
+        function="python PATH_TO_SCRIPT/gff_to_gtf.py " + path_in + " > " + path_out
+        subprocess.call([function], shell = True)
+
+if __name__ == '__main__':
+        args = sys.argv[1:]
+        infile = args[0]
+        outfile = args[1]
+        # Placehold and convert
+        print("placeholding...")
+        placeheld = infile + ".tmp"
+        lookup = placehold(infile, placeheld)
+        placeheldout = placeheld + ".plh"
+        print("converting....")
+        convert(placeheld, placeheldout)
+        print("unplaceholding...")
+        unplacehold(placeheldout, outfile, lookup)
+        # Clean up
+        os.remove(placeheld)
+        os.remove(placeheldout)
 ```
 
 Output File Format
