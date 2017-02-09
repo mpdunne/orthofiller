@@ -1570,14 +1570,12 @@ def writeCsv(data, path_csv):
 		writer.writerows(data)
 
 def extractFromFastaByName(path_gffFile, path_fastaFile, path_fastaOut):
-	function="gff=\""+path_gffFile+"\"; fasta=\""+path_fastaFile+"\"; fastaout=\"" + path_fastaOut + "\"; " + """
-	rm -f $fastaout; tids=`grep -P "\\ttranscript_id[ =]\\"[^\\"]*\\"; ?gene_id[ =]\\"[^\\"]*\\";" $gff | sed -r "s/.*\\ttranscript_id[ =]\\"([^\\"]*)\\"; ?gene_id[= ]\\"[^\\"]*\\";.*/\\1/g" | sort -u `
-	IFS='\n'
-	for tid in `echo "$tids"`; do
-		#echo "fetching sequence for $tid"
-		awk -v patt=".*transcript_id[= ][^a-zA-Z0-9_.]$tid[^a-zA-Z0-9._];.*;" 'BEGIN {RS=">"} $0 ~ patt {print ">"$0}' $fasta | grep -v "^$" >> $fastaout
-	done"""
-	callFunction(function)
+	with open(path_gffFile, "r") as f:
+		data = list(csv.reader((row for row in f if not row.startswith('#')), delimiter="\t"))
+		#tids = [re.sub(r".*transcript_id[ =]\"([^\"]*)\".*", r"\1", i[8]) for i in data]
+		tids = [i[8] for i in data]
+	sequences = [a for a in SeqIO.parse(path_fastaFile, "fasta") if a.description in tids]
+	SeqIO.write(sequences, path_fastaOut, "fasta")
 
 def fetchSequences(path_gffIn, path_genome, path_cdsFastaOut, path_aaFastaOut, int_translationTable):
 	path_nucleotideSequences=path_cdsFastaOut
