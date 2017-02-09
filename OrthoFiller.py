@@ -1516,7 +1516,7 @@ def implementHintFscoreFilter(path_augustusParsed, path_hintFile, path_outFile, 
 			if not tid in data_entries: data_entries[tid]=[]
 			data_entries[tid].append(i)
 	for tid in cds.keys():
-		print("checking hint scores for " + tid + " from " + path_augustusParsed)
+		#print("checking hint scores for " + tid + " from " + path_augustusParsed)
 		path_entry	= tempfile.mktemp()
 		entry		= cds[tid]
 		writeCsv(entry, path_entry)
