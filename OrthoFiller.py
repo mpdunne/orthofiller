@@ -675,7 +675,6 @@ def checkCdsHealth(path_inputGtf, path_outputGtf):
 		gtf = [line for line in csv.reader(c, delimiter="\t") if ''.join(line).strip()]
 	transcripts={}; cds={}; starts={}; stops={}; entries={}; strands={}
 	for line in gtf:
-		print(line)
 		transcript_id = re.sub(r'.*transcript_id \"([^\"]*)\".*', r'\1', line[8])
 		if not transcript_id in transcripts:
 			transcripts[transcript_id] = []
