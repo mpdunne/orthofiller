@@ -700,7 +700,7 @@ def checkCdsHealth(path_inputGtf, path_outputGtf):
 	for t_id in transcripts:
 		if not t_id in cds or len(cds[t_id]) != len(set(cds[t_id])):
 			badGenes.append(t_id); continue
-		if nor t_id in strands or len(set(strands[t_id])) != 1:
+		if not t_id in strands or len(set(strands[t_id])) != 1:
 			badGenes.append(t_id); continue
 		if not t_id in stops or not t_id in starts or len(stops[t_id]) !=1 or len(starts[t_id]) !=1:
 			badGenes.append(t_id); continue
