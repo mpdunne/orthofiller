@@ -64,18 +64,21 @@ def placehold(path_in, path_out):
         lookup={}
         with open(path_in, "r") as p:
                 data = list(csv.reader(p, delimiter="\t"))
-                chroms = list(set([x[0] for x in data]))
+                chroms = list(set([x[0] for x in data if not "#" in x[0]]))
                 for i, x in enumerate(chroms):
+                        print(str(i) + " " + x)
                         lookup["pl_" + str(i)] = x
                         lookup[x] = "pl_" + str(i)
-                for l in data: l[0] = lookup[l[0]]
+                for l in data:
+                        if not "#" in l[0]: l[0] = lookup[l[0]]
                 write(data, path_out)
         return lookup
 
 def unplacehold(path_in, path_out, lookup):
         with open(path_in, "r") as p:
                 data = list(csv.reader(p, delimiter="\t"))
-                for l in data: l[0] = lookup[l[0]]
+                for l in data:
+                        if not "#" in l[0]: l[0] = lookup[l[0]]
                 write(data, path_out)
 
 def write(data, path_out):
