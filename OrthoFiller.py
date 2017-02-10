@@ -47,6 +47,10 @@ try:
 except ImportError as e:
 	errors.append(e)
 try:
+	import shutil
+except ImportError as e:
+	errors.append(e)
+try:
 	import itertools
 except ImportError as e:
 	errors.append(e)
@@ -671,6 +675,7 @@ def checkCdsHealth(path_inputGtf, path_outputGtf):
 		gtf = [line for line in csv.reader(c, delimiter="\t") if ''.join(line).strip()]
 	transcripts={}; cds={}; starts={}; stops={}; entries={}; strands={}
 	for line in gtf:
+		print(line)
 		transcript_id = re.sub(r'.*transcript_id \"([^\"]*)\".*', r'\1', line[8])
 		if not transcript_id in transcripts:
 			transcripts[transcript_id] = []
@@ -693,9 +698,9 @@ def checkCdsHealth(path_inputGtf, path_outputGtf):
 		entries[transcript_id].append(line)
 	badGenes=[]
 	for t_id in transcripts:
-		if len(cds[t_id]) != len(set(cds[t_id])):
+		if not t_id in cds or len(cds[t_id]) != len(set(cds[t_id])):
 			badGenes.append(t_id); continue
-		if len(set(strands[t_id])) != 1:
+		if nor t_id in strands or len(set(strands[t_id])) != 1:
 			badGenes.append(t_id); continue
 		if not t_id in stops or not t_id in starts or len(stops[t_id]) !=1 or len(starts[t_id]) !=1:
 			badGenes.append(t_id); continue
@@ -1043,24 +1048,9 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 		print(  "==============================")
 		for str_speciesName in dict_speciesInfo:
 			print("Submitting HMM output files for species " + str_speciesName + "...")
-			# Prepare file names
-			path_hitsBedFileName = path_wDir + "/" + str_speciesName + ".allHits.bed"
-			path_ogBedFileName = path_wDir + "/" + str_speciesName + ".allOrthogroups.bed"
-			path_hitsOgIntersectionFileName = path_wDir + "/" + str_speciesName + ".hitsIntersectOrthogroups.bed"
-			# Get all hits into one file
-			callFunction("find  " + path_ogDir + " -name \"OG*" + str_speciesName + "*hits.bed\" | xargs -n 32 cat | sed -r \"s/gene_id=*[^\\\"]*\\\"/gene_id=\\\"/g\" | sort -k1,1 -k2,2n | awk '$2 >0 && $3 > 0'  | sort -k1,1 -k2,2n > " + path_hitsBedFileName)#ql
-			# Get all orthos and singletons into one file
-			# Bedtools gets upset if we try to intersect with an empty file, so as a hack also provide a fake
-			# entry in the same format. Hope that this never pops up in real life.
-			callFunction("(find  " + path_ogDir + " -name \"OG*" + str_speciesName + "*Protein.gtf\" | xargs -n 32 cat | grep -v \"inary\" | awk '$3==\"CDS\"' | sed -r \"s/ \\\"/\\\"/g\" | sed -r \"s/; /;/g\" | cut -f1,4,5,6,7,9,10,11 | perl -ne 'chomp;@l=split; printf \"$l[0]\\t%s\\t%s\\t.\\t%s\\t\\n\", $l[1]-1, $l[2]-1, join(\"\\t\", @l[3..7])' > " + path_ogBedFileName + "; printf \"chr_FAKE_QKlWlKgGS4\\t0\\t1\\t.\\t.\\t-\\tgene_id=\\\"FAKE\\\"\\tfake.fasta\\tOG9999999\") |  sort -k1,1 -k2,2n >> " + path_ogBedFileName)
-			#Now intersect
-			callFunction("bedtools intersect -nonamecheck -a " + path_hitsBedFileName + " -b " + path_ogBedFileName + " -wa -wb > " + path_hitsOgIntersectionFileName)#ql
-			callFunction("cat " + path_hitsOgIntersectionFileName + " " + path_hitsBedFileName + " | cut -f1-11 | sort | uniq -u | sed -r \"s/$/\\t.\\t.\\t.\\t.\\t.\\t.\\t.\\t.\\t./g\" > " + path_hitsOgIntersectionFileName + ".tmp; cat " + path_hitsOgIntersectionFileName + ".tmp " + path_hitsOgIntersectionFileName + " > " + path_hitsOgIntersectionFileName + ".tmp.tmp ; mv " + path_hitsOgIntersectionFileName + ".tmp.tmp " + path_hitsOgIntersectionFileName + "; rm " + path_hitsOgIntersectionFileName + ".tmp")#ql
 			path_hitsOgIntersectionFileNameAnnotated = path_wDir + "/" + str_speciesName + ".hitsIntersectionOrthogroups.annotated.bed"
-			#Annotate whether each line is a good match, a bad match, or a candidate match.
-			#We don't need to distinguish singletons and orthos.
-			async(pool, annotateIntersectedOutput, args=(path_hitsOgIntersectionFileName, path_hitsOgIntersectionFileNameAnnotated))#ql
 			dict_ogIntersectionFileNamesAnnotated[str_speciesName] = path_hitsOgIntersectionFileNameAnnotated
+			async(pool, processHmmOutput, args=(str_species, path_wDir, path_ogDir, path_hitsOgIntersectionFileNameAnnotated))
 		pool.close()
 		pool.join()
 		print("Done processing HMM output files")
@@ -1285,6 +1275,34 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 	print("Results directory is " + path_resultsDir)
 	for str_species in dict_speciesInfo:
 		print("-------" + str(len(dict_speciesInfo[str_species]["newGenes"])) + " new genes found for " + str_species)
+
+def processHmmOutput(str_speciesName, path_wDir, path_ogDir, path_hitsOgIntersectionFileNameAnnotated):
+	path_hitsBedFileName		= path_wDir + "/" + str_speciesName + ".allHits.bed"
+	path_ogBedFileName		= path_wDir + "/" + str_speciesName + ".allOrthogroups.bed"
+	path_hitsOgIntersectionFileName	= path_wDir + "/" + str_speciesName + ".hitsIntersectOrthogroups.bed"
+	# Get all hits together, and double check that they are good files
+	concatFiles(path_ogDir + "/*" + str_speciesName + "*hits.bed", path_hitsBedFileName)
+	callFunction("awk '$3 > 0 && $2 > 0' " + path_hitsBedFileName + " > " + path_hitsBedFileName + ".tmp")
+	move(path_hitsBedFileName + ".tmp", path_hitsBedFileName)
+	# Get all protein annotations together
+	concatFiles(path_ogDir + "/*" + str_speciesName + "*Protein.gtf", path_ogBedFileName)
+	callFunction("awk '$3==\"CDS\"' " + path_ogBedFileName + " > " + path_ogBedFileName + ".tmp")
+	move(path_ogBedFileName + ".tmp", path_ogBedFileName)
+	# Intersect
+	callFunction("bedtools intersect -nonamecheck -a " + path_hitsBedFileName + " -b " + path_ogBedFileName + " -wa -wb > " + path_hitsOgIntersectionFileName)
+	# Begin annotation
+	callFunction("cat " + path_hitsOgIntersectionFileName + " " + path_hitsBedFileName + " | cut -f1-11 | sort | uniq -u | sed -r \"s/$/\\t.\\t.\\t.\\t.\\t.\\t.\\t.\\t.\\t./g\" > " + path_hitsOgIntersectionFileName + ".tmp; cat " + path_hitsOgIntersectionFileName + ".tmp " + path_hitsOgIntersectionFileName + " > " + path_hitsOgIntersectionFileName + ".tmp.tmp ; mv " + path_hitsOgIntersectionFileName + ".tmp.tmp " + path_hitsOgIntersectionFileName + "; rm " + path_hitsOgIntersectionFileName + ".tmp")
+	annotateIntersectedOutput(path_hitsOgIntersectionFileName, path_hitsOgIntersectionFileNameAnnotated)
+
+def move(path_orig, path_target):
+	callFunction("mv " + path_orig + " " + path_target)
+	
+def concatFiles(str_patt, path_outfile):
+	with open(path_outfile,'wb') as o:
+		for path_indi in glob.glob(str_patt):
+			with open(path_indi,'rb') as p:
+				shutil.copyfileobj(p, o)
+
 
 def compareOutputSequences(seq1, seq2):
 	if seq1.replace(" ", "").replace("\"", "") == seq2.replace(" ", "").replace("\"", ""):
