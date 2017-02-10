@@ -66,8 +66,8 @@ def placehold(path_in, path_out):
                 data = list(csv.reader(p, delimiter="\t"))
                 chroms = list(set([x[0] for x in data]))
                 for i, x in enumerate(chroms):
-                        lookup["placeholder_" + str(i)] = x
-                        lookup[x] = "placeholder_" + str(i)
+                        lookup["pl_" + str(i)] = x
+                        lookup[x] = "pl_" + str(i)
                 for l in data: l[0] = lookup[l[0]]
                 write(data, path_out)
         return lookup
