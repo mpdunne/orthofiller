@@ -66,7 +66,6 @@ def placehold(path_in, path_out):
                 data = list(csv.reader(p, delimiter="\t"))
                 chroms = list(set([x[0] for x in data if not "#" in x[0]]))
                 for i, x in enumerate(chroms):
-                        print(str(i) + " " + x)
                         lookup["pl_" + str(i)] = x
                         lookup[x] = "pl_" + str(i)
                 for l in data:
