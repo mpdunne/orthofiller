@@ -1444,12 +1444,14 @@ def makeHintsFile(path_goodHits, path_hitsHintsGff):
 	"""
 	callFunction("grep -v \"#\" " + path_goodHits + " | sed -r \"s/ +/\\t/g\" | perl -ne 'chomp;@l=split; printf \"%s\\tOrthoFiller\\texonpart\\t%s\\t%s\\t%s\\t%s\\t.\\torthogroup=%s;source=M\\n\", $l[0], $l[1], $l[2], $l[6], $l[5], $l[10]' | sed -r \"s/ +/\\t/g\"  > " + path_hitsHintsGff)
 
+def parseNew()
+
 def parseAugustusOutput(path_augustusOutput, path_outputGff, path_outputFasta, path_sourcegff):
 	function = "infile=\"" + path_augustusOutput + "\"; outfile=\"" +\
 			path_outputGff + "\"; fastaout=\"" + path_outputFasta + "\"; sourcegff=\"" + path_sourcegff + "\";"+ \
 			"""ot=`mktemp -d`; mkdir $ot/augsplit;
 			#echo "parsing in $ot";
-			awk -v RS="# start gene" -v ot="$ot" '{print "#"$0 > ot"/augsplit/augSplit."NR }' $infile
+			awk -v RS="# start gene" -v ot="$ot" '{print "#"$0 > ot"/augsplit/augSplit."NR; close(ot"/augsplit/augSplit."NR) }' $infile
 			mkdir $ot/success
 			rm -f $fastaout
 			rm -f $outfile
