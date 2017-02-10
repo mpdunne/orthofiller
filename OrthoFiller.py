@@ -906,11 +906,14 @@ def processOg(orthogroup, list_orthogroupSequenceIds, orthogroupProteinSequences
 		implementHmmSearch(path_hmmFile, dict_speciesInfo[species]["hmmdb"], path_hitsFile)
 		#Form a bed file from the resultant hits file
 		path_hitsFileBed = path_hitsFile + ".bed"
-		callFunction("grep -v \"#\" " + path_hitsFile + " | sed -r \"s/ +/\t/g\" | cut -f1,7,8,12,13,14,15 | perl -ne \
-				'chomp;@l=split; printf \"%s\\t%s\\t%s\\t.\\t.\\t%s\\t" + species + "\\t" + orthogroup +
-				"\\n\", $l[0], ($l[1] + $l[2] - abs($l[1] - $l[2])) / 2, ($l[1] + $l[2] + abs($l[2] - $l[1])) / 2,\
-				 join(\"\\t\", @l[3..6])' > " + path_hitsFileBed)
+		makeBed(path_hitsFile, species, orthogroup, path_hitsFileBed)	
 	#print("Finished " + orthogroup)
+
+def makeBed(path_hitsFile, species, orthogroup, path_hitsFileBed):
+	callFunction("grep -v \"#\" " + path_hitsFile + " | sed -r \"s/ +/\t/g\" | cut -f1,7,8,12,13,14,15 | perl -ne \
+                                'chomp;@l=split; printf \"%s\\t%s\\t%s\\t.\\t.\\t%s\\t" + species + "\\t" + orthogroup +
+                                "\\n\", $l[0], ($l[1] + $l[2] - abs($l[1] - $l[2])) / 2, ($l[1] + $l[2] + abs($l[2] - $l[1])) / 2,\
+                                 join(\"\\t\", @l[3..6])' > " + path_hitsFileBed)	
 
 def proposeNewGenes(path_hitsOgIntersectionFileNameAnnotated, path_allHitsOgIntersectionFileNameAnnotated, str_speciesName, path_candidatesFile, hitFilter):
 	# Use R to find candidates.
@@ -1443,8 +1446,6 @@ def makeHintsFile(path_goodHits, path_hitsHintsGff):
 	   give hints to AUGUSTUS.
 	"""
 	callFunction("grep -v \"#\" " + path_goodHits + " | sed -r \"s/ +/\\t/g\" | perl -ne 'chomp;@l=split; printf \"%s\\tOrthoFiller\\texonpart\\t%s\\t%s\\t%s\\t%s\\t.\\torthogroup=%s;source=M\\n\", $l[0], $l[1], $l[2], $l[6], $l[5], $l[10]' | sed -r \"s/ +/\\t/g\"  > " + path_hitsHintsGff)
-
-def parseNew()
 
 def parseAugustusOutput(path_augustusOutput, path_outputGff, path_outputFasta, path_sourcegff):
 	function = "infile=\"" + path_augustusOutput + "\"; outfile=\"" +\
