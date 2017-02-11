@@ -1049,7 +1049,7 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 			print("Submitting HMM output files for species " + str_speciesName + "...")
 			path_hitsOgIntersectionFileNameAnnotated = path_wDir + "/" + str_speciesName + ".hitsIntersectionOrthogroups.annotated.bed"
 			dict_ogIntersectionFileNamesAnnotated[str_speciesName] = path_hitsOgIntersectionFileNameAnnotated
-			async(pool, processHmmOutput, args=(str_species, path_wDir, path_ogDir, path_hitsOgIntersectionFileNameAnnotated))
+			async(pool, processHmmOutput, args=(str_speciesName, path_wDir, path_ogDir, path_hitsOgIntersectionFileNameAnnotated))
 		pool.close()
 		pool.join()
 		print("Done processing HMM output files")
