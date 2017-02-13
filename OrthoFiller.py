@@ -935,7 +935,7 @@ def fitDistributions(path_hitsOgIntersectionFileNameAnnotated, path_allHitsOgInt
 		unpackFitDistributionScript(rfile)
 	else:
 		unpackFitDistributionScript_noFilter(rfile)
-	callFunctionMezzoPiano("rfile=\""+rfile+"\"; Rscript $rfile " + path_hitsOgIntersectionFileNameAnnotated + " " + \
+	callFunctionQuiet("rfile=\""+rfile+"\"; Rscript $rfile " + path_hitsOgIntersectionFileNameAnnotated + " " + \
 				path_allHitsOgIntersectionFileNameAnnotated + " "  + path_candidatesFile + "; rm $rfile")
 
 def prepareOutputFolder(path_outDir):
