@@ -1368,7 +1368,7 @@ def assignNames(str_speciesName, path_acceptedGff, path_geneNameConversionTable,
 		while read line ; do \
 			echo $line; \
 			sourceId=`echo \"$line\" | cut -f1`; \
-			replacementId=`echo \"$line\" | cut -f2 | sed -r \"s/ //g\"`;\
+			replacementId=`echo \"$line\" | cut -f2 | sed -r \"s/ //g\" | sed -r \"s/[^a-zA-Z0-9._]//g\"`;\
 			tid=`echo $sourceId | sed -r \"s/.*transcript_id[= ]\\\"?([^\\\";]*)\\\"?;.*/\\1/g\"`;\
 			gid=`echo $sourceId | sed -r \"s/.*gene_id[= ]\\\"?([^\\\";]*)\\\"?;.*/\\1/g\"`;\
 			tnum=`echo $tid | sed -r \"s/^$gid\\.//g\"`;\
