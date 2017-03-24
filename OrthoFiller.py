@@ -1779,6 +1779,8 @@ def prepareFromScratch(path_infile, path_outDir, int_cores):
 		# Ignore any commented lines, typically these are headers.
 		data = csv.reader((row for row in p if not row.startswith('#')), delimiter="\t")
 		for line in data:
+			if not ''.join(line).strip():
+				continue
 			# Use genome name as key in dictionary
 			if not ''.join(line).strip(): continue
 			key = os.path.basename(line[1])
