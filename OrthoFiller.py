@@ -1780,6 +1780,7 @@ def prepareFromScratch(path_infile, path_outDir, int_cores):
 		data = csv.reader((row for row in p if not row.startswith('#')), delimiter="\t")
 		for line in data:
 			# Use genome name as key in dictionary
+			if not ''.join(line).strip(): continue
 			key = os.path.basename(line[1])
 			dict_basicInfo[key]={}
 			dict_basicInfo[key]["gff"]	= checkFileExists(line[0])
