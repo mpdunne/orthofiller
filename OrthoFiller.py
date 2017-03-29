@@ -550,26 +550,19 @@ def readInputLocations(path_speciesInfoFile):
 def gffsForOrthoGroups(path_ogDir, path_orthogroups, path_singletons, dict_speciesInfo, int_cores):
 	b=[]; bs=[]
 	with open(path_orthogroups) as f:
-		data = csv.reader(f, delimiter="\t")
-		for line in data:
-			b.append(line)
+		b = list(csv.reader(f, delimiter="\t"))
 	with open(path_singletons) as f:
-		data = csv.reader(f, delimiter="\t")
-		for line in data:
-			bs.append(line)
+		bs = list(csv.reader(f, delimiter="\t"))
 	speciesList_og		= b[0]
 	speciesList_original    = list(dict_speciesInfo.keys())
 	speciesList_useful	= convertOrthoFinderSpeciesNames(speciesList_og, speciesList_original)
-	orthogroups = b[1:]
-	singletons  = bs[1:]
+	orthogroups = b[1:]; singletons  = bs[1:]
 	gffPool=multiprocessing.Pool(int_cores)
 	for i in range(1,len(speciesList_useful)):
 		str_species=speciesList_useful[i]
 		a=[];
 		with open(dict_speciesInfo[str_species]["gff"]) as f:
-			data = csv.reader(f, delimiter="\t")
-			for line in data:
-				a.append(line)
+			a = list(csv.reader(f, delimiter="\t"))
 		print("Extracting orthogroup and singleton gtf files for " + str_species)
 		async(gffPool, gffsForGroups, args=(a, orthogroups, path_ogDir, str_species, "_orthoProtein.gtf", i))
 		async(gffPool, gffsForGroups, args=(a, singletons, path_ogDir, str_species, "_singletonProtein.gtf", i))
@@ -1779,6 +1772,7 @@ def prepareFromScratch(path_infile, path_outDir, int_cores):
 		# Ignore any commented lines, typically these are headers.
 		data = csv.reader((row for row in p if not row.startswith('#')), delimiter="\t")
 		for line in data:
+			if not ''.join(line).strip(): continue
 			# Use genome name as key in dictionary
 			key = os.path.basename(line[1])
 			dict_basicInfo[key]={}
