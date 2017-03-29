@@ -527,8 +527,7 @@ def readInputLocations(path_speciesInfoFile):
 		# Ignore any commented lines, typically these are headers.
 		data = csv.reader((row for row in path_locationsFile if not row.startswith('#')), delimiter="\t")
 		for line in data:
-			if not ''.join(line).strip():
-				continue
+			if not ''.join(line).strip(): continue
 			# The "species", i.e. the basename for the source protein file
 			# will be the key in the dictionary.
 			str_species = os.path.basename(line[0])
@@ -1774,6 +1773,7 @@ def prepareFromScratch(path_infile, path_outDir, int_cores):
 		for line in data:
 			if not ''.join(line).strip(): continue
 			# Use genome name as key in dictionary
+			if not ''.join(line).strip(): continue
 			key = os.path.basename(line[1])
 			dict_basicInfo[key]={}
 			dict_basicInfo[key]["gff"]	= checkFileExists(line[0])
