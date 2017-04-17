@@ -546,7 +546,7 @@ def readInputLocations(path_speciesInfoFile):
 			checkSequences(path_gff, path_cds, path_aa)
 	return dict_speciesInfo
 
-def gffsForOrthoGroups(path_ogDir, path_orthogroups, path_singletons, dict_speciesInfo, int_cores):
+def gffsForOrthoGroups(path_ogGtfDir, path_orthogroups, path_singletons, dict_speciesInfo, int_cores):
 	b=[]; bs=[]
 	with open(path_orthogroups) as f:
 		b = list(csv.reader(f, delimiter="\t"))
@@ -563,12 +563,12 @@ def gffsForOrthoGroups(path_ogDir, path_orthogroups, path_singletons, dict_speci
 		with open(dict_speciesInfo[str_species]["gff"]) as f:
 			a = list(csv.reader(f, delimiter="\t"))
 		print("Extracting orthogroup and singleton gtf files for " + str_species)
-		async(gffPool, gffsForGroups, args=(a, orthogroups, path_ogDir, str_species, "_orthoProtein.gtf", i))
-		async(gffPool, gffsForGroups, args=(a, singletons, path_ogDir, str_species, "_singletonProtein.gtf", i))
+		async(gffPool, gffsForGroups, args=(a, orthogroups, path_ogGtfDir, str_species, "_orthoProtein.gtf", i))
+		async(gffPool, gffsForGroups, args=(a, singletons, path_ogGtfDir, str_species, "_singletonProtein.gtf", i))
 	gffPool.close()
 	gffPool.join()	
 	
-def gffsForGroups(list_gff, orthogroups, path_ogDir, str_species, str_outsuffix, int_speciesNum):
+def gffsForGroups(list_gff, orthogroups, path_ogGtfDir, str_species, str_outsuffix, int_speciesNum):
 	#Gff entries by transcript name
 	aa=[[re.sub(".*transcript_id[ =]\"([^\"]*)\".*", r'\1', x[8]), x] for x in list_gff]
 	c={};
@@ -576,7 +576,7 @@ def gffsForGroups(list_gff, orthogroups, path_ogDir, str_species, str_outsuffix,
 	for x in aa: c[x[0]].append(x[1])
 	e = dict((x[0], [c[i] for i in itertools.ifilterfalse(lambda x: x=='', re.split("[ ,]*", x[int_speciesNum]))]) for x in orthogroups)
 	for orthogroup in e:
-		filename = path_ogDir + "/" + orthogroup+"." + str_species + str_outsuffix
+		filename = path_ogGtfDir + "/" + orthogroup+"." + str_species + str_outsuffix
 		with open(filename, 'w') as mycsvfile:
 			datawriter = csv.writer(mycsvfile, delimiter = '\t',quoting = csv.QUOTE_NONE, quotechar='')
 			for row in list(itertools.chain.from_iterable(e[orthogroup])):
@@ -862,15 +862,15 @@ def implementHmmSearch(path_hmmFile, path_db, path_hitsFileName):
 	"""
 	callFunctionMezzoPiano("nhmmer --tformat hmmerfm --dna --cpu 1 --tblout " + path_hitsFileName + " " + 	path_hmmFile + " " + path_db) #qgr
 
-def processOg(orthogroup, list_orthogroupSequenceIds, orthogroupProteinSequences, dict_sequenceInfoById, dict_speciesInfo, path_wDir, str_ogFolder):
+def processOg(orthogroup, list_orthogroupSequenceIds, orthogroupProteinSequences, dict_sequenceInfoById, dict_speciesInfo, path_ogAlDir, path_ogHmmDir, path_ogHitsDir):
 	"""Runs all alignments and markov models for a particular orthogroup.
 	"""
 	########################################################
 	# Define output files
 	########################################################
-	path_protSeqFile = path_wDir + "/" +  str_ogFolder + "/" + orthogroup + "_ProteinSequences.fasta"
-	path_proteinAlignmentFile = path_wDir + "/" + str_ogFolder + "/" + orthogroup + "_ProteinAlignment.fasta"
-	path_nucAlignmentFile = path_wDir + "/" + str_ogFolder + "/" + orthogroup + "_NucAlignment.fasta"
+	path_protSeqFile = path_ogAlDir + "/" + orthogroup + "_ProteinSequences.fasta"
+	path_proteinAlignmentFile = path_ogAlDir + "/" + orthogroup + "_ProteinAlignment.fasta"
+	path_nucAlignmentFile = path_ogAlDir + "/" + orthogroup + "_NucAlignment.fasta"
 	#######################################################
 	# Write out the sequences and make the alignments
 	#######################################################
@@ -891,13 +891,13 @@ def processOg(orthogroup, list_orthogroupSequenceIds, orthogroupProteinSequences
 	######################################################
 	# Build the HMM.
 	######################################################
-	path_hmmFile = path_wDir + "/" + str_ogFolder + "/" + orthogroup + ".hmm"
+	path_hmmFile = path_ogHmmDir + "/" + orthogroup + ".hmm"
 	buildHmm(path_nucAlignmentFile, path_hmmFile)
 	######################################################
 	# Search the genome of each species in turn.
 	######################################################
 	for species in dict_speciesInfo:
-		path_hitsFile = path_wDir + "/" + str_ogFolder + "/" + orthogroup + "." + species + ".hits"
+		path_hitsFile = path_ogHitsDir + "/" + orthogroup + "." + species + ".hits"
 		#print "Generating hits file: " + path_hitsFile
 		implementHmmSearch(path_hmmFile, dict_speciesInfo[species]["hmmdb"], path_hitsFile)
 		#Form a bed file from the resultant hits file
@@ -943,13 +943,13 @@ def prepareOutputFolder(path_outDir):
 	makeIfAbsent(path_resultsDir)
 	return path_resultsDir, path_wDir
 
-def prepareHmmDbs(dict_speciesInfo, path_wDir, int_cores):
+def prepareHmmDbs(dict_speciesInfo, path_hmmDbDir, int_cores):
 	hmmdbpool=multiprocessing.Pool(int_cores)
 	for str_speciesName in dict_speciesInfo:
 		print("Preparing database for " + str_speciesName)
 		if not "hmmdb" in dict_speciesInfo[str_speciesName]:
 			path_genomeFile = dict_speciesInfo[str_speciesName]["genome"]
-			path_db = path_wDir + "/" + str_speciesName + ".hmmdb"
+			path_db = path_hmmDbDir + "/" + str_speciesName + ".hmmdb"
 			dict_speciesInfo[str_speciesName]["hmmdb"] = path_db
 			async(hmmdbpool, makeHmmerDb,  args=(path_genomeFile, path_db))	
 	hmmdbpool.close()
@@ -983,19 +983,33 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 	#####################################################
 	if not augOnly:
 		######################################################
+		# Prepare some working directories
+		######################################################
+		path_ogDir = path_wDir + "/orthogroups"
+		path_ogGtfDir = path_ogDir + "/gtf"
+		path_ogAlDir = path_ogDir + "/alignments"
+		path_ogHmmDir = path_ogDir + "/hmm"
+		path_ogHitsDir = path_ogDir + "/hits"
+		path_hmmDbDir = path_wDir + "/hmmdb"
+		makeIfAbsent(path_ogGtfDir)
+		makeIfAbsent(path_ogAlDir)
+		makeIfAbsent(path_ogHmmDir)
+		makeIfAbsent(path_ogHitsDir)
+		makeIfAbsent(path_hmmDbDir)
+		######################################################
 		# Set up an hmm database for each species
 		######################################################
 		print("\n2.1. Preparing HMM databases")
 	        print(  "============================")
-		prepareHmmDbs(dict_speciesInfo, path_wDir, int_cores)#ql
+		prepareHmmDbs(dict_speciesInfo, path_hmmDbDir, int_cores)#ql
 		#####################################################
 		# Produce gff files for each orthogroup/species pair
-		#####################################################		
-		str_ogDir = "orthogroups"	
-		path_ogDir = path_wDir + "/" + str_ogDir
+		#####################################################
+
+
 	        print("\n2.2. Extracting orthogroup gtf files")
                 print(  "====================================")
-		gffsForOrthoGroups(path_ogDir, path_orthoFinderOutputFile, path_singletonsFile, dict_speciesInfo, int_cores)#ql
+		gffsForOrthoGroups(path_ogGtfDir, path_orthoFinderOutputFile, path_singletonsFile, dict_speciesInfo, int_cores)#ql
 		#####################################################
 		# Process each individual orthogroup in parallel
 		#####################################################
@@ -1014,9 +1028,7 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 							orthogroups[orthogroup], \
 							orthogroupProteinSequences, \
 							dict_sequenceInfoById, \
-							dict_speciesInfo, \
-							path_wDir, \
-							str_ogDir))#qr
+							dict_speciesInfo, path_ogAlDir, path_ogHmmDir, path_ogHitsDir))
 			int_counter = int_counter + 1
 		og_pool.close()
 		# Keep track of how many orthogroups have been processed.
@@ -1041,7 +1053,7 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 			print("Submitting HMM output files for species " + str_speciesName + "...")
 			path_hitsOgIntersectionFileNameAnnotated = path_wDir + "/" + str_speciesName + ".hitsIntersectionOrthogroups.annotated.bed"
 			dict_ogIntersectionFileNamesAnnotated[str_speciesName] = path_hitsOgIntersectionFileNameAnnotated
-			async(pool, processHmmOutput, args=(str_speciesName, path_wDir, path_ogDir, path_hitsOgIntersectionFileNameAnnotated))
+			async(pool, processHmmOutput, args=(str_speciesName, path_wDir, path_ogHitsDir, path_ogGtfDir, path_hitsOgIntersectionFileNameAnnotated))
 		pool.close()
 		pool.join()
 		print("Done processing HMM output files")
@@ -1267,16 +1279,16 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 	for str_species in dict_speciesInfo:
 		print("-------" + str(len(dict_speciesInfo[str_species]["newGenes"])) + " new genes found for " + str_species)
 
-def processHmmOutput(str_speciesName, path_wDir, path_ogDir, path_hitsOgIntersectionFileNameAnnotated):
+def processHmmOutput(str_speciesName, path_wDir, path_ogHitsDir, path_ogGtfDir, path_hitsOgIntersectionFileNameAnnotated):
 	path_hitsBedFileName		= path_wDir + "/" + str_speciesName + ".allHits.bed"
 	path_ogBedFileName		= path_wDir + "/" + str_speciesName + ".allOrthogroups.bed"
 	path_hitsOgIntersectionFileName	= path_wDir + "/" + str_speciesName + ".hitsIntersectOrthogroups.bed"
 	# Get all hits together, and double check that they are good files
-	concatFiles(path_ogDir + "/*" + str_speciesName + "*hits.bed", path_hitsBedFileName)
+	concatFiles(path_ogHitsDir + "/*" + str_speciesName + "*hits.bed", path_hitsBedFileName)
 	callFunction("awk '$3 > 0 && $2 > 0' " + path_hitsBedFileName + " > " + path_hitsBedFileName + ".tmp")
 	move(path_hitsBedFileName + ".tmp", path_hitsBedFileName)
 	# Get all protein annotations together
-	concatFiles(path_ogDir + "/*" + str_speciesName + "*Protein.gtf", path_ogBedFileName)
+	concatFiles(path_ogGtfDir + "/*" + str_speciesName + "*Protein.gtf", path_ogBedFileName)
 	callFunction("awk '$3==\"CDS\"' " + path_ogBedFileName + " > " + path_ogBedFileName + ".tmp")
 	move(path_ogBedFileName + ".tmp", path_ogBedFileName)
 	# Intersect
