@@ -857,10 +857,12 @@ def makeHmmerDb(path_genomeFile, path_dbOutput):
 	"""
 	callFunctionMezzoPiano("makehmmerdb --block_size=10 " + path_genomeFile + " " + path_dbOutput) #qgr
 
-def implementHmmSearch(path_hmmFile, path_db, path_hitsFileName):
+def implementHmmSearch(path_hmmFile, path_db, path_hitsFile):
 	"""Runs across the genome and finds hmm hits
 	"""
-	callFunctionMezzoPiano("nhmmer --tformat hmmerfm --dna --cpu 1 --tblout " + path_hitsFileName + " " + 	path_hmmFile + " " + path_db) #qgr
+	callFunctionMezzoPiano("nhmmer --tformat hmmerfm --dna --cpu 1 --tblout " + path_hitsFile + " " + 	path_hmmFile + " " + path_db) #qgr
+	path_hitsFileBed = path_hitsFile + ".bed"
+	makeBed(path_hitsFile, species, orthogroup, path_hitsFileBed)
 
 def processOg(orthogroup, list_orthogroupSequenceIds, orthogroupProteinSequences, dict_sequenceInfoById, dict_speciesInfo, path_ogAlDir, path_ogHmmDir, path_ogHitsDir):
 	"""Runs all alignments and markov models for a particular orthogroup.
@@ -955,6 +957,95 @@ def prepareHmmDbs(dict_speciesInfo, path_hmmDbDir, int_cores):
 	hmmdbpool.close()
 	hmmdbpool.join()
 
+def implementGetProteinFastaFiles(orthogroup, orthogroupProteinSequences, dict_sequenceInfoById, dict_speciesInfo, path_ogAlDir):
+        # Define output files
+	path_protSeqFile = path_ogAlDir + "/" + orthogroup + "_ProteinSequences.fasta"
+	# Write out the sequences
+	writeSequencesToFastaFile(orthogroupProteinSequences, path_protSeqFile)
+
+def implementGetProteinAlignments(path_proteinFastaFile, path_fastaOut):
+	alignment = MafftCommandline(input=path_proteinFastaFile, auto="on")
+        stdout, stderr = alignment()
+        with open(path_fastaOut, "w") as outHandle:
+                outHandle.write(stdout)
+
+def trackProgress(jobs):
+	str_total = str(len(jobs))
+	while True:
+		k=[jobs[j].ready() for j in jobs]
+                sys.stdout.write("\r    " + str(sum(k)) + " out of " + str_total +  " orthogroups processed")
+                sys.stdout.flush()
+                if all(k):
+                        print("\n    Finished processing orthogroups")
+                        break
+                time.sleep(2)
+
+
+def getProteinFastaFiles(orthogroups, proteinSequences, dict_sequenceInfoById, dict_speciesInfo, path_ogAlDir, int_cores):
+	og_pool = multiprocessing.Pool(int_cores)
+	jobs={};
+	for orthogroup in orthogroups:
+		orthogroupProteinSequences = dict((x, proteinSequences[x]) for x in orthogroups[orthogroup])
+		jobs[orthogroup] = async(og_pool, implementGetProteinFastaFiles, args=(orthogroup, orthogroupProteinSequences, \
+                                                        dict_sequenceInfoById, \
+                                                        dict_speciesInfo, \
+                                                        path_ogAlDir))
+	og_pool.close()
+	trackProgress(jobs)
+	og_pool.join()
+
+def getProteinAlignments(orthogroups, path_ogAlDir, int_cores):
+	og_pool = multiprocessing.Pool(int_cores)
+        jobs={};
+	for orthogroup in orthogroups:
+		path_prots 	= path_ogAlDir + "/" + orthogroup + "_ProteinSequences.fasta"
+		path_alignment	= path_ogAlDir + "/" + orthogroup + "_ProteinAlignment.fasta"
+		jobs[orthogroup] = async(og_pool, implementGetProteinAlignments, args=(path_prots, path_alignment))
+	og_pool.close()
+	trackProgress(jobs)
+	og_pool.join()
+
+def getNucleotideAlignments(orthogroups, path_ogAlDir, dict_sequenceInfoById, dict_speciesInfo, int_cores):
+	og_pool = multiprocessing.Pool(int_cores)
+        jobs={};
+	for orthogroup in orthogroups:
+		path_proteinAlignmentFile = path_ogAlDir + "/" + orthogroup + "_ProteinAlignment.fasta"
+		path_nucAlignmentFile	  = path_ogAlDir + "/" + orthogroup + "_NucAlignment.fasta"
+		jobs[orthogroup] = async(og_pool, getNucleotideAlignment, args=(path_proteinAlignmentFile, path_nucAlignmentFile, dict_sequenceInfoById, dict_speciesInfo))
+	og_pool.close()
+        trackProgress(jobs)
+        og_pool.join()
+
+def buildHmms(orthogroups, path_ogAlDir, path_ogHmmDir, int_cores):
+	og_pool = multiprocessing.Pool(int_cores)
+	jobs={};
+	for orthogroup in orthogroups:
+		path_nucAlignmentFile   = path_ogAlDir + "/" + orthogroup + "_NucAlignment.fasta"
+		path_hmmFile 		= path_ogHmmDir + "/" + orthogroup + ".hmm"
+		jobs[orthogroup] = async(og_pool, buildHmm, args=(path_nucAlignmentFile, path_hmmFile))
+	og_pool.close()
+	trackProgress(jobs)
+	og_pool.join()
+
+def runHmms(orthogroups, dict_speciesInfo, path_ogHmmDir, path_ogHitsDir, int_cores):
+	#Sort hmms by size so that we clear the biggest ones first.
+	weights={}
+	for orthogroup in orthogroups:
+		weights[orthogroup] = os.path.getsize(path_ogHmmDir + "/" + orthogroup + ".hmm")
+	orthogroups_sorted = sorted(weights, key=lambda x: int(weights[x]), reverse=True)
+	for species in dict_speciesInfo:
+		print("Running HMMs on species " + species)
+		path_hmmdb =  dict_speciesInfo[species]["hmmdb"]
+		og_pool = multiprocessing.Pool(int_cores)
+		jobs={};
+		for orthogroup in orthogroups_sorted:
+			path_hmmFile = path_ogHmmDir + "/" + orthogroup + ".hmm"
+			path_hitsFile = path_ogHitsDir + "/" + orthogroup + "." + species + ".hits"
+			jobs[orthogroup] = async(og_pool, implementHmmSearch, args=(path_hmmFile, path_hmmdb, path_hitsFile))
+		og_pool.close()
+		trackProgress(jobs)
+		og_pool.join()
+
 def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_resultsDir, path_wDir, path_orthoFinderOutputFile, path_singletonsFile, int_cores=16, firstPass=False, augOnly=False, hitFilter=True, hintFilter=True):
 	"""Takes orthofinder output and a collection of genome info locations as input.
 	   Processes orthogroups in parallel, filters hits, and generates gene models.
@@ -1005,8 +1096,6 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 		#####################################################
 		# Produce gff files for each orthogroup/species pair
 		#####################################################
-
-
 	        print("\n2.2. Extracting orthogroup gtf files")
                 print(  "====================================")
 		gffsForOrthoGroups(path_ogGtfDir, path_orthoFinderOutputFile, path_singletonsFile, dict_speciesInfo, int_cores)#ql
@@ -1014,34 +1103,25 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 		# Process each individual orthogroup in parallel
 		#####################################################
 		proteinSequences = getProteinSequences(dict_sequenceInfoById, dict_speciesInfo)
-		og_pool = multiprocessing.Pool(int_cores)
-		jobs={}
-		int_counter = 1
-		str_total = str(len(orthogroups))
-		print("\n2.2. Processing orthogroup HMMs")
-                print(  "==============================================")
-		for orthogroup in orthogroups:
-			#print "Submitting " + orthogroup + "; " + str(int_counter) + " of " + str_total + " submitted."
-			orthogroupProteinSequences = dict((x, proteinSequences[x]) for x in orthogroups[orthogroup] )
-			#processOg(orthogroup, orthogroups[orthogroup], orthogroupProteinSequences, dict_sequenceInfoById, dict_speciesInfo, path_wDir, str_ogDir)
-			jobs[orthogroup] = async(og_pool, processOg, args=(orthogroup, \
-							orthogroups[orthogroup], \
-							orthogroupProteinSequences, \
-							dict_sequenceInfoById, \
-							dict_speciesInfo, path_ogAlDir, path_ogHmmDir, path_ogHitsDir))
-			int_counter = int_counter + 1
-		og_pool.close()
-		# Keep track of how many orthogroups have been processed.
-		while True:
-			k=[jobs[j].ready() for j in jobs]
-			sys.stdout.write("\r" + str(sum(k)) + " out of " + str_total +  " orthogroups processed")
-			sys.stdout.flush()
-			if all(k):
-				print("\nFinished processing orthogroups")
-				break
-			#print([k for k in jobs if not jobs[k].ready()])
-			time.sleep(2)
-		og_pool.join()
+		print("\n2.3. Extracting protein fasta sequences")
+                print(  "=======================================")
+		print("Getting protein fasta sets for all orthogroups...")
+		getProteinFastaFiles(orthogroups, proteinSequences, dict_sequenceInfoById, dict_speciesInfo, path_ogAlDir, int_cores)
+		print("\n2.4. Aligning orthogroup sequences")
+		print(  "==================================")
+		print("Grabbing alignments...")
+		getProteinAlignments(orthogroups, path_ogAlDir, int_cores)
+		print("\n2.5. Extracting nucleotide alignments")
+		print(  "=====================================")
+		print("Threading nucleotides through alignments...")
+		getNucleotideAlignments(orthogroups, path_ogAlDir, dict_sequenceInfoById, dict_speciesInfo, int_cores)
+		print("\n2.6. Building HMMs")
+		print(  "==================")
+		print("Grabbing HMMs for each orthroup...")
+		buildHmms(orthogroups, path_ogAlDir, path_ogHmmDir, int_cores)
+		print("\n2.7. Running HMMs...")
+		print(  "====================")
+		runHmms(orthogroups, dict_speciesInfo, path_ogHmmDir, path_ogHitsDir, int_cores)
 		####################################################
 		# Start a new pool for processing the hmm outfiles.
 		####################################################
@@ -1206,7 +1286,7 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 		dict_speciesInfo[str_speciesName]["acceptedsequences"] = path_acceptedSequencesOut
 		callFunction("grep transcript_id " + path_augustusParsed + " | sed -r 's/.*transcript_id/transcript_id/g' | sort -u > " + path_augustusParsedUniq)
 		str_newSpeciesName=dict_speciesInfo[str_speciesName]["newSpeciesName"]
-		print(str_newSpeciesName)
+		#print(str_newSpeciesName)
 		acceptedSequences=[]
 		potentialSequences={}
 		with open(path_augustusParsedUniq, "r") as csvfile:
@@ -1215,9 +1295,9 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 				sequenceName=re.sub(";g", "; g", re.sub("_id=", "_id ", entry[0]))
 				potentialSequences[sequenceName] = re.split("[, ]+", re.sub("possibleOrthos=", "", entry[1]))
 		for seqId in potentialSequences:
-			print(seqId)
+			#print(seqId)
 			seqIdAlt=seqId.replace("_id ", "_id=").replace(" ", "")
-			print(seqIdAlt)
+			#print(seqIdAlt)
 			#Find out which orthogroup the sequence has been placed in.
 			uniqueId=[x for x in silNew if (silNew[x].species==str_newSpeciesName and compareOutputSequences(silNew[x].seqId, seqId))][0]
 			list_newOrthogroup = [x for x in oNew if uniqueId in oNew[x]]
