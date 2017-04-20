@@ -1277,57 +1277,19 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 	path_orthofinderSingletonsNew	= getSingletonsFile(path_newProteomesDir)
 	silNew, oNew, sNew = readOrthoFinderOutput(path_orthofinderOutputNew, \
 									path_orthofinderSingletonsNew, dict_speciesInfo_modern)
+	pool=multiprocessing.Pool(int_cores)
+	jobs={}
 	for str_speciesName in dict_speciesInfo:
 		print("Double-checking membership for species " + str_speciesName)
-		#Prepare file names.
-		path_augustusParsed = dict_speciesInfo[str_speciesName]["augustusparsed_hintfiltered"]
+		jobs[str_speciesName] = async(pool, orthogroupTest, args=(dict_speciesInfo, str_speciesName, silNew, oNew, sNew, orthogroups, dict_sequenceInfoById))
+	pool.close()
+	pool.join()
+	print("\n5.4 Renaming new genes")
+        print(  "======================")
+	for str_speciesName in dict_speciesInfo:
+		acceptedSequences = jobs[str_speciesName].get()
 		path_acceptedSequencesOut = path_resultsDir + "/" + str_speciesName + ".newSequences.fasta"
-		path_augustusParsedUniq = path_augustusParsed + ".uniq"
 		dict_speciesInfo[str_speciesName]["acceptedsequences"] = path_acceptedSequencesOut
-		callFunction("grep transcript_id " + path_augustusParsed + " | sed -r 's/.*transcript_id/transcript_id/g' | sort -u > " + path_augustusParsedUniq)
-		str_newSpeciesName=dict_speciesInfo[str_speciesName]["newSpeciesName"]
-		#print(str_newSpeciesName)
-		acceptedSequences=[]
-		potentialSequences={}
-		with open(path_augustusParsedUniq, "r") as csvfile:
-			data = csv.reader(csvfile, delimiter="\t")
-			for entry in data:
-				sequenceName=re.sub(";g", "; g", re.sub("_id=", "_id ", entry[0]))
-				potentialSequences[sequenceName] = re.split("[, ]+", re.sub("possibleOrthos=", "", entry[1]))
-		for seqId in potentialSequences:
-			#print(seqId)
-			seqIdAlt=seqId.replace("_id ", "_id=").replace(" ", "")
-			#print(seqIdAlt)
-			#Find out which orthogroup the sequence has been placed in.
-			uniqueId=[x for x in silNew if (silNew[x].species==str_newSpeciesName and compareOutputSequences(silNew[x].seqId, seqId))][0]
-			list_newOrthogroup = [x for x in oNew if uniqueId in oNew[x]]
-			if not list_newOrthogroup:
-				#If there is no orthogroup corresponding to this sequence, move on.
-				print("There is no orthogroup containing this gene. This is an unsuccessful placement")
-				continue
-			newOrthogroup=list_newOrthogroup[0]
-			oldOrthogroupsPotential=potentialSequences[seqId]
-			success = 0
-			for oldOrthogroup in oldOrthogroupsPotential:
-				overlap = 0
-				#Check each potential old orthogroup in turn to see
-				#how much overlap it has with the new orthogroup
-				for oldOrthogroupSequenceId in orthogroups[oldOrthogroup]:
-					oldOrthSeq = dict_sequenceInfoById[oldOrthogroupSequenceId]
-					correspondingSpecies = dict_speciesInfo[oldOrthSeq.species]["newSpeciesName"]
-					for newOrthogroupSequenceId in oNew[newOrthogroup]:
-						newOrthSeq = silNew[newOrthogroupSequenceId]
-						if newOrthSeq.species == correspondingSpecies and compareOutputSequences(newOrthSeq.seqId, oldOrthSeq.seqId):
-							overlap = overlap + 1
-				if overlap > 0:
-					success = 1
-					break
-			print("There are " + str(len(orthogroups[oldOrthogroup])) + " sequences in the trial old orthogroup. There are " + str(len(oNew[newOrthogroup])) 	+ " sequences in the new orthogroup. The overlap is " + str(overlap))
-			if success == 1:
-				print("This is a successful placement")
-				acceptedSequences.append(seqId.replace(" ", "").replace("\"", ""))
-			else:
-				print("This is an unsuccessful placement")
 		path_newProteome = path_newProteomesDir + "/" + str_speciesName + "newProteome.fasta"
 		sequences=SeqIO.parse(path_newProteome, "fasta")
 		protSequences=[]
@@ -1340,6 +1302,7 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 		# which can be a problem with iterated runs, for example.
 		###########################################################
 		# get the list of existing gene names
+		print("Reassigning names for " + str_speciesName + "...")
 		path_acceptedGff=path_resultsDir + "/" + str_speciesName + ".newGenes.gtf"
 		path_geneNameConversionTable=path_augustusParsed + ".geneNamesConversion.txt"
 		assignNames(str_speciesName, path_acceptedGff, path_geneNameConversionTable, protSequencesAccepted, dict_sequenceInfoById, path_augustusParsed, path_acceptedSequencesOut)
@@ -1358,6 +1321,42 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 	print("Results directory is " + path_resultsDir)
 	for str_species in dict_speciesInfo:
 		print("-------" + str(len(dict_speciesInfo[str_species]["newGenes"])) + " new genes found for " + str_species)
+
+def orthogroupTest(dict_speciesInfo, str_speciesName, silNew, oNew, sNew, orthogroups, dict_sequenceInfoById):
+	path_augustusParsed = dict_speciesInfo[str_speciesName]["augustusparsed_hintfiltered"]
+	path_augustusParsedUniq = path_augustusParsed + ".uniq"
+	callFunction("grep transcript_id " + path_augustusParsed + " | sed -r 's/.*transcript_id/transcript_id/g' | sort -u > " + path_augustusParsedUniq)
+	str_newSpeciesName=dict_speciesInfo[str_speciesName]["newSpeciesName"]
+	acceptedSequences=[]
+	potentialSequences={}
+	with open(path_augustusParsedUniq, "r") as csvfile:
+		data = csv.reader(csvfile, delimiter="\t")
+		for entry in data:
+			sequenceName=re.sub(";g", "; g", re.sub("_id=", "_id ", entry[0]))
+			potentialSequences[sequenceName] = re.split("[, ]+", re.sub("possibleOrthos=", "", entry[1]))
+	for seqId in potentialSequences:
+		seqIdAlt=seqId.replace("_id ", "_id=").replace(" ", "")
+		uniqueId=[x for x in silNew if (silNew[x].species==str_newSpeciesName and compareOutputSequences(silNew[x].seqId, seqId))][0]
+		list_newOrthogroup = [x for x in oNew if uniqueId in oNew[x]]
+		if not list_newOrthogroup: continue
+		newOrthogroup=list_newOrthogroup[0]
+		oldOrthogroupsPotential=potentialSequences[seqId]
+		success = 0
+		for oldOrthogroup in oldOrthogroupsPotential:
+			overlap = 0
+			for oldOrthogroupSequenceId in orthogroups[oldOrthogroup]:
+				oldOrthSeq = dict_sequenceInfoById[oldOrthogroupSequenceId]
+				correspondingSpecies = dict_speciesInfo[oldOrthSeq.species]["newSpeciesName"]
+				for newOrthogroupSequenceId in oNew[newOrthogroup]:
+					newOrthSeq = silNew[newOrthogroupSequenceId]
+					if newOrthSeq.species == correspondingSpecies and compareOutputSequences(newOrthSeq.seqId, oldOrthSeq.seqId):
+						overlap = overlap + 1
+			if overlap > 0:
+				success = 1
+				break
+		if success == 1:
+			acceptedSequences.append(seqId.replace(" ", "").replace("\"", ""))
+	return acceptedSequences
 
 def processHmmOutput(str_speciesName, path_wDir, path_ogHitsDir, path_ogGtfDir, path_hitsOgIntersectionFileNameAnnotated):
 	path_hitsBedFileName		= path_wDir + "/" + str_speciesName + ".allHits.bed"
@@ -1429,7 +1428,7 @@ def assignNames(str_speciesName, path_acceptedGff, path_geneNameConversionTable,
 	allNames= originalNames + originalNamesStubs
 	# for each new gene, give it a nice name and check that it hasn't been used before.
 	counter=1
-	print("updating names....")
+	#print("updating names....")
 	f = open(path_geneNameConversionTable, "w")
 	writer = csv.writer(f, delimiter = '\t',quoting = csv.QUOTE_NONE, quotechar='')
 	for s in protSequencesAccepted:
@@ -1447,10 +1446,9 @@ def assignNames(str_speciesName, path_acceptedGff, path_geneNameConversionTable,
 	# Write stuff out.
 	f.close()
 	SeqIO.write(protSequencesAccepted,  path_acceptedSequencesOut, "fasta")
-	print("writing out results....")
+	#print("writing out results....")
 	callFunction("rm -f "+path_acceptedGff + ";\
 		while read line ; do \
-			echo $line; \
 			sourceId=`echo \"$line\" | cut -f1`; \
 			replacementId=`echo \"$line\" | cut -f2 | sed -r \"s/ //g\" | sed -r \"s/[^a-zA-Z0-9._]//g\"`;\
 			tid=`echo $sourceId | sed -r \"s/.*transcript_id[= ]\\\"?([^\\\";]*)\\\"?;.*/\\1/g\"`;\
