@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!usr/bin/env python
 # -*- coding: utf-8 -*-
 #
 # Copyright 2017 Michael Dunne
@@ -163,15 +163,6 @@ def CanRunMinusH(package, packageFormatted):
 		print("    Please check "+ packageFormatted +" is installed and that the executables are in the system path\n")
 		return False
 
-def CanRunHelp(package, packageFormatted):
-	if CanRunCommand(package + " -help"):
-                return True
-        else:
-                print("ERROR: Cannot run " + packageFormatted)
-                print("    Please check "+ packageFormatted +" is installed and that the executables are in the system path\n")
-                return False
-
-
 def CanRunMan(package, packageFormatted):
         if CanRunCommand("man " + package):
                 return True
@@ -230,18 +221,6 @@ def CanRunMafft():
 		print(" - ok")
 		return True
 
-def CanRunGeneric(package, packageFormatted):
-	sys.stdout.write("Test can run \"" + package + "\"")
-	runit = subprocess.call("type " + package, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE) == 0
-	if runit:
-                print(" - ok")
-                return True
-        else:
-                print(" - failed")
-		print("ERROR: Cannot run " + packageFormatted)
-                print("    Please check "+ packageFormatted +" is installed and that the executables are in the system path\n")
-                return False
-		
 def CanRunAugTrain():
 	sys.stdout.write("Test can run \"autoAugTrain.pl\"")
 	runit = subprocess.call("type " + "autoAugTrain.pl", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE) == 0
@@ -280,7 +259,6 @@ def CanRunR():
 		print(" - failed")
 		print("    R was unable to run. Please make sure you have the \"gamlss\" package installed.")
 		return False
-
 	os.remove(path_r)
 	a=commands.getstatusoutput("Rscript " + path_r)[1]
 	if "WARNING: ignoring environment value of R_HOME" in a:
@@ -745,50 +723,11 @@ def getProteinSequences(sequencesHolder, dict_speciesInfoDict):
 	# Returns a dictionary of id / SeqIO sequence object.
 	return dict_proteinSequencesHolder
 
-def writeSequencesToFastaFile(dict_proteinSequencesHolder, path_outputFile):
+def writeSequencesToFastaFile(proteinSequences, path_outputFile):
 	"""Write out sequences into fasta file. Overwrites file if necessary.
 	"""
-	actualSequences = dict_proteinSequencesHolder.values()
-	SeqIO.write(actualSequences, path_outputFile, "fasta")
+	SeqIO.write(proteinSequences, path_outputFile, "fasta")
 
-def makeProteinAlignment(path_proteinFastaFile, path_fastaOut):
-	"""Makes an alignment and save it in fasta format to the fastaOut.
-	"""
-	# "auto" means l-ins-i is used when the protein set is small enough, FFT-NS2 otherwise.
-	alignment = MafftCommandline(input=path_proteinFastaFile, auto="on")
-	stdout, stderr = alignment()
-	with open(path_fastaOut, "w") as outHandle:
-		outHandle.write(stdout)
-
-def getAlignmentStats(path_proteinAlignmentFastaFile):
-	"""Calculates some statistics on the alignment, specifically gap quantities.
-	"""
-	protAl = SeqIO.parse(path_proteinAlignmentFastaFile, "fasta")
-	# We're going to write the sequences into a matrix of characters.
-	protAlSequencesCharArray = []
-	for sequence in protAl:
-		protAlSequencesCharArray.append(list(str(sequence.seq)))
-	# The sequences should all be the same length
-	# Count the number of gaps in each sequence and output it as a percentage of
-	# The total length of the sequence.
-	sequenceGapCounts = list(x.count('-') for x in protAlSequencesCharArray)
-	sequenceLengths = list(len(x) for x in protAlSequencesCharArray)
-	firstSequenceLength = len(protAlSequencesCharArray[0])
-	if not sequenceLengths.count(firstSequenceLength) == len(protAlSequencesCharArray):
-		raise ValueError('There is a problem with the protein alignment, lengths should be equal.')
-	sequenceGapPercentages = []
-	for value in sequenceGapCounts:
-		sequenceGapPercentages.append(value / float(firstSequenceLength))
-	# Now turn the array around and find the gap percentage per position.
-	protAlSequencesCharArrayTransposed = zip(*protAlSequencesCharArray)
-	positionGapCounts = list(x.count('-') for x in protAlSequencesCharArrayTransposed)
-	positionLength = len(protAlSequencesCharArrayTransposed[0])
-	positionGapPercentages = []
-	for value in positionGapCounts:
-		positionGapPercentages.append(value / float(positionLength))
-	# Output
-	return sequenceGapPercentages, positionGapPercentages
-	
 def threadGappedProteinSequenceThroughDNA(gappedProteinSequence, dnaSourceSequence):
 	"""Protein must correspond exactly to DNA sequence.
 	   Both sequences should be provided as strings.
@@ -852,60 +791,18 @@ def buildHmm(nucAlignment, path_outputFile):
 	"""
 	callFunctionMezzoPiano("hmmbuild --informat afa " + path_outputFile + " " + nucAlignment) #qgr
 
-def makeHmmerDb(path_genomeFile, path_dbOutput):
+def makeHmmerDb(chrInfo, path_chrFile, path_dbOutput):
 	"""Makes a database per cds file for use with hmmer.
 	"""
-	callFunctionMezzoPiano("makehmmerdb --block_size=10 " + path_genomeFile + " " + path_dbOutput) #qgr
+	SeqIO.write(chrInfo, path_chrFile, "fasta")
+	callFunctionQuiet("makehmmerdb --block_size=10 " + path_chrFile + " " + path_dbOutput) #qgr
 
-def implementHmmSearch(path_hmmFile, path_db, path_hitsFile):
+def implementHmmSearch(path_hmmFile, path_db, path_hitsFile, species, orthogroup):
 	"""Runs across the genome and finds hmm hits
 	"""
 	callFunctionMezzoPiano("nhmmer --tformat hmmerfm --dna --cpu 1 --tblout " + path_hitsFile + " " + 	path_hmmFile + " " + path_db) #qgr
 	path_hitsFileBed = path_hitsFile + ".bed"
 	makeBed(path_hitsFile, species, orthogroup, path_hitsFileBed)
-
-def processOg(orthogroup, list_orthogroupSequenceIds, orthogroupProteinSequences, dict_sequenceInfoById, dict_speciesInfo, path_ogAlDir, path_ogHmmDir, path_ogHitsDir):
-	"""Runs all alignments and markov models for a particular orthogroup.
-	"""
-	########################################################
-	# Define output files
-	########################################################
-	path_protSeqFile = path_ogAlDir + "/" + orthogroup + "_ProteinSequences.fasta"
-	path_proteinAlignmentFile = path_ogAlDir + "/" + orthogroup + "_ProteinAlignment.fasta"
-	path_nucAlignmentFile = path_ogAlDir + "/" + orthogroup + "_NucAlignment.fasta"
-	#######################################################
-	# Write out the sequences and make the alignments
-	#######################################################
-	writeSequencesToFastaFile(orthogroupProteinSequences, path_protSeqFile)
-	makeProteinAlignment(path_protSeqFile, path_proteinAlignmentFile)
-	getNucleotideAlignment(path_proteinAlignmentFile, path_nucAlignmentFile, dict_sequenceInfoById, dict_speciesInfo)
-	#######################################################
-	# Debug - get some stats on the alignments
-	#######################################################
-	"""
-	path_pAlnStatsFile = path_wDir + "/" +  str_ogFolder + "/" + orthogroup + "_ProteinAlignment.stats.txt"
-	sequenceGapStats, positionGapStats = getAlignmentStats(path_proteinAlignmentFile)
-	with open(path_pAlnStatsFile, "w") as p:
-		p.write(re.sub('[\[\]]', '', str(sequenceGapStats,)))
-		p.write("\n")
-	p.write(re.sub('[\[\]]', '', str(positionGapStats,)))
-	"""
-	######################################################
-	# Build the HMM.
-	######################################################
-	path_hmmFile = path_ogHmmDir + "/" + orthogroup + ".hmm"
-	buildHmm(path_nucAlignmentFile, path_hmmFile)
-	######################################################
-	# Search the genome of each species in turn.
-	######################################################
-	for species in dict_speciesInfo:
-		path_hitsFile = path_ogHitsDir + "/" + orthogroup + "." + species + ".hits"
-		#print "Generating hits file: " + path_hitsFile
-		implementHmmSearch(path_hmmFile, dict_speciesInfo[species]["hmmdb"], path_hitsFile)
-		#Form a bed file from the resultant hits file
-		path_hitsFileBed = path_hitsFile + ".bed"
-		makeBed(path_hitsFile, species, orthogroup, path_hitsFileBed)	
-	#print("Finished " + orthogroup)
 
 def makeBed(path_hitsFile, species, orthogroup, path_hitsFileBed):
 	callFunction("grep -v \"#\" " + path_hitsFile + " | sed -r \"s/ +/\t/g\" | cut -f1,7,8,12,13,14,15 | perl -ne \
@@ -948,12 +845,17 @@ def prepareOutputFolder(path_outDir):
 def prepareHmmDbs(dict_speciesInfo, path_hmmDbDir, int_cores):
 	hmmdbpool=multiprocessing.Pool(int_cores)
 	for str_speciesName in dict_speciesInfo:
-		print("Preparing database for " + str_speciesName)
-		if not "hmmdb" in dict_speciesInfo[str_speciesName]:
-			path_genomeFile = dict_speciesInfo[str_speciesName]["genome"]
-			path_db = path_hmmDbDir + "/" + str_speciesName + ".hmmdb"
-			dict_speciesInfo[str_speciesName]["hmmdb"] = path_db
-			async(hmmdbpool, makeHmmerDb,  args=(path_genomeFile, path_db))	
+		print("Preparing databases for " + str_speciesName)
+		path_genome = dict_speciesInfo[str_speciesName]["genome"]
+		makeIfAbsent(path_hmmDbDir+"/"+str_speciesName)
+		#Working by chromosome reduces memory consumption.
+		chromosomes = list(SeqIO.parse(path_genome, "fasta"))
+		dict_speciesInfo[str_speciesName]["hmmdb"]={}
+		for i in chromosomes:
+			path_chr = path_hmmDbDir+"/"+str_speciesName+"/"+ str_speciesName + "."+i.id+".fa"
+			path_db = path_chr + ".hmmdb"
+			dict_speciesInfo[str_speciesName]["hmmdb"][i.id] = [path_chr, path_db]
+			async(hmmdbpool, makeHmmerDb,  args=(i, path_chr, path_db))
 	hmmdbpool.close()
 	hmmdbpool.join()
 
@@ -969,23 +871,22 @@ def implementGetProteinAlignments(path_proteinFastaFile, path_fastaOut):
         with open(path_fastaOut, "w") as outHandle:
                 outHandle.write(stdout)
 
-def trackProgress(jobs):
+def trackProgress(jobs, prefix="", outMsg=True):
 	str_total = str(len(jobs))
 	while True:
 		k=[jobs[j].ready() for j in jobs]
-                sys.stdout.write("\r    " + str(sum(k)) + " out of " + str_total +  " orthogroups processed")
+                sys.stdout.write("\r    " + prefix + str(sum(k)) + " out of " + str_total +  " orthogroups processed")
                 sys.stdout.flush()
                 if all(k):
-                        print("\n    Finished processing orthogroups")
+			if outMsg: print("\n    Finished processing orthogroups")
                         break
                 time.sleep(2)
-
 
 def getProteinFastaFiles(orthogroups, proteinSequences, dict_sequenceInfoById, dict_speciesInfo, path_ogAlDir, int_cores):
 	og_pool = multiprocessing.Pool(int_cores)
 	jobs={};
 	for orthogroup in orthogroups:
-		orthogroupProteinSequences = dict((x, proteinSequences[x]) for x in orthogroups[orthogroup])
+		orthogroupProteinSequences = [proteinSequences[x] for x in orthogroups[orthogroup]]
 		jobs[orthogroup] = async(og_pool, implementGetProteinFastaFiles, args=(orthogroup, orthogroupProteinSequences, \
                                                         dict_sequenceInfoById, \
                                                         dict_speciesInfo, \
@@ -1035,16 +936,21 @@ def runHmms(orthogroups, dict_speciesInfo, path_ogHmmDir, path_ogHitsDir, int_co
 	orthogroups_sorted = sorted(weights, key=lambda x: int(weights[x]), reverse=True)
 	for species in dict_speciesInfo:
 		print("Running HMMs on species " + species)
-		path_hmmdb =  dict_speciesInfo[species]["hmmdb"]
-		og_pool = multiprocessing.Pool(int_cores)
-		jobs={};
-		for orthogroup in orthogroups_sorted:
-			path_hmmFile = path_ogHmmDir + "/" + orthogroup + ".hmm"
-			path_hitsFile = path_ogHitsDir + "/" + orthogroup + "." + species + ".hits"
-			jobs[orthogroup] = async(og_pool, implementHmmSearch, args=(path_hmmFile, path_hmmdb, path_hitsFile))
-		og_pool.close()
-		trackProgress(jobs)
-		og_pool.join()
+		makeIfAbsent(path_ogHitsDir + "/" + species)
+		nChr=1; tChr=len(dict_speciesInfo[species]["hmmdb"])
+		for chromosome in dict_speciesInfo[species]["hmmdb"]:
+			path_hmmdb=dict_speciesInfo[species]["hmmdb"][chromosome][1]
+			og_pool = multiprocessing.Pool(int_cores)
+			jobs={};
+			for orthogroup in orthogroups_sorted:
+				path_hmmFile = path_ogHmmDir + "/" + orthogroup + ".hmm"
+				path_hitsFile = path_ogHitsDir + "/" + species + "/" + orthogroup + "." + species + "." + chromosome + ".hits"
+				jobs[orthogroup] = async(og_pool, implementHmmSearch, args=(path_hmmFile, path_hmmdb, path_hitsFile, species, orthogroup))
+			og_pool.close()
+			trackProgress(jobs, "Chromosome/scaffold " + str(nChr) + " of " + str(tChr) + ": ", False)
+			og_pool.join()
+			nChr += 1
+		print("\n")
 
 def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_resultsDir, path_wDir, path_orthoFinderOutputFile, path_singletonsFile, int_cores=16, firstPass=False, augOnly=False, hitFilter=True, hintFilter=True):
 	"""Takes orthofinder output and a collection of genome info locations as input.
@@ -1133,7 +1039,7 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 			print("Submitting HMM output files for species " + str_speciesName + "...")
 			path_hitsOgIntersectionFileNameAnnotated = path_wDir + "/" + str_speciesName + ".hitsIntersectionOrthogroups.annotated.bed"
 			dict_ogIntersectionFileNamesAnnotated[str_speciesName] = path_hitsOgIntersectionFileNameAnnotated
-			async(pool, processHmmOutput, args=(str_speciesName, path_wDir, path_ogHitsDir, path_ogGtfDir, path_hitsOgIntersectionFileNameAnnotated))
+			async(pool, processHmmOutput, args=(str_speciesName, path_wDir, path_ogHitsDir, path_ogGtfDir, path_hitsOgIntersectionFileNameAnnotated, dict_speciesInfo))
 		pool.close()
 		pool.join()
 		print("Done processing HMM output files")
@@ -1335,7 +1241,6 @@ def orthogroupTest(dict_speciesInfo, str_speciesName, silNew, oNew, sNew, orthog
 			sequenceName=re.sub(";g", "; g", re.sub("_id=", "_id ", entry[0]))
 			potentialSequences[sequenceName] = re.split("[, ]+", re.sub("possibleOrthos=", "", entry[1]))
 	for seqId in potentialSequences:
-		seqIdAlt=seqId.replace("_id ", "_id=").replace(" ", "")
 		uniqueId=[x for x in silNew if (silNew[x].species==str_newSpeciesName and compareOutputSequences(silNew[x].seqId, seqId))][0]
 		list_newOrthogroup = [x for x in oNew if uniqueId in oNew[x]]
 		if not list_newOrthogroup: continue
@@ -1358,12 +1263,16 @@ def orthogroupTest(dict_speciesInfo, str_speciesName, silNew, oNew, sNew, orthog
 			acceptedSequences.append(seqId.replace(" ", "").replace("\"", ""))
 	return acceptedSequences
 
-def processHmmOutput(str_speciesName, path_wDir, path_ogHitsDir, path_ogGtfDir, path_hitsOgIntersectionFileNameAnnotated):
+def processHmmOutput(str_speciesName, path_wDir, path_ogHitsDir, path_ogGtfDir, path_hitsOgIntersectionFileNameAnnotated, dict_speciesInfo):
 	path_hitsBedFileName		= path_wDir + "/" + str_speciesName + ".allHits.bed"
 	path_ogBedFileName		= path_wDir + "/" + str_speciesName + ".allOrthogroups.bed"
 	path_hitsOgIntersectionFileName	= path_wDir + "/" + str_speciesName + ".hitsIntersectOrthogroups.bed"
 	# Get all hits together, and double check that they are good files
-	concatFiles(path_ogHitsDir + "/*" + str_speciesName + "*hits.bed", path_hitsBedFileName)
+	for chromosome in dict_speciesInfo[str_speciesName]["hmmdb"]:
+		concatFiles(path_ogHitsDir + "/" + str_speciesName + "/OG[0-9]*." + str_speciesName + "."+chromosome+".hits.bed", path_hitsBedFileName + ".chr." + chromosome)
+	concatFiles(path_hitsBedFileName + ".chr.*", path_hitsBedFileName)
+	for chromosome in dict_speciesInfo[str_speciesName]["hmmdb"]:
+		os.remove(path_hitsBedFileName + ".chr." + chromosome)
 	callFunction("awk '$3 > 0 && $2 > 0' " + path_hitsBedFileName + " > " + path_hitsBedFileName + ".tmp")
 	move(path_hitsBedFileName + ".tmp", path_hitsBedFileName)
 	# Get all protein annotations together
@@ -1636,7 +1545,6 @@ def implementHintFscoreFilter(path_augustusParsed, path_hintFile, path_outFile, 
 		success=False
 		for hg in hintGroups:
 			path_hg = tempfile.mktemp()
-			path_hintIs = th_hintIs = tempfile.mktemp()
                         writeCsv(hintGroups[hg], path_hg)
                         callFunction("bedtools intersect -s -a " + path_hg + " -b " + path_entry + " > " + path_hintIs)
 			intersection = readCsv(path_hintIs)
@@ -1738,6 +1646,8 @@ def start(path_speciesInfoFile, path_orthoFinderOutputFile, path_singletonsFile,
 	print("\n1.2. Preparing gtf files for Augustus training")
         print(  "==============================================")
 	pool = multiprocessing.Pool(int_cores)
+	path_trainingDir = path_wDir + "/training"
+	makeIfAbsent(path_trainingDir)
 	for str_species in dict_speciesInfo:
 		sequences = [ dict_sequenceInfoById[x].seqId for x in dict_sequenceInfoById if dict_sequenceInfoById[x].species == str_species ]
 		dict_speciesInfo[str_species]["needsTraining"] = False
@@ -1750,7 +1660,7 @@ def start(path_speciesInfoFile, path_orthoFinderOutputFile, path_singletonsFile,
 		else:
 			path_gff=dict_speciesInfo[str_species]["gff"]
 			dict_speciesInfo[str_species]["needsTraining"] = True#ql
-			path_gffForTraining = path_wDir + "/" + str_species + ".training.gff"
+			path_gffForTraining = path_trainingDir + "/" + str_species + ".training.gtf"
 #qr			dict_speciesInfo[str_species]["augustusSpecies"]=commands.getstatusoutput("a=`find " + path_wDir+ "/Augustus/"+str_species+"/autoAugTrain -name \"tmp_opt*\" -exec stat {} --printf=\"%y\\t%n\\n\" \\;  | sort -t\"-\" -k1,1n -k2,2n -k3,3n | head -n1  | cut -f2`; echo ${a##*/} | sed -r \"s/tmp_opt_//g\"")[1]
 			dict_speciesInfo[str_species]["augustusSpecies"]=str_species+ ".orthofiller." + datetime.datetime.now().strftime("%y%m%d") + "." + ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(9))
 			dict_speciesInfo[str_species]["gffForTraining"] = path_gffForTraining
@@ -1772,7 +1682,7 @@ def start(path_speciesInfoFile, path_orthoFinderOutputFile, path_singletonsFile,
 				dict_speciesInfo[str_species]["augustusSpecies"]=str_species+ ".orthofiller." + datetime.datetime.now().strftime("%y%m%d") + "." + ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(9))
 				path_gff=dict_speciesInfo[str_species]["resultsgff"]
 				#path_gff="/cellar/michael/OrthoFiller/testing/testSet_jgi_sgd/OrthoFiller_20160407_nomt_removed_100_generic_firstPass_new/firstPass/Sacce_S288C_genes_nomt.aa.fasta.removed_100.fasta.results.gtf"
-				path_gffForTraining = path_wDir + "/" + str_species + ".training.gff"
+				path_gffForTraining = path_trainingDir + "/" + str_species + ".training.gtf"
 				dict_speciesInfo[str_species]["gffForTraining"] = path_gffForTraining
 				dict_speciesInfo[str_species]["needsTraining"] = True
 				async(pool, makeGffTrainingFile, args=(path_gff, path_gffForTraining))
@@ -1936,17 +1846,6 @@ def async(pool, function, args):
 	"""
 	return pool.apply_async(function, args=args) 
 
-def suppressStdOut():
-	"""http://thesmithfam.org/blog/2012/10/25/temporarily-suppress-console-output-in-python/#
-	   The various programs spit out a lot of stuff. Sometimes it's helpful to suppress it.
-	"""
-	with open(os.devnull, "w") as devnull:
-		old_stdout = sys.stdout
-		sys.stdout = devnull
-		try:
-			yield
-		finally:
-			sys.stdout = old_stdout
 def find(name, path):
 	"""Find the relative path of a named file in a folder (returns the first one it finds)
 	"""
