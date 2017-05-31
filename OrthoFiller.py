@@ -1158,13 +1158,13 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 	# finished by this point. Parse output
 	####################################################
 	finally:
+		print("Waiting for training to finish before continuing...")
 		trainingPool.close()
 		trainingPool.join()
 #	except KeyboardInterrupt:
 #		trainingPool.terminate()
 #		trainingPool.join()
 #	else:
-#		print("Waiting for training to finish before continuing...")
 #		trainingPool.close()
 #		trainingPool.join()
 	print("Done training.")
