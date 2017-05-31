@@ -8,10 +8,12 @@ For more details, see the OrthoFiller paper:
 
 [Dunne, M.P. and Kelly, S. (2017) OrthoFiller: utilising data from multiple species to improve the completeness of genome annotations, BMC Genomics 18:390](https://bmcgenomics.biomedcentral.com/articles/10.1186/s12864-017-3771-x)
 
+Github link:
+
 https://github.com/mdunne/OrthoFiller
 
-Recent Updates
-==============
+###Recent Updates
+
 **2017-5-31** - OrthoFiller 1.1.0 released. Including:
 *Introduction of target and reference species option
 *Ability to search chromosomes individually to limit memory usage
@@ -21,7 +23,7 @@ Recent Updates
 Usage
 =====
 
-##### Default usage
+### Default usage
 
 OrthoFiller runs as a single command that takes as input a tabulated text file containing locations of genomes and GTF files in the following format:
 
@@ -39,7 +41,7 @@ OrthoFiller is then run using:
 
 If no output folder is specified then OrthoFiller will create one with a generic name. If the number of cores is not specified, OrthoFiller will run using only one core: this is not recommended as it will cause OrthoFiller to take a considerably long time. It is recommended that at least the same number of cores as number of species are used, and preferably at least double the number.
 
-##### Reference species
+### Reference species
 
 By default, OrthoFiller uses information from all species specified in the locations file, and will search each genome for the new orthogroup members. If you want to search only specific genomes but still use others as informants, use the `-r` option to specify reference files. For example:
 
@@ -47,7 +49,7 @@ By default, OrthoFiller uses information from all species specified in the locat
 
 The `target_species.tdv` file should *only* contain the species whose genomes you would like to search, and the `reference_species.tdv` file should contain *only* species which you *do not* wish to search.
 
-##### Pre-specified orthogroup and cds files
+### Pre-specified orthogroup and cds files
 
 If OrthoFinder has already been run on a set of proteomes and the corresponding CDS nucleotide sequences are available, the `--prep` flag can be used, the input in this case being a genome FASTA file, GTF file, gene CDS sequences, and AA sequences for each species, along with the orthofinder results. This second method is intended to reduce processing time for proteomes that have already been analysed with OrthoFinder. All genomes and sequence files should be supplied in FASTA format. The locations of the genome, GTF, and sequence files should be put in a file in the following format:
 
@@ -64,10 +66,10 @@ Orthofiller is then run using:
 
 An example skeleton bash script for running OrthoFiller is included as runOrthoFil.sh. Paths for input files and for relevant packages must be added manually.
 
-##### Split by chromosome
+### Split by chromosome
 For large genomes, HMMER sometimes runs into memory problems when applying HMM searches to the genome. If you run into such problems, you may wish to try the `--split` option for OrthoFiller, which splits the inputted genome files up and analyses each of their chromosomes individually. Although this limits memory usage, it does increase the runtime of OrthoFiller, especially for genomes with large numbers of chromosomes/contigs/scaffolds.
 
-##### OrthoFiller likes well-made gtf files.
+### OrthoFiller likes well-made gtf files.
 
 In the event that a GTF file contains coordinates not present in the genome fasta file, OrthoFiller will throw an error and will fail to run. Ensure that all chromosome names in the GTF file match those in the fasta before running.
 
