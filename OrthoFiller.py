@@ -1445,9 +1445,6 @@ def assignNames(str_speciesName, path_acceptedGff, path_geneNameConversionTable,
 	with open(path_geneNameConversionTable, "w") as f:
 		writer = csv.writer(f, delimiter = '\t',quoting = csv.QUOTE_NONE, quotechar='')
 		for s in protSequencesAccepted:
-			print str_speciesName
-			print path_geneNameConversionTable
-			print s
 			newNameFound=False
 			proposedGeneName=""
 			while not newNameFound:
