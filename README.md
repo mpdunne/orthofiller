@@ -12,7 +12,7 @@ Github link:
 
 https://github.com/mdunne/OrthoFiller
 
-###Recent Updates
+### Recent Updates
 
 **2017-5-31** - OrthoFiller 1.1.0 released. Including:
 *Introduction of target and reference species option
