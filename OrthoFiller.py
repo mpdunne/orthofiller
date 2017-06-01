@@ -3,6 +3,8 @@
 #
 # Copyright 2017 Michael Dunne
 #
+# OrthoFiller version 1.1.1
+#
 # This program (OrthoFiller) is distributed under the terms of the GNU General Public License v3
 #
 #	This program is free software: you can redistribute it and/or modify
@@ -1083,7 +1085,7 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 			#####################################################
 		        print("\n2.2. Extracting orthogroup gtf files")
 	                print(  "====================================")
-			gffsForOrthoGroups(path_ogGtfDir, path_orthoFinderOutputFile, path_singletonsFile, dict_speciesInfo, int_cores)#ql
+#qe			gffsForOrthoGroups(path_ogGtfDir, path_orthoFinderOutputFile, path_singletonsFile, dict_speciesInfo, int_cores)#ql
 			#####################################################
 			# Process each individual orthogroup in parallel
 			#####################################################
@@ -1091,22 +1093,22 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 			print("\n2.3. Extracting protein fasta sequences")
         	        print(  "=======================================")
 			print("Getting protein fasta sets for all orthogroups...")
-			getProteinFastaFiles(orthogroups, proteinSequences, dict_sequenceInfoById, dict_speciesInfo, path_ogAlDir, int_cores)
+#qe			getProteinFastaFiles(orthogroups, proteinSequences, dict_sequenceInfoById, dict_speciesInfo, path_ogAlDir, int_cores)
 			print("\n2.4. Aligning orthogroup sequences")
 			print(  "==================================")
 			print("Grabbing alignments...")
-			getProteinAlignments(orthogroups, path_ogAlDir, int_cores)
+#qe			getProteinAlignments(orthogroups, path_ogAlDir, int_cores)
 			print("\n2.5. Extracting nucleotide alignments")
 			print(  "=====================================")
 			print("Threading nucleotides through alignments...")
-			getNucleotideAlignments(orthogroups, path_ogAlDir, dict_sequenceInfoById, dict_speciesInfo, int_cores)
+#qe			getNucleotideAlignments(orthogroups, path_ogAlDir, dict_sequenceInfoById, dict_speciesInfo, int_cores)
 			print("\n2.6. Building HMMs")
 			print(  "==================")
 			print("Grabbing HMMs for each orthroup...")
-			buildHmms(orthogroups, path_ogAlDir, path_ogHmmDir, int_cores)
+#qe			buildHmms(orthogroups, path_ogAlDir, path_ogHmmDir, int_cores)
 			print("\n2.7. Running HMMs...")
 			print(  "====================")
-			runHmms(orthogroups, dict_speciesInfo, path_ogHmmDir, path_ogHitsDir, int_cores, splitByChr)
+#qe			runHmms(orthogroups, dict_speciesInfo, path_ogHmmDir, path_ogHitsDir, int_cores, splitByChr)
 			####################################################
 			# Start a new pool for processing the hmm outfiles.
 			####################################################
@@ -1119,7 +1121,7 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 				print("Submitting HMM output files for species " + str_speciesName + "...")
 				path_hitsOgIntersectionFileNameAnnotated = path_wDir + "/" + str_speciesName + ".hitsIntersectionOrthogroups.annotated.bed"
 				dict_ogIntersectionFileNamesAnnotated[str_speciesName] = path_hitsOgIntersectionFileNameAnnotated
-				jobs.append([processHmmOutput, (str_speciesName, path_wDir, path_ogHitsDir, path_ogGtfDir, path_hitsOgIntersectionFileNameAnnotated, dict_speciesInfo, splitByChr)])
+#qe				jobs.append([processHmmOutput, (str_speciesName, path_wDir, path_ogHitsDir, path_ogGtfDir, path_hitsOgIntersectionFileNameAnnotated, dict_speciesInfo, splitByChr)])
 			runJobs(jobs, int_cores)
 			print("Done processing HMM output files")
 			####################################################
@@ -1150,7 +1152,7 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 					path_outFile = path_wDir + "/" + str_speciesName + ".proposedGenes"
 					dict_speciesInfo[str_speciesName]["proposedgenes"] = path_outFile
 					path_hitsOgIntersectionFileNameAnnotated = dict_ogIntersectionFileNamesAnnotated[str_speciesName]
-					jobs.append([proposeNewGenes, (path_hitsOgIntersectionFileNameAnnotated, path_allHitsOgIntersectionFileNameAnnotated, str_speciesName, path_outFile, hitFilter)])#ql
+#qe					jobs.append([proposeNewGenes, (path_hitsOgIntersectionFileNameAnnotated, path_allHitsOgIntersectionFileNameAnnotated, str_speciesName, path_outFile, hitFilter)])#ql
 			runJobs(jobs, int_cores)
 #qx	sys.exit(1)
 	####################################################
@@ -1188,7 +1190,7 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 		print("Running Augustus on " + str_speciesName)
 		if not dict_speciesInfo[str_speciesName]["indirectAugustus"]:
 			path_augustusSpeciesName = dict_speciesInfo[str_speciesName]["augustusSpecies"]
-			jobs.append([runAndParseAugustus, (path_proposedGenes, path_genome, path_augustusOut, path_augustusParsedOut, path_fastaOut, path_augustusSpeciesName, path_hintsFile, path_sourcegff)])
+#qe			jobs.append([runAndParseAugustus, (path_proposedGenes, path_genome, path_augustusOut, path_augustusParsedOut, path_fastaOut, path_augustusSpeciesName, path_hintsFile, path_sourcegff)])
 		else:
 			path_otherSpeciesResults = path_wDirS + "/" + str_speciesName + ".augustus_otherSpecies"
 			makeIfAbsent(path_otherSpeciesResults)
@@ -1200,7 +1202,7 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 				path_otherSpeciesAugustusParsedOut =  path_otherSpeciesResults + "/" + str_speciesName + ".proposedGenes." + str_otherSpecies + ".AugustusParsed.gff"
 				path_otherSpeciesFastaOut =  path_otherSpeciesResults + "/" + str_speciesName + ".proposedGenes." + str_otherSpecies + ".AugustusParsed.sequences.fasta"
 				otherSpeciesAugustusSpeciesName = dict_speciesInfo[str_otherSpecies]["augustusSpecies"]
-				jobs.append([runAndParseAugustus, (path_proposedGenes, path_genome, path_otherSpeciesAugustusOut, path_otherSpeciesAugustusParsedOut, path_otherSpeciesFastaOut, otherSpeciesAugustusSpeciesName, path_hintsFile, path_sourcegff)])
+#qe				jobs.append([runAndParseAugustus, (path_proposedGenes, path_genome, path_otherSpeciesAugustusOut, path_otherSpeciesAugustusParsedOut, path_otherSpeciesFastaOut, otherSpeciesAugustusSpeciesName, path_hintsFile, path_sourcegff)])
 				print(otherSpeciesAugustusSpeciesName)
 	runJobs(jobs, int_cores)
 	####################################################
@@ -1212,7 +1214,7 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 		path_augustusParsedOut = dict_speciesInfo[str_speciesName]["augustusparsed"]
 		path_fastaOut = dict_speciesInfo[str_speciesName]["augustussequences"]
 		path_otherSpeciesResults = dict_speciesInfo[str_speciesName]["indirectAugustusFolder"]
-		jobs.append([combineIndirectAugustusResults, (path_otherSpeciesResults, path_augustusParsedOut, path_fastaOut)])
+#qe		jobs.append([combineIndirectAugustusResults, (path_otherSpeciesResults, path_augustusParsedOut, path_fastaOut)])
 	runJobs(jobs, int_cores)
 	####################################################
 	# Get a hint f score for the new genes and abandon
@@ -1233,7 +1235,7 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 		path_augustusSequencesHintFiltered=path_augustusSequences + ".hintfiltered.fasta"
 		dict_speciesInfo[str_speciesName]["augustussequences_hintfiltered"]=path_augustusSequencesHintFiltered	
 		if hintFilter:
-			jobs.append([hintFscoreFilter, (path_augustusParsed, path_hintFile, path_augustusParsedHintFiltered, num_threshold,  path_augustusSequences, path_augustusSequencesHintFiltered)])
+#qe			jobs.append([hintFscoreFilter, (path_augustusParsed, path_hintFile, path_augustusParsedHintFiltered, num_threshold,  path_augustusSequences, path_augustusSequencesHintFiltered)])
 			pass
 		else:
 			dict_speciesInfo[str_speciesName]["augustusparsed_hintfiltered"]=path_augustusParsed
@@ -1246,7 +1248,7 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 	print("\n5.2 Re-running OrthoFinder")
         print(  "==========================")
 	path_newProteomesDir = path_wDirS + "/newProteomes"
-	deleteIfPresent(path_newProteomesDir)
+#q#qee	deleteIfPresent(path_newProteomesDir)
 	makeIfAbsent(path_newProteomesDir)
 	dict_speciesInfo_modern = {}
 	for str_speciesName in dict_speciesInfo:
@@ -1261,7 +1263,7 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 			callFunction("cp " + path_oldProteome + " " + path_newProteome)
 		dict_speciesInfo_modern[str_speciesName + "newProteome.fasta"] = {}
 		dict_speciesInfo_modern[str_speciesName + "newProteome.fasta"]["number"] = dict_speciesInfo[str_speciesName]["number"]
-	runOrthoFinder(path_newProteomesDir, int_cores)
+#qe	runOrthoFinder(path_newProteomesDir, int_cores)
 	####################################################
 	# Check genes have ended up in the right orthogroup
 	####################################################
@@ -1459,9 +1461,9 @@ def assignNames(str_speciesName, path_acceptedGff, path_geneNameConversionTable,
 			s.name=proposedGeneName
 	# Write stuff out.
 	SeqIO.write(protSequencesAccepted, path_acceptedSequencesOut, "fasta")
+	blankFile(path_acceptedGff)
 	#print("writing out results....")
-	callFunction("rm -f "+path_acceptedGff + ";\
-		while read line ; do \
+	callFunction("while read line ; do \
 			sourceId=`echo \"$line\" | cut -f1`; \
 			replacementId=`echo \"$line\" | cut -f2 | sed -r \"s/ //g\" | sed -r \"s/[^a-zA-Z0-9._]//g\"`;\
 			tid=`echo $sourceId | sed -r \"s/.*transcript_id[= ]\\\"?([^\\\";]*)\\\"?;.*/\\1/g\"`;\
@@ -1764,7 +1766,7 @@ def start(path_speciesInfoFile, path_referenceFile, path_orthoFinderOutputFile, 
 			dict_speciesInfo[str_species]["gffForTraining"] = ""
 		else:
 			path_gff=dict_speciesInfo[str_species]["gff"]
-			dict_speciesInfo[str_species]["needsTraining"] = (dict_speciesInfo[str_species]["type"] == "target")
+#qe			dict_speciesInfo[str_species]["needsTraining"] = (dict_speciesInfo[str_species]["type"] == "target")
 			path_gffForTraining = path_trainingDir + "/" + str_species + ".training.gtf"
 #qr			dict_speciesInfo[str_species]["augustusSpecies"]=commands.getstatusoutput("a=`find " + path_wDir+ "/augustus/"+str_species+"/autoAugTrain -name \"tmp_opt*\" -exec stat {} --printf=\"%y\\t%n\\n\" \\;  | sort -t\"-\" -k1,1n -k2,2n -k3,3n | head -n1  | cut -f2`; echo ${a##*/} | sed -r \"s/tmp_opt_//g\"")[1]
 			dict_speciesInfo[str_species]["augustusSpecies"]=str_species+ ".orthofiller." + datetime.datetime.now().strftime("%y%m%d") + "." + ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(9))
@@ -1913,9 +1915,9 @@ def prepareFromScratch(path_infile, path_outDir, int_cores, path_refFile = ""):
                                 writer.writerow([path_aaFastaOut, path_gffIn, path_genome, path_cdsFastaOut])
 		jobs.append([prepareSpecies, (path_gffIn, path_genome, path_cdsFastaOut, path_aaFastaOut)])
 	runJobs(jobs, int_cores)
-	for path_file in glob.glob(path_aaDir + "/Results*"):
-		deleteIfPresent(path_file)
-	runOrthoFinder(path_aaDir, int_cores)
+#qe	for path_file in glob.glob(path_aaDir + "/Results*"):
+#qe		deleteIfPresent(path_file)
+#qe	runOrthoFinder(path_aaDir, int_cores)
 	path_orthoFinderOutputFile	= getOrthogroupsFile(path_aaDir)
 	path_singletonsFile		= getSingletonsFile(path_aaDir)
 	if not useReference:
