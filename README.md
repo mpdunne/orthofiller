@@ -19,6 +19,8 @@ https://github.com/mdunne/OrthoFiller
 *Ability to search chromosomes individually to limit memory usage
 *Bug fixes
 
+![alt text](https://i.imgsafe.org/16af7ab83a.png "OrthoFiller workflow")
+
 
 Usage
 =====
@@ -69,7 +71,7 @@ An example skeleton bash script for running OrthoFiller is included as runOrthoF
 ### Split by chromosome
 For large genomes, HMMER sometimes runs into memory problems when applying HMM searches to the genome. If you run into such problems, you may wish to try the `--split` option for OrthoFiller, which splits the inputted genome files up and analyses each of their chromosomes individually. Although this limits memory usage, it does increase the runtime of OrthoFiller, especially for genomes with large numbers of chromosomes/contigs/scaffolds.
 
-### OrthoFiller likes well-made gtf files.
+### OrthoFiller likes well-made GTF files.
 
 In the event that a GTF file contains coordinates not present in the genome fasta file, OrthoFiller will throw an error and will fail to run. Ensure that all chromosome names in the GTF file match those in the fasta before running.
 
