@@ -168,18 +168,31 @@ OrthoFiller is written to run on linux and requires the following to be installe
 
 6. Hmmer
 
-python and scipy
-----------------
+### python and scipy
+
 Up-to-date and clear instructions are provided here: http://www.scipy.org/install.html, be sure to chose a version using python 2.7. As websites can change, an alternative is to search online for "install scipy".
 
-BedTools
-------
+### BedTools
+
 The BedTools suite can be downloaded from https://github.com/arq5x/bedtools2/releases
 
-Augustus
---------
+### Augustus
+
 Augustus can be downloaded from http://augustus.gobics.de/. In addition to being in the system path, the Augustus config path must be explicitly set in a variable before running OrthoFiller. This can be done by executing, for example, `export AUGUSTUS_CONFIG_PATH=/path/to/augustus/augustus-x.x.x/config`.
 
-Hmmer
------
+### Hmmer
+
 HMMER can be downloaded from http://hmmer.org/.
+
+### OrthoFinder
+
+OrthoFinder can be downloaded here: https://github.com/davidemms/OrthoFinder
+
+Other useful software
+=====================
+
+### Alan
+
+Alan is an in-terminal command-line tool for viewing alignments without the need for a GUI.
+
+https://github.com/mpdunne/alan
