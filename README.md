@@ -14,12 +14,12 @@ https://github.com/mdunne/OrthoFiller
 
 ### Recent Updates
 
-**2017-06-07** - Bug fixes
+**2017-06-07** - Improved speed of early protein fasta file manipulation.
 
 **2017-05-31** - OrthoFiller 1.1.0 released. Including:
-*Introduction of target and reference species option
-*Ability to search chromosomes individually to limit memory usage
-*Bug fixes
+* Introduction of target and reference species option
+* Ability to search chromosomes individually to limit memory usage
+* Bug fixes
 
 ![alt text](https://i.imgsafe.org/16af7ab83a.png "OrthoFiller workflow")
 
