@@ -14,7 +14,9 @@ https://github.com/mdunne/OrthoFiller
 
 ### Recent Updates
 
-**2017-06-07** - Improved speed of early protein fasta file manipulation.
+**2017-06-07** - Speed updates:
+* Improved speed of early protein fasta file manipulation.
+* Improved speed of nucleotide alignment acquisition
 
 **2017-05-31** - OrthoFiller 1.1.0 released. Including:
 * Introduction of target and reference species option
