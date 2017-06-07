@@ -831,6 +831,23 @@ def threadGappedProteinSequenceThroughDNA(gappedProteinSequence, dnaSourceSequen
 	return gappedDnaSequence
 	# CC - stop codons don't get included - is this important?
 
+def getNucleotideAlignment2(alignedProteinsFastaIn, fastaOut, dict_cds):
+	"""Get a nucleotide alignment from the protein alignment.
+        """
+	aa = SeqIO.parse(alignedProteinsFastaIn, "fasta")
+	nuc = []
+	for sequence in aa:
+		# Grab the cds sequence
+		cds = dict_cds[sequence.id]; dnaSourceSequence = str(cds.seq);
+		# Grab the gapped aa sequence
+		gappedProteinSequence = str(sequence.seq)
+		# Run one through the other
+		gDnaSeq = threadGappedProteinSequenceThroughDNA(gappedProteinSequence, dnaSourceSequence)
+		# Construct the new alignment
+		gDnaId = cds.id; gDnaName = cds.name; gDnaDesc = cds.description
+		nuc.append(SeqRecord(Bio.Seq.Seq(gDnaSeq), id=gDnaId, name=gDnaName, description=gDnaDesc))
+	SeqIO.write(nuc, fastaOut, "fasta")
+
 def getNucleotideAlignment(alignedProteinsFastaIn, fastaOut, sequencesHolder, dict_speciesInfoDict):
 	"""Get a nucleotide alignment from the protein alignment.
 	"""
@@ -981,11 +998,25 @@ def getProteinAlignments(orthogroups, path_ogAlDir, int_cores):
 	runAndTrackJobs(jobs, int_cores)
 
 def getNucleotideAlignments(orthogroups, path_ogAlDir, dict_sequenceInfoById, dict_speciesInfo, int_cores):
-        jobs={};
-	for orthogroup in orthogroups:
+        jobs={}; dict_indexedCds = {}
+	for str_species in dict_speciesInfo:
+                dict_indexedCds[str_species] = SeqIO.index(dict_speciesInfo[str_species]["cds"], "fasta")
+	l = len(orthogroups)
+	for i, orthogroup in enumerate(orthogroups):
 		path_proteinAlignmentFile = path_ogAlDir + "/" + orthogroup + "_ProteinAlignment.fasta"
 		path_nucAlignmentFile	  = path_ogAlDir + "/" + orthogroup + "_NucAlignment.fasta"
-		jobs[orthogroup] = [getNucleotideAlignment, (path_proteinAlignmentFile, path_nucAlignmentFile, dict_sequenceInfoById, dict_speciesInfo)]
+		orthogroupProteinSequences = [x for x in orthogroups[orthogroup]]
+		dict_cds = {}
+		for o in orthogroupProteinSequences:
+			seqid = dict_sequenceInfoById[o].seqId
+			species = dict_sequenceInfoById[o].species
+			cds = dict_indexedCds[species][seqid]
+			dict_cds[o] = cds
+		jobs[orthogroup] = [getNucleotideAlignment2, (path_proteinAlignmentFile, path_nucAlignmentFile, dict_cds)]
+		sys.stdout.write("\r    Preparing "+str(i)+" of "+str(l)+" orthogroups...")
+		sys.stdout.flush()
+	sys.stdout.write("\r    Finished preparing orthogroups            ")
+	sys.stdout.flush()
 	runAndTrackJobs(jobs, int_cores)
 
 def buildHmms(orthogroups, path_ogAlDir, path_ogHmmDir, int_cores):
