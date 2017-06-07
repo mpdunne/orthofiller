@@ -19,6 +19,8 @@ https://github.com/mdunne/OrthoFiller
 *Ability to search chromosomes individually to limit memory usage
 *Bug fixes
 
+![alt text](https://i.imgsafe.org/16af7ab83a.png "OrthoFiller workflow")
+
 
 Usage
 =====
@@ -69,7 +71,7 @@ An example skeleton bash script for running OrthoFiller is included as runOrthoF
 ### Split by chromosome
 For large genomes, HMMER sometimes runs into memory problems when applying HMM searches to the genome. If you run into such problems, you may wish to try the `--split` option for OrthoFiller, which splits the inputted genome files up and analyses each of their chromosomes individually. Although this limits memory usage, it does increase the runtime of OrthoFiller, especially for genomes with large numbers of chromosomes/contigs/scaffolds.
 
-### OrthoFiller likes well-made gtf files.
+### OrthoFiller likes well-made GTF files.
 
 In the event that a GTF file contains coordinates not present in the genome fasta file, OrthoFiller will throw an error and will fail to run. Ensure that all chromosome names in the GTF file match those in the fasta before running.
 
@@ -168,18 +170,31 @@ OrthoFiller is written to run on linux and requires the following to be installe
 
 6. Hmmer
 
-python and scipy
-----------------
+### python and scipy
+
 Up-to-date and clear instructions are provided here: http://www.scipy.org/install.html, be sure to chose a version using python 2.7. As websites can change, an alternative is to search online for "install scipy".
 
-BedTools
-------
+### BedTools
+
 The BedTools suite can be downloaded from https://github.com/arq5x/bedtools2/releases
 
-Augustus
---------
+### Augustus
+
 Augustus can be downloaded from http://augustus.gobics.de/. In addition to being in the system path, the Augustus config path must be explicitly set in a variable before running OrthoFiller. This can be done by executing, for example, `export AUGUSTUS_CONFIG_PATH=/path/to/augustus/augustus-x.x.x/config`.
 
-Hmmer
------
+### Hmmer
+
 HMMER can be downloaded from http://hmmer.org/.
+
+### OrthoFinder
+
+OrthoFinder can be downloaded here: https://github.com/davidemms/OrthoFinder
+
+Other useful software
+=====================
+
+### Alan
+
+Alan is an in-terminal command-line tool for viewing alignments without the need for a GUI.
+
+https://github.com/mpdunne/alan
