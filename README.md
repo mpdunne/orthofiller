@@ -14,7 +14,9 @@ https://github.com/mdunne/OrthoFiller
 
 ### Recent Updates
 
-**2017-5-31** - OrthoFiller 1.1.0 released. Including:
+**2017-06-07** - Bug fixes
+
+**2017-05-31** - OrthoFiller 1.1.0 released. Including:
 *Introduction of target and reference species option
 *Ability to search chromosomes individually to limit memory usage
 *Bug fixes
