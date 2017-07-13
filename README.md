@@ -23,7 +23,7 @@ https://github.com/mdunne/OrthoFiller
 * Ability to search chromosomes individually to limit memory usage
 * Bug fixes
 
-![alt text](https://i.imgsafe.org/16af7ab83a.png "OrthoFiller workflow")
+![alt text](http://empede.co.uk/imgrepos/Workflow-03.png "OrthoFiller workflow")
 
 
 Usage
