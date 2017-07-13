@@ -87,63 +87,19 @@ OrthoFiller uses GTF files for both its input and output, due to the superior un
 python gff_to_gtf.py infile.gff3 > outfile.gtf
 ```
 
-Users should note that this tool truncates chromsome names to 15 characters. If this is going to be an issue, you may wish to use placeholder names in the conversion step, for example, by using this python script:
+Users should note that this tool truncates chromsome names to 15 characters. If this is going to be an issue, a wrapper for this script can be found in the utils directory in this repository (https://github.com/mpdunne/orthofiller/blob/master/utils/gff_to_gtf_safe.py). The above Galaxy tool should be downloaded first, and the path to its directory should be included in the appropriate place at the top of the `gff_to_gtf_safe.py` file. The full script can then be run as
 
 ```
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
-import subprocess
-import csv
-import sys
-import os
-
-def placehold(path_in, path_out):
-        lookup={}
-        with open(path_in, "r") as p:
-                data = list(csv.reader(p, delimiter="\t"))
-                chroms = list(set([x[0] for x in data if not "#" in x[0]]))
-                for i, x in enumerate(chroms):
-                        lookup["pl_" + str(i)] = x
-                        lookup[x] = "pl_" + str(i)
-                for l in data:
-                        if not "#" in l[0]: l[0] = lookup[l[0]]
-                write(data, path_out)
-        return lookup
-
-def unplacehold(path_in, path_out, lookup):
-        with open(path_in, "r") as p:
-                data = list(csv.reader(p, delimiter="\t"))
-                for l in data:
-                        if not "#" in l[0]: l[0] = lookup[l[0]]
-                write(data, path_out)
-
-def write(data, path_out):
-        with open(path_out, "w") as o:
-                datawriter = csv.writer(o, delimiter = '\t',quoting = csv.QUOTE_NONE, quotechar='')
-                datawriter.writerows(data)
-
-def convert(path_in, path_out):
-        function="python PATH_TO_SCRIPT/gff_to_gtf.py " + path_in + " > " + path_out
-        subprocess.call([function], shell = True)
-
-if __name__ == '__main__':
-        args = sys.argv[1:]
-        infile = args[0]
-        outfile = args[1]
-        # Placehold and convert
-        print("placeholding...")
-        placeheld = infile + ".tmp"
-        lookup = placehold(infile, placeheld)
-        placeheldout = placeheld + ".plh"
-        print("converting....")
-        convert(placeheld, placeheldout)
-        print("unplaceholding...")
-        unplacehold(placeheldout, outfile, lookup)
-        # Clean up
-        os.remove(placeheld)
-        os.remove(placeheldout)
+python gff_to_gtf_safe.py infile.gff3 outfile.gtf
 ```
+
+Note that, in order to function properly, the above conversion script requires that entries in the GFF3 input file are well-formed: that is they contina gene, mRNA, CDS, and exon entries for each gene. Ideally ensure that each GFF3 entry has each of these attributes before proceeding. Alternatively, if you simply wish to remove incomplete entries from your GFF3 file, you can use the `clean_gff.py` script, also included in the utils directory of this repository. The usage for this script is:
+
+```
+python clean_gff.py infile.gff3 infile_clean.gff3
+```
+
+
 
 Output File Format
 ==================
