@@ -7,6 +7,16 @@ import sys
 import os
 import re
 
+##########################
+# 
+# Usage instructions:
+# 
+# python clean_gff.py in_file.gff3 out_file.gff3
+#
+##########################
+
+
+
 def readCsv(path_csv):
 	with open(path_csv, "r") as p:
 		data = list(csv.reader((row for row in p if not row.startswith('#')), delimiter="\t"))
