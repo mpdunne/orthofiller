@@ -60,7 +60,7 @@ def go(infile, outfile):
 	genecount = len(gene_lines.keys())
 	survivors = 0
 	for i, g_id in enumerate(gene_lines.keys()):
-		sys.stdout.write("\rChecking gene " + str(i) + " of " + str(genecount))
+		sys.stdout.write("\rChecking gene " + str(i+1) + " of " + str(genecount))
 		sys.stdout.flush()
 		if not g_id in gene_children: continue
 		g_mrna = gene_children[g_id]
@@ -79,7 +79,7 @@ def go(infile, outfile):
 				res += exon_lines[e]
 			for c in m_cds:
 				res += cds_lines[c]
-	print "There were " + str(survivors) + " survivors and " + str(genecount - survivors) + " non-survivors."
+	print "\nThere were " + str(survivors) + " survivors and " + str(genecount - survivors) + " non-survivors."
 	write(res, outfile)
 
 if __name__ == '__main__':
