@@ -604,16 +604,14 @@ def gffsForGroups(list_gff, orthogroups, path_ogGtfDir, str_species, str_outsuff
 def trainAugustus(dict_speciesInfo, path_wDir, pool):
 	"""trainAugustus - Trains augustus using the genomes of the input species
 	"""
-	path_augWDir = path_wDir + "/augustus"
-	makeIfAbsent(path_augWDir)
+	path_augWDir = makeIfAbsent(path_wDir + "/augustus")
 	#Python doesn't like us to edit a dictionary while iterating over it.
 	speciesList = [ x for x in dict_speciesInfo ]
 	for str_species in speciesList:
 		path_genome = dict_speciesInfo[str_species]["genome"]
 		path_gffForTraining=dict_speciesInfo[str_species]["gffForTraining"]
 		path_augustusSpecies=dict_speciesInfo[str_species]["augustusSpecies"]
-		path_augSpeciesWDir = path_augWDir + "/" + str_species
-		makeIfAbsent(path_augSpeciesWDir)
+		path_augSpeciesWDir = makeIfAbsent(path_augWDir + "/" + str_species)
 		if dict_speciesInfo[str_species]["needsTraining"]:
 			print("training augustus on " + str_species)
 			async(pool, trainAugustusIndividual, args=(path_augustusSpecies, path_genome, path_gffForTraining, path_augSpeciesWDir))
@@ -936,13 +934,9 @@ def prepareOutputFolder(path_outDir):
 	if path_outDir == "":
 		str_prefix = "OrthoFillerOut_" + datetime.datetime.now().strftime("%y%m%d") + "_RunId_"
 		path_outDir = tempfile.mkdtemp(prefix=str_prefix, dir=".")
-	path_wDir = path_outDir + "/working"
-	path_ogDir = path_wDir + "/orthogroups"
-	path_resultsDir = path_outDir + "/results"
-	makeIfAbsent(path_outDir)
-	makeIfAbsent(path_wDir)
-	makeIfAbsent(path_ogDir)
-	makeIfAbsent(path_resultsDir)
+	path_wDir       = makeIfAbsent(path_outDir + "/working")
+	path_ogDir      = makeIfAbsent(path_wDir + "/orthogroups")
+	path_resultsDir = makeIfAbsent(path_outDir + "/results")
 	return path_resultsDir, path_wDir
 
 def prepareHmmDbs(dict_speciesInfo, path_hmmDbDir, int_cores, splitByChr):
@@ -1071,10 +1065,9 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 	# subsequent runs. So create a separate folder.
 	######################################################
 	if firstPass:
-		path_wDirS=path_wDir + "/firstpass_working"
-		makeIfAbsent(path_wDirS)
+		path_wDirS = makeIfAbsent(path_wDir + "/firstpass_working")
 	else:
-		path_wDirS=path_wDir
+		path_wDirS = path_wDir
 	#####################################################
 	# Set off the Augustus training
 	#####################################################
@@ -1091,17 +1084,12 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 			######################################################
 			# Prepare some working directories
 			######################################################
-			path_ogDir = path_wDir + "/orthogroups"
-			path_ogGtfDir = path_ogDir + "/gtf"
-			path_ogAlDir = path_ogDir + "/alignments"
-			path_ogHmmDir = path_ogDir + "/hmm"
-			path_ogHitsDir = path_ogDir + "/hits"
-			path_hmmDbDir = path_wDir + "/hmmdb"
-			makeIfAbsent(path_ogGtfDir)
-			makeIfAbsent(path_ogAlDir)
-			makeIfAbsent(path_ogHmmDir)
-			makeIfAbsent(path_ogHitsDir)
-			makeIfAbsent(path_hmmDbDir)
+			path_ogDir     = makeIfAbsent(path_wDir + "/orthogroups")
+			path_ogGtfDir  = makeIfAbsent(path_ogDir + "/gtf")
+			path_ogAlDir   = makeIfAbsent(path_ogDir + "/alignments")
+			path_ogHmmDir  = makeIfAbsent(path_ogDir + "/hmm")
+			path_ogHitsDir = makeIfAbsent(path_ogDir + "/hits")
+			path_hmmDbDir  = makeIfAbsent(path_wDir + "/hmmdb")
 			######################################################
 			# Set up an hmm database for each species
 			######################################################
@@ -1220,8 +1208,7 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 			path_augustusSpeciesName = dict_speciesInfo[str_speciesName]["augustusSpecies"]
 			jobs.append([runAndParseAugustus, (path_proposedGenes, path_genome, path_augustusOut, path_augustusParsedOut, path_fastaOut, path_augustusSpeciesName, path_hintsFile, path_sourcegff)])
 		else:
-			path_otherSpeciesResults = path_wDirS + "/" + str_speciesName + ".augustus_otherSpecies"
-			makeIfAbsent(path_otherSpeciesResults)
+			path_otherSpeciesResults = makeIfAbsent(path_wDirS + "/" + str_speciesName + ".augustus_otherSpecies")
 			dict_speciesInfo[str_speciesName]["indirectAugustusFolder"]=path_otherSpeciesResults
 			otherSpecies = [ x for x in dict_speciesInfo if not dict_speciesInfo[x]["indirectAugustus"]]
 			for str_otherSpecies in otherSpecies:
@@ -1777,8 +1764,7 @@ def start(path_speciesInfoFile, path_referenceFile, path_orthoFinderOutputFile, 
 	firstPassMode=False
 	print("\n1.2. Preparing gtf files for Augustus training")
         print(  "==============================================")
-	path_trainingDir = path_wDir + "/training"
-	makeIfAbsent(path_trainingDir)
+	path_trainingDir = makeIfAbsent(path_wDir + "/training")
 	jobs=[]
 	for str_species in dict_speciesInfo:
 		sequences = [ dict_sequenceInfoById[x].seqId for x in dict_sequenceInfoById if dict_sequenceInfoById[x].species == str_species ]
@@ -1799,8 +1785,7 @@ def start(path_speciesInfoFile, path_referenceFile, path_orthoFinderOutputFile, 
 			jobs.append([makeGffTrainingFile, (path_gff, path_gffForTraining)])#ql
 	runJobs(jobs, int_cores)
 	if firstPassMode:
-		path_firstPassOutDir=path_outDir + "/firstPass"
-		makeIfAbsent(path_firstPassOutDir)
+		path_firstPassOutDir = makeIfAbsent(path_outDir + "/firstPass")
 		jobs=[]
 		run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_firstPassOutDir, path_wDir, path_orthoFinderOutputFile, path_singletonsFile, int_cores, True, False, hitFilter, hintFilter, splitByChr)
 		for str_species in dict_speciesInfo:
@@ -1891,12 +1876,9 @@ def prepareFromScratch(path_infile, path_outDir, int_cores, path_refFile = ""):
 	#Pull out Gtf files, extract dna and then rna
 	#Then run orthofinder
 	useReference = not path_refFile == ""
-	path_seqDir=path_outDir + "/sequences"
-	path_cdsDir=path_seqDir + "/cds"
-	path_aaDir=path_seqDir + "/aa"
-	makeIfAbsent(path_seqDir)
-	makeIfAbsent(path_cdsDir)
-	makeIfAbsent(path_aaDir)
+	path_seqDir = makeIfAbsent(path_outDir + "/sequences")
+	path_cdsDir = makeIfAbsent(path_seqDir + "/cds")
+	path_aaDir  = makeIfAbsent(path_seqDir + "/aa")
 	path_speciesInfoFile=path_seqDir + "/inputs.csv"
 	path_refInfoFile = path_seqDir + "/inputs.ref.csv"
 	dict_basicInfo={}
@@ -2067,6 +2049,7 @@ def find(name, path):
 def makeIfAbsent(path_dir):
 	try:
 		os.makedirs(path_dir)
+		return path_dir
 	except OSError as exc:  # Python >2.5
 		if exc.errno == errno.EEXIST and os.path.isdir(path_dir):
 			pass
@@ -2087,6 +2070,7 @@ def deleteIfPresent(path):
 	try:
 		if os.path.isdir(path):
 			callFunction("rm -r " + path)
+			return path
 		else:
 			os.remove(path)
 	except OSError:
