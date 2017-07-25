@@ -123,8 +123,7 @@ except ImportError as e:
 
 if errors:
 	print("Missing modules :(\nThe following module errors need to be resolved before running OrthoFiller:")
-	for error in errors:
-		print("-- " + str(error))
+	for error in errors: print("-- " + str(error))
 	sys.exit()
 
 ########################################################
@@ -553,14 +552,10 @@ def readInputIndividual(line, dict_speciesInfo):
 	str_species = os.path.basename(line[0])
 	dict_speciesInfo = addSpecies(str_species, dict_speciesInfo)
 	# Then just build up the dictionary with human-readable names
-	path_aa		= checkFileExists(line[0])
-	path_gff 	= checkFileExists(line[1])
-	path_genome	 = checkFileExists(line[2])
-	path_cds	= checkFileExists(line[3])
-	dict_speciesInfo[str_species]["protein"] = path_aa
-	dict_speciesInfo[str_species]["gff"]	 = path_gff
-	dict_speciesInfo[str_species]["genome"]  = path_genome
-	dict_speciesInfo[str_species]["cds"]	 = path_cds
+	dict_speciesInfo[str_species]["protein"] = path_aa      = checkFileExists(line[0])
+	dict_speciesInfo[str_species]["gff"]     = path_gff     = checkFileExists(line[1])
+	dict_speciesInfo[str_species]["genome"]  = path_genome  = checkFileExists(line[2])
+	dict_speciesInfo[str_species]["cds"]     = path_cds	= checkFileExists(line[3])
 	print("Checking chromosomes...")
 	checkChromosomes(path_gff, path_genome)
 	checkSequences(path_gff, path_cds, path_aa)
@@ -861,7 +856,7 @@ def getNucleotideAlignment(alignedProteinsFastaIn, fastaOut, sequencesHolder, di
 			recordId = record.id
 			# We need to use species name and local Id to look up in the cds file.
 			str_species = sequencesHolder[recordId].species
-			localId = sequencesHolder[recordId].seqId
+			localId     = sequencesHolder[recordId].seqId
 			# Construct the new sequences
 			cdsRecord = path_indexedCdsFiles[str_species][localId]
 			# The ungapped dna sequence
@@ -871,14 +866,13 @@ def getNucleotideAlignment(alignedProteinsFastaIn, fastaOut, sequencesHolder, di
 			# Get the gapped dna sequence
 			gDnaSeq = threadGappedProteinSequenceThroughDNA(gappedProteinSequence, dnaSourceSequence)
 			# Construct the sequence object and put it out there.
-			gDnaId = cdsRecord.id
-			gDnaName = cdsRecord.name
-			gDnaDesc = cdsRecord.description
+			gDnaId     = cdsRecord.id
+			gDnaName   = cdsRecord.name
+			gDnaDesc   = cdsRecord.description
 			gDnaSeqOut = SeqRecord(Bio.Seq.Seq(gDnaSeq), id=gDnaId, name=gDnaName, description=gDnaDesc)
 			nucleotideAlignments.append(gDnaSeqOut)
 	# Write the sequences to the specified output file.
-	with open(fastaOut, "w") as outputHandle:
-		SeqIO.write(nucleotideAlignments, outputHandle, "fasta")
+	SeqIO.write(nucleotideAlignments, fastaOut, "fasta")
 
 def buildHmm(nucAlignment, path_outputFile):
 	"""Build an hmm based on a nucleotide alignment. Inputs are file names.
@@ -891,12 +885,10 @@ def makeHmmerDbChr(chrInfo, path_chrFile, path_dbOutput):
 	SeqIO.write(chrInfo, path_chrFile, "fasta")
 	callFunctionQuiet("makehmmerdb --block_size=10 " + path_chrFile + " " + path_dbOutput) #qgr
 
-
 def makeHmmerDb(path_fa, path_dbOutput):
 	"""Makes a database per cds file for use with hmmer.
 	"""
 	callFunctionQuiet("makehmmerdb --block_size=10 " + path_fa + " " + path_dbOutput) #qgr
-
 
 def implementHmmSearch(path_hmmFile, path_db, path_hitsFile, species, orthogroup):
 	"""Runs across the genome and finds hmm hits
@@ -961,8 +953,6 @@ def prepareHmmDbs(dict_speciesInfo, path_hmmDbDir, int_cores, splitByChr):
 			dict_speciesInfo[str_speciesName]["hmmdb"]= path_db
 			jobs.append([makeHmmerDb, (path_fa, path_db)])
 	runJobs(jobs, int_cores)
-
-
 
 def implementGetProteinFastaFiles(orthogroup, orthogroupProteinSequences, path_ogAlDir):
         # Define output files
@@ -1412,13 +1402,8 @@ def concatFiles(str_patt, path_outfile):
 			with open(path_indi,'rb') as p:
 				shutil.copyfileobj(p, o)
 
-
-
 def compareOutputSequences(seq1, seq2):
-	if seq1.replace(" ", "").replace("\"", "") == seq2.replace(" ", "").replace("\"", ""):
-		return True
-	else:
-		return False
+	return seq1.replace(" ", "").replace("\"", "") == seq2.replace(" ", "").replace("\"", "")
 
 def makeNewProteome(path_oldProteome, path_predictedProteinSequences, path_newProteome):
 	oldSeqs = [a for a in SeqIO.parse(path_oldProteome, "fasta") if a.seq != ""]
@@ -1663,7 +1648,7 @@ def implementHintFscoreFilter(path_augustusParsed, path_hintFile, path_outFile, 
 		success=False
 		for hg in hintGroups:
 			path_hg = tempfile.mktemp()
-			path_hintIs = th_hintIs = tempfile.mktemp()
+			path_hintIs = tempfile.mktemp()
                         writeCsv(hintGroups[hg], path_hg)
                         callFunction("bedtools intersect -s -a " + path_hg + " -b " + path_entry + " > " + path_hintIs)
 			intersection = readCsv(path_hintIs)
