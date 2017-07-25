@@ -2037,7 +2037,7 @@ def makeIfAbsent(path_dir):
 		return path_dir
 	except OSError as exc:  # Python >2.5
 		if exc.errno == errno.EEXIST and os.path.isdir(path_dir):
-			pass
+			return path_dir
 		else:
 			raise
 
