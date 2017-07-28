@@ -176,7 +176,6 @@ def CanRunHelp(package, packageFormatted):
                 print("    Please check "+ packageFormatted +" is installed and that the executables are in the system path\n")
                 return False
 
-
 def CanRunMan(package, packageFormatted):
         if CanRunCommand("man " + package):
                 return True
@@ -453,13 +452,9 @@ class SeqRef(object):
 
 def addSpecies(str_species, dict_speciesInfo):
 	if not str_species in dict_speciesInfo:
-		print(str_species)
-		existingValues = [ x["number"] for x in dict_speciesInfo.values() ]
-		highestVal = max(existingValues or [0])
-		dict_speciesInfo[str_species] = {}
-		dict_speciesInfo[str_species]["number"] = highestVal + 1
+		highestVal = max([ x["number"] for x in dict_speciesInfo.values() ] or [0])
+		dict_speciesInfo[str_species] = {"number": highestVal + 1}
 	return dict_speciesInfo
-
 
 def readOrthoFinderOutput(path_orthoFinderOutputFile, path_orthoFinderSingletonsFile, dict_speciesInfo):
 	"""Read CSV file into 3-tiered dictionary: orthogoup > species > sequences.
@@ -475,7 +470,6 @@ def readOrthoFinderOutput(path_orthoFinderOutputFile, path_orthoFinderSingletons
 	sequences_all = merge_dicts(sequences_orthogroups, sequences_singletons)
 	return sequences_all, dict_orthogroups, dict_singletons
 	
-
 def readOrthoFinderOutputIndividual(path_orthoFinderOutputFile, dict_speciesInfo):
 	dict_groups = {}
 	sequences_local = {}
@@ -544,7 +538,6 @@ def readInputLocations(path_speciesInfoFile, path_referenceFile):
 		dict_speciesInfo, str_species = readInputIndividual(line, dict_speciesInfo)
 		dict_speciesInfo[str_species]["type"] = "reference"
 	return dict_speciesInfo
-		
 
 def readInputIndividual(line, dict_speciesInfo):
 	# The "species", i.e. the basename for the source protein file
@@ -653,11 +646,10 @@ def makeGffTrainingFile(path_inputGff, path_outputGff):
 
 def getBases(path_gtf, path_gtfBases):
 	"""Get the base for a gtf file
-	"""
-	with open(path_gtf) as c:
-		gtf = [line for line in csv.reader(c, delimiter="\t") if ''.join(line).strip()]
-	coords={}
-	entries={}
+	"""	
+	gtf = readCsv(path_gtf)
+	coords  = {}
+	entries = {}
 	for line in gtf:
 		if not line[2].lower() == "cds":
 			continue
@@ -669,10 +661,7 @@ def getBases(path_gtf, path_gtfBases):
 	for t_id in entries:
 		entries[t_id][3] = min(coords[t_id])
 		entries[t_id][4] = max(coords[t_id])
-	with open(path_gtfBases, "w") as p:
-		writer = csv.writer(p, delimiter="\t", quoting = csv.QUOTE_NONE, quotechar='')
-		for entry in entries:
-			writer.writerow(entries[entry])
+	writeCsv(entries.values(), path_gtfBases)
 
 def checkCdsHealth(path_inputGtf, path_outputGtf):
 	with open(path_inputGtf) as c:
@@ -879,12 +868,6 @@ def buildHmm(nucAlignment, path_outputFile):
 	"""
 	callFunctionMezzoPiano("hmmbuild --informat afa " + path_outputFile + " " + nucAlignment) #qgr
 
-def makeHmmerDbChr(chrInfo, path_chrFile, path_dbOutput):
-	"""Makes a database per cds file for use with hmmer.
-	"""
-	SeqIO.write(chrInfo, path_chrFile, "fasta")
-	callFunctionQuiet("makehmmerdb --block_size=10 " + path_chrFile + " " + path_dbOutput) #qgr
-
 def makeHmmerDb(path_fa, path_dbOutput):
 	"""Makes a database per cds file for use with hmmer.
 	"""
@@ -931,26 +914,35 @@ def prepareOutputFolder(path_outDir):
 	path_resultsDir = makeIfAbsent(path_outDir + "/results")
 	return path_resultsDir, path_wDir
 
-def prepareHmmDbs(dict_speciesInfo, path_hmmDbDir, int_cores, splitByChr):
+def prepareHmmDbInfo(dict_speciesInfo, path_hmmDbDir, splitByChr):
+	"""Separate this out to make it easier to turn off hmmdb creation
+	"""
+	for str_speciesName in dict_speciesInfo:
+		if not dict_speciesInfo[str_speciesName]["type"] == "target": continue
+		print("Preparing database directories for " + str_speciesName)
+		path_genome = dict_speciesInfo[str_speciesName]["genome"]
+		#Working by chromosome reduces memory consumption.
+		speciesTag=path_hmmDbDir+"/"+str_speciesName
+		if splitByChr:
+			makeIfAbsent(path_hmmDbDir+"/"+str_speciesName)
+			chromosomes = list(SeqIO.parse(path_genome, "fasta"))
+			dict_speciesInfo[str_speciesName]["hmmdb"]={}
+			for chrInfo in chromosomes:
+				path_chr = speciesTag + "/"+ str_speciesName + "."+chrInfo.id+".fa"
+				path_db = path_chr + ".hmmdb"
+				dict_speciesInfo[str_speciesName]["hmmdb"][chrInfo.id] = [path_chr, path_db]
+				SeqIO.write(chrInfo, path_chr, "fasta")
+		else:
+			dict_speciesInfo[str_speciesName]["hmmdb"] = {"full": [path_genome, speciesTag+".hmmdb"]}
+		
+def prepareHmmDbs(dict_speciesInfo, path_hmmDbDir, int_cores):
 	jobs = []
 	for str_speciesName in dict_speciesInfo:
 		if not dict_speciesInfo[str_speciesName]["type"] == "target": continue
 		print("Preparing databases for " + str_speciesName)
-		path_genome = dict_speciesInfo[str_speciesName]["genome"]
-		makeIfAbsent(path_hmmDbDir+"/"+str_speciesName)
 		#Working by chromosome reduces memory consumption.
-		if splitByChr:
-			chromosomes = list(SeqIO.parse(path_genome, "fasta"))
-			dict_speciesInfo[str_speciesName]["hmmdb"]={}
-			for i in chromosomes:
-				path_chr = path_hmmDbDir+"/"+str_speciesName+"/"+ str_speciesName + "."+i.id+".fa"
-				path_db = path_chr + ".hmmdb"
-				dict_speciesInfo[str_speciesName]["hmmdb"][i.id] = [path_chr, path_db]
-				jobs.append([makeHmmerDbChr, (i, path_chr, path_db)])
-		else:
-			path_fa = dict_speciesInfo[str_speciesName]["genome"]
-			path_db = path_hmmDbDir+"/"+str_speciesName+".hmmdb"
-			dict_speciesInfo[str_speciesName]["hmmdb"]= path_db
+		for i in dict_speciesInfo[str_speciesName]["hmmdb"]:
+			path_fa, path_db = dict_speciesInfo[str_speciesName]["hmmdb"][i]
 			jobs.append([makeHmmerDb, (path_fa, path_db)])
 	runJobs(jobs, int_cores)
 
@@ -1011,35 +1003,51 @@ def buildHmms(orthogroups, path_ogAlDir, path_ogHmmDir, int_cores):
 		jobs[orthogroup] = [buildHmm, (path_nucAlignmentFile, path_hmmFile)]
 	runAndTrackJobs(jobs, int_cores)
 
-def runHmms(orthogroups, dict_speciesInfo, path_ogHmmDir, path_ogHitsDir, int_cores, splitByChr):
-	#Sort hmms by size so that we clear the biggest ones first.
-	weights={}
-	for orthogroup in orthogroups:
-		weights[orthogroup] = os.path.getsize(path_ogHmmDir + "/" + orthogroup + ".hmm")
-	orthogroups_sorted = sorted(weights, key=lambda x: int(weights[x]), reverse=True)
+def prepareHitDirs(orthogroups, dict_speciesInfo, path_ogHmmDir, path_ogHitsDir, splitByChr):
+	print("Preparing HMMs and HMM directories...")
+	# Split the genomes up by chromosome if necessary, and run the hmms.
 	for species in dict_speciesInfo:
 		if not dict_speciesInfo[species]["type"] == "target": continue
-		print("Running HMMs on species " + species)
-		makeIfAbsent(path_ogHitsDir + "/" + species)
+		path_spHitsDir = makeIfAbsent(path_ogHitsDir + "/" + species)
+		dict_speciesInfo[species]["hitDirs"] = []
 		if splitByChr:
 			tChr=len(dict_speciesInfo[species]["hmmdb"])
 			for nChr, chromosome in enumerate(dict_speciesInfo[species]["hmmdb"]):
 				path_hmmdb=dict_speciesInfo[species]["hmmdb"][chromosome][1]
 				str_nChr = str(nChr+1)
-				jobs={};
-				makeIfAbsent(path_ogHitsDir + "/" + species + "/chrscf_" + str_nChr)
+				path_chrHitDir = makeIfAbsent(path_spHitsDir + "/chrscf_" + str_nChr)
+				dict_speciesInfo[species]["hitDirs"] += [{"id": chromosome, "num": str_nChr, "hitDir": path_chrHitDir, "hmmdb": path_hmmdb}]
+		else:
+			path_hmmdb=dict_speciesInfo[species]["hmmdb"]["full"][1]
+			dict_speciesInfo[species]["hitDirs"] = [{"id": "full", "num": 1, "hitDir": path_spHitsDir, "hmmdb": path_hmmdb}]
+
+def runHmms(orthogroups, dict_speciesInfo, path_ogHmmDir, path_ogHitsDir, int_cores, splitByChr):
+	#Sort hmms by size so that we clear the biggest ones first.
+	weights=dict((o, os.path.getsize(path_ogHmmDir + "/" + o + ".hmm")) for o in orthogroups)
+	orthogroups_sorted = sorted(weights.keys(), key=lambda x: int(weights[x]), reverse=True)
+	# Split the genomes up by chromosome if necessary, and run the hmms.
+	for species in dict_speciesInfo:
+		if not dict_speciesInfo[species]["type"] == "target": continue
+		print("Running HMMs on species " + species)
+		jobs={}
+		if splitByChr:
+			tChr = len(dict_speciesInfo[species]["hmmdb"])
+			for h in dict_speciesInfo[species]["hitDirs"]:
+				path_chrHitDir = h["hitDir"]
+				path_hmmdb     = h["hmmdb"]
+				str_nChr       = h["num"]
+				chromosome     = h["id"]
 				for orthogroup in orthogroups_sorted:
-					path_hmmFile = path_ogHmmDir + "/" + orthogroup + ".hmm"
-					path_hitsFile = path_ogHitsDir + "/" + species + "/chrscf_" + str_nChr+ "/" + orthogroup + "." + species + "." + chromosome + ".hits"
+					path_hmmFile  = path_ogHmmDir + "/" + orthogroup + ".hmm"
+					path_hitsFile = path_chrHitDir + "/" + orthogroup + "." + species + "." + chromosome + ".hits"
 					jobs[orthogroup] = [implementHmmSearch, (path_hmmFile, path_hmmdb, path_hitsFile, species, orthogroup)]
 				runAndTrackJobs(jobs, int_cores, "Chromosome/scaffold " + str_nChr + " of " + str(tChr) + ": ", False)
 		else:
-			path_hmmdb=dict_speciesInfo[species]["hmmdb"]
-			jobs={};
-			makeIfAbsent(path_ogHitsDir + "/" + species)
+			path_hitDir = dict_speciesInfo[species]["hitDirs"][0]["hitDir"]
+			path_hmmdb = dict_speciesInfo[species]["hitDirs"][0]["hmmdb"]
 			for orthogroup in orthogroups_sorted:
 				path_hmmFile = path_ogHmmDir + "/" + orthogroup + ".hmm"
-				path_hitsFile = path_ogHitsDir + "/" + species +"/" + orthogroup + "." + species + ".hits"
+				path_hitsFile = path_hitDir + "/" + orthogroup + "." + species + ".hits"
 				jobs[orthogroup] = [implementHmmSearch, (path_hmmFile, path_hmmdb, path_hitsFile, species, orthogroup)]
 			runAndTrackJobs(jobs, int_cores, "", True)
 		print("\n")
@@ -1064,111 +1072,122 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 	trainingPool = multiprocessing.Pool(int_cores, init_worker)
 	print("Training AUGUSTUS")
 	trainAugustus(dict_speciesInfo, path_wDir, trainingPool)
+	######################################################
+	# Prepare some working directories
+	######################################################
+	path_ogDir      = makeIfAbsent(path_wDir + "/orthogroups")
+	path_ogGtfDir   = makeIfAbsent(path_ogDir + "/gtf")
+	path_ogAlDir    = makeIfAbsent(path_ogDir + "/alignments")
+	path_ogHmmDir   = makeIfAbsent(path_ogDir + "/hmm")
+	path_ogHitsDir  = makeIfAbsent(path_ogDir + "/hits")
+	path_hmmDbDir   = makeIfAbsent(path_wDir + "/hmmdb")
+	path_candidates = makeIfAbsent(path_wDirS + "/candidates")
 	#####################################################
 	# If we're on a second pass, where the first pass was
 	# used to create training files, we don't need to 
 	# calculate all the hmms and hits.
 	#####################################################
-	try:
-		if not augOnly:
-			######################################################
-			# Prepare some working directories
-			######################################################
-			path_ogDir     = makeIfAbsent(path_wDir + "/orthogroups")
-			path_ogGtfDir  = makeIfAbsent(path_ogDir + "/gtf")
-			path_ogAlDir   = makeIfAbsent(path_ogDir + "/alignments")
-			path_ogHmmDir  = makeIfAbsent(path_ogDir + "/hmm")
-			path_ogHitsDir = makeIfAbsent(path_ogDir + "/hits")
-			path_hmmDbDir  = makeIfAbsent(path_wDir + "/hmmdb")
-			######################################################
-			# Set up an hmm database for each species
-			######################################################
-			print("\n2.1. Preparing HMM databases")
-		        print(  "============================")
-			prepareHmmDbs(dict_speciesInfo, path_hmmDbDir, int_cores, splitByChr)#ql
-			#####################################################
-			# Produce gff files for each orthogroup/species pair
-			#####################################################
-		        print("\n2.2. Extracting orthogroup gtf files")
-	                print(  "====================================")
-			gffsForOrthoGroups(path_ogGtfDir, path_orthoFinderOutputFile, path_singletonsFile, dict_speciesInfo, int_cores)#ql
-			#####################################################
-			# Process each individual orthogroup in parallel
-			#####################################################
-			proteinSequences = getProteinSequences(dict_sequenceInfoById, dict_speciesInfo)
-			print("\n2.3. Extracting protein fasta sequences")
-        	        print(  "=======================================")
-			print("Getting protein fasta sets for all orthogroups...")
-			getProteinFastaFiles(orthogroups, proteinSequences, dict_sequenceInfoById, dict_speciesInfo, path_ogAlDir, int_cores)
-			print("\n2.4. Aligning orthogroup sequences")
-			print(  "==================================")
-			print("Grabbing alignments...")
-			getProteinAlignments(orthogroups, path_ogAlDir, int_cores)
-			print("\n2.5. Extracting nucleotide alignments")
-			print(  "=====================================")
-			print("Threading nucleotides through alignments...")
-			getNucleotideAlignments(orthogroups, path_ogAlDir, dict_sequenceInfoById, dict_speciesInfo, int_cores)
-			print("\n2.6. Building HMMs")
-			print(  "==================")
-			print("Grabbing HMMs for each orthroup...")
-			buildHmms(orthogroups, path_ogAlDir, path_ogHmmDir, int_cores)
-			print("\n2.7. Running HMMs...")
-			print(  "====================")
-			runHmms(orthogroups, dict_speciesInfo, path_ogHmmDir, path_ogHitsDir, int_cores, splitByChr)
-			####################################################
-			# Start a new pool for processing the hmm outfiles.
-			####################################################
-			dict_ogIntersectionFileNamesAnnotated = {}
-			print("\n3. Processing HMM output files")
-			print(  "==============================")
-			jobs = []
-			for str_speciesName in dict_speciesInfo:
-				if not dict_speciesInfo[str_speciesName]["type"] == "target": continue
-				print("Submitting HMM output files for species " + str_speciesName + "...")
-				path_hitsOgIntersectionFileNameAnnotated = path_wDir + "/" + str_speciesName + ".hitsIntersectionOrthogroups.annotated.bed"
-				dict_ogIntersectionFileNamesAnnotated[str_speciesName] = path_hitsOgIntersectionFileNameAnnotated
-				jobs.append([processHmmOutput, (str_speciesName, path_wDir, path_ogHitsDir, path_ogGtfDir, path_hitsOgIntersectionFileNameAnnotated, dict_speciesInfo, splitByChr)])
-			runJobs(jobs, int_cores)
-			print("Done processing HMM output files")
-			####################################################
-			# Concatenate all the files in case we need to 
-			# use the aggregate distribution.
-			####################################################
-			print("Generating concatenated version of HMM output")
-			path_allHitsOgIntersectionFileNameAnnotated = path_wDir + "/allSpecies.hitsIntersectionOrthogroups.annotated.bed"
-			blankFile(path_allHitsOgIntersectionFileNameAnnotated)#ql
-			for str_speciesName in dict_ogIntersectionFileNamesAnnotated:
-				path_annotatedFile = dict_ogIntersectionFileNamesAnnotated[str_speciesName]
-				appendFileToFile(path_annotatedFile, path_allHitsOgIntersectionFileNameAnnotated)
-			print("Checking quantity of reference hits...")
-			with open(path_allHitsOgIntersectionFileNameAnnotated, "r") as f:
-				data = list(csv.reader(f, delimiter="\t"))
-				match_good = [a for a in data if a[20] == "match_good"]
-				match_bad  = [a for a in data if a[20] == "match_bad"]
-				if match_good < 1000 or match_bad < 1000:
-					print("Error: hit quantity is not sufficient to classify potential new genes.")
-					sys.exit()			
-			####################################################
-			# Fit a model for each individual species. If data
-			# is insufficient, use aggregated data.
-			####################################################
-			jobs = []
-			for str_speciesName in dict_speciesInfo:
-				if dict_speciesInfo[str_speciesName]["type"] == "target":
-					path_outFile = path_wDir + "/" + str_speciesName + ".proposedGenes"
-					dict_speciesInfo[str_speciesName]["proposedgenes"] = path_outFile
-					path_hitsOgIntersectionFileNameAnnotated = dict_ogIntersectionFileNamesAnnotated[str_speciesName]
-					jobs.append([proposeNewGenes, (path_hitsOgIntersectionFileNameAnnotated, path_allHitsOgIntersectionFileNameAnnotated, str_speciesName, path_outFile, hitFilter)])#ql
-			runJobs(jobs, int_cores)
-#qx	sys.exit(1)
+	if not augOnly:
+		######################################################
+		# Set up an hmm database for each species
+		######################################################
+		print("\n2.1. Preparing HMM databases")
+	        print(  "============================")
+		prepareHmmDbInfo(dict_speciesInfo, path_hmmDbDir, splitByChr)
+		prepareHmmDbs(dict_speciesInfo, path_hmmDbDir, int_cores)#ql
+		#####################################################
+		# Produce gff files for each orthogroup/species pair
+		#####################################################
+	        print("\n2.2. Extracting orthogroup gtf files")
+	        print(  "====================================")
+		gffsForOrthoGroups(path_ogGtfDir, path_orthoFinderOutputFile, path_singletonsFile, dict_speciesInfo, int_cores)#ql
+		#####################################################
+		# Process each individual orthogroup in parallel
+		#####################################################
+		proteinSequences = getProteinSequences(dict_sequenceInfoById, dict_speciesInfo)
+		print("\n2.3. Extracting protein fasta sequences")
+                print(  "=======================================")
+		print("Getting protein fasta sets for all orthogroups...")
+		getProteinFastaFiles(orthogroups, proteinSequences, dict_sequenceInfoById, dict_speciesInfo, path_ogAlDir, int_cores)
+		print("\n2.4. Aligning orthogroup sequences")
+		print(  "==================================")
+		print("Grabbing alignments...")
+		getProteinAlignments(orthogroups, path_ogAlDir, int_cores)
+		print("\n2.5. Extracting nucleotide alignments")
+		print(  "=====================================")
+		print("Threading nucleotides through alignments...")
+		getNucleotideAlignments(orthogroups, path_ogAlDir, dict_sequenceInfoById, dict_speciesInfo, int_cores)
+		print("\n2.6. Building HMMs")
+		print(  "==================")
+		print("Grabbing HMMs for each orthroup...")
+		buildHmms(orthogroups, path_ogAlDir, path_ogHmmDir, int_cores)
+		print("\n2.7. Running HMMs...")
+		print(  "====================")
+		prepareHitDirs(orthogroups, dict_speciesInfo, path_ogHmmDir, path_ogHitsDir, splitByChr)
+		runHmms(orthogroups, dict_speciesInfo, path_ogHmmDir, path_ogHitsDir, int_cores, splitByChr)
+		####################################################
+		# Start a new pool for processing the hmm outfiles.
+		####################################################
+		dict_ogIntersectionFileNamesAnnotated = {}
+		print("\n3. Processing HMM output files")
+		print(  "==============================")
+		jobs = []
+		for str_speciesName in dict_speciesInfo:
+			if not dict_speciesInfo[str_speciesName]["type"] == "target": continue
+			print("Submitting HMM output files for species " + str_speciesName + "...")
+			dict_ogIntersectionFileNamesAnnotated[str_speciesName] = path_hitsOgIntersectionFileNameAnnotated \
+							= path_candidates + "/" + str_speciesName + ".hitsIntersectionOrthogroups.annotated.bed"
+			jobs.append([processHmmOutput, (str_speciesName, \
+							path_candidates, \
+							path_ogHitsDir, \
+							path_ogGtfDir, \
+							path_hitsOgIntersectionFileNameAnnotated, \
+							dict_speciesInfo, \
+							splitByChr)])
+		runJobs(jobs, int_cores)
+		print("Done processing HMM output files")
+		####################################################
+		# Concatenate all the files in case we need to 
+		# use the aggregate distribution.
+		####################################################
+		print("Generating concatenated version of HMM output")
+		path_allHitsOgIntersectionFileNameAnnotated = blankFile(path_wDir + "/allSpecies.hitsIntersectionOrthogroups.annotated.bed")
+		for str_speciesName in dict_ogIntersectionFileNamesAnnotated:
+			appendFileToFile(dict_ogIntersectionFileNamesAnnotated[str_speciesName], path_allHitsOgIntersectionFileNameAnnotated)
+		print("Checking quantity of reference hits...")
+		with open(path_allHitsOgIntersectionFileNameAnnotated, "r") as f:
+			data = csv.reader(f, delimiter="\t")
+			match_good = 0; match_bad = 0;
+			while match_good <= 1000 or match_bad <= 1000:
+				a = data.next()
+				if a[-1] == "match_good":
+					match_good += 1
+				elif a[-1] == "match_bad":
+					match_bad += 1
+			if match_good < 1000 or match_bad < 1000:
+				print("Error: hit quantity is not sufficient to classify potential new genes.")
+				sys.exit()			
+		####################################################
+		# Fit a model for each individual species. If data
+		# is insufficient, use aggregated data.
+		####################################################
+		jobs = []
+		for str_speciesName in dict_speciesInfo:
+			if dict_speciesInfo[str_speciesName]["type"] == "target":
+				print "Fitting models to hit data for " + str_speciesName + "..."
+				dict_speciesInfo[str_speciesName]["proposedgenes"] = path_outFile = path_candidates + "/" + str_speciesName + ".proposedGenes"
+				path_hitsOgIntersectionFileNameAnnotated = dict_ogIntersectionFileNamesAnnotated[str_speciesName]
+				jobs.append([proposeNewGenes, (path_hitsOgIntersectionFileNameAnnotated, path_allHitsOgIntersectionFileNameAnnotated, str_speciesName, path_outFile, hitFilter)])#ql
+		runJobs(jobs, int_cores)
+#qxsys.exit(1)
 	####################################################
 	# Run Augustus. We need the training pool to have 
 	# finished by this point. Parse output
 	####################################################
-	finally:
-		print("Waiting for training to finish before continuing...")
-		trainingPool.close()
-		trainingPool.join()
+#	finally:
+	print("Waiting for training to finish before continuing...")
+	trainingPool.close()
+	trainingPool.join()
 #	except KeyboardInterrupt:
 #		trainingPool.terminate()
 #		trainingPool.join()
@@ -1182,17 +1201,13 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 	for str_speciesName in dict_speciesInfo:
 		if not dict_speciesInfo[str_speciesName]["type"] == "target": continue
 		path_proposedGenes = dict_speciesInfo[str_speciesName]["proposedgenes"]
-		path_genome = dict_speciesInfo[str_speciesName]["genome"]
-		path_sourcegff=dict_speciesInfo[str_speciesName]["gff"]
-		str_augustusOutNameStub= path_wDirS + "/" + str_speciesName + ".proposedGenes"
-		path_augustusOut = str_augustusOutNameStub + ".AugustusModels.gff"
-		path_fastaOut = str_augustusOutNameStub + ".AugustusParsed.sequences.fasta"
-		path_augustusParsedOut = str_augustusOutNameStub + ".AugustusParsed.gff"	
-		dict_speciesInfo[str_speciesName]["augustusoutput"] = path_augustusOut
-		dict_speciesInfo[str_speciesName]["augustusparsed"] = path_augustusParsedOut
-		dict_speciesInfo[str_speciesName]["augustussequences"] = path_fastaOut
-		path_hintsFile = str_augustusOutNameStub + ".hints.gff"
-		dict_speciesInfo[str_speciesName]["hints"] = path_hintsFile
+		path_genome        = dict_speciesInfo[str_speciesName]["genome"]
+		path_sourcegff     = dict_speciesInfo[str_speciesName]["gff"]
+		str_augustusOutNameStub = path_candidates + "/" + str_speciesName + ".proposedGenes"
+		dict_speciesInfo[str_speciesName]["augustusoutput"]    = path_augustusOut       = str_augustusOutNameStub + ".AugustusModels.gff"
+		dict_speciesInfo[str_speciesName]["augustussequences"] = path_fastaOut          = str_augustusOutNameStub + ".AugustusParsed.sequences.fasta"
+		dict_speciesInfo[str_speciesName]["augustusparsed"]    = path_augustusParsedOut = str_augustusOutNameStub + ".AugustusParsed.gff"	
+		dict_speciesInfo[str_speciesName]["hints"]             = path_hintsFile         = str_augustusOutNameStub + ".hints.gff"
 		print("Running Augustus on " + str_speciesName)
 		if not dict_speciesInfo[str_speciesName]["indirectAugustus"]:
 			path_augustusSpeciesName = dict_speciesInfo[str_speciesName]["augustusSpecies"]
@@ -1203,9 +1218,10 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 			otherSpecies = [ x for x in dict_speciesInfo if not dict_speciesInfo[x]["indirectAugustus"]]
 			for str_otherSpecies in otherSpecies:
 				print(otherSpecies)
-				path_otherSpeciesAugustusOut = path_otherSpeciesResults + "/" + str_speciesName + ".proposedGenes." + str_otherSpecies + ".AugustusModels.gff"
-				path_otherSpeciesAugustusParsedOut =  path_otherSpeciesResults + "/" + str_speciesName + ".proposedGenes." + str_otherSpecies + ".AugustusParsed.gff"
-				path_otherSpeciesFastaOut =  path_otherSpeciesResults + "/" + str_speciesName + ".proposedGenes." + str_otherSpecies + ".AugustusParsed.sequences.fasta"
+				otherSpeciesStub = path_otherSpeciesResults + "/" + str_speciesName + ".proposedGenes." + str_otherSpecies
+				path_otherSpeciesAugustusOut       = otherSpeciesStub + ".AugustusModels.gff"
+				path_otherSpeciesAugustusParsedOut = otherSpeciesStub + ".AugustusParsed.gff"
+				path_otherSpeciesFastaOut          = otherSpeciesStub + ".AugustusParsed.sequences.fasta"
 				otherSpeciesAugustusSpeciesName = dict_speciesInfo[str_otherSpecies]["augustusSpecies"]
 				jobs.append([runAndParseAugustus, (path_proposedGenes, path_genome, path_otherSpeciesAugustusOut, path_otherSpeciesAugustusParsedOut, path_otherSpeciesFastaOut, otherSpeciesAugustusSpeciesName, path_hintsFile, path_sourcegff)])
 				print(otherSpeciesAugustusSpeciesName)
@@ -1368,19 +1384,13 @@ def processHmmOutput(str_speciesName, path_wDir, path_ogHitsDir, path_ogGtfDir, 
 	path_hitsBedFileName		= path_wDir + "/" + str_speciesName + ".allHits.bed"
 	path_ogBedFileName		= path_wDir + "/" + str_speciesName + ".allOrthogroups.bed"
 	path_hitsOgIntersectionFileName	= path_wDir + "/" + str_speciesName + ".hitsIntersectOrthogroups.bed"
-	# Get all hits together, and double check that they are good files
-	if splitByChr:
-		for i, chromosome in enumerate(dict_speciesInfo[str_speciesName]["hmmdb"]):
-			nChr = i + 1
-			if os.path.isdir(path_ogHitsDir + "/" + str_speciesName + "/chrscf_"+str(nChr)):
-				concatFiles(path_ogHitsDir + "/" + str_speciesName + "/chrscf_"+str(nChr)+"/OG[0-9]*." + str_speciesName + "."+chromosome+".hits.bed", path_hitsBedFileName + ".chr." + chromosome)
-			else:
-				concatFiles(path_ogHitsDir + "/" + str_speciesName + "/OG[0-9][0-9][0-9][0-9][0-9][0-9][0-9]*" + str_speciesName + "."+chromosome+".hits.bed", path_hitsBedFileName + ".chr." + chromosome)
-		concatFiles(path_hitsBedFileName + ".chr.*", path_hitsBedFileName)
-		for chromosome in dict_speciesInfo[str_speciesName]["hmmdb"]:
-			os.remove(path_hitsBedFileName + ".chr." + chromosome)
-	else:
-		concatFiles(path_ogHitsDir + "/" + str_speciesName + "/OG[0-9][0-9][0-9][0-9][0-9][0-9][0-9]*bed", path_hitsBedFileName)
+	# Get all hits together, and double check that they are good files.
+	# The hits directories should be neatly listed, regardless of whether they were calculated splitwise.
+	for i, hDir in enumerate(dict_speciesInfo[str_speciesName]["hitDirs"]):
+		searchString = hDir["hitDir"] + "/*bed"
+		concatFiles(searchString, path_hitsBedFileName + ".chr." + str(i)+".tmp")
+	concatFiles(path_hitsBedFileName + ".chr.*.tmp", path_hitsBedFileName, removeOrig = True)
+	# Clean out the rubbish
 	callFunction("awk '$3 > 0 && $2 > 0' " + path_hitsBedFileName + " > " + path_hitsBedFileName + ".tmp")
 	move(path_hitsBedFileName + ".tmp", path_hitsBedFileName)
 	# Get all protein annotations together
@@ -1392,15 +1402,6 @@ def processHmmOutput(str_speciesName, path_wDir, path_ogHitsDir, path_ogGtfDir, 
 	# Begin annotation
 	callFunction("cat " + path_hitsOgIntersectionFileName + " " + path_hitsBedFileName + " | cut -f1-11 | sort | uniq -u | sed -r \"s/$/\\t.\\t.\\t.\\t.\\t.\\t.\\t.\\t.\\t.\\t.\\t./g\" > " + path_hitsOgIntersectionFileName + ".tmp; cat " + path_hitsOgIntersectionFileName + ".tmp " + path_hitsOgIntersectionFileName + " > " + path_hitsOgIntersectionFileName + ".tmp.tmp ; mv " + path_hitsOgIntersectionFileName + ".tmp.tmp " + path_hitsOgIntersectionFileName + "; rm " + path_hitsOgIntersectionFileName + ".tmp")
 	annotateIntersectedOutput(path_hitsOgIntersectionFileName, path_hitsOgIntersectionFileNameAnnotated)
-
-def move(path_orig, path_target):
-	callFunction("mv " + path_orig + " " + path_target)
-	
-def concatFiles(str_patt, path_outfile):
-	with open(path_outfile,'wb') as o:
-		for path_indi in glob.glob(str_patt):
-			with open(path_indi,'rb') as p:
-				shutil.copyfileobj(p, o)
 
 def compareOutputSequences(seq1, seq2):
 	return seq1.replace(" ", "").replace("\"", "") == seq2.replace(" ", "").replace("\"", "")
@@ -1484,7 +1485,6 @@ def runAndParseAugustus(path_goodHits, path_genome, path_augustusOut, path_augus
 	#print("augustus parsed out is " + path_augustusParsedOut)
 	runAugustus(path_goodHits, path_genome, path_augustusOut, path_augustusSpeciesName, path_hintsFile) #ql
 	parseAugustusOutput(path_augustusOut, path_augustusParsedOut, path_fastaOut, path_sourcegff)
-
 
 def combineIndirectAugustusResults(path_otherSpeciesResults, path_augustusParsedOut, path_fastaOut):
 	print("Combining results for " + path_otherSpeciesResults +" into " + path_augustusParsedOut)
@@ -1673,16 +1673,6 @@ def implementHintFscoreFilter(path_augustusParsed, path_hintFile, path_outFile, 
 	writeCsv(out, path_outFile)
 	deleteIfPresent(path_entry)
 
-def readCsv(path_csv):
-	with open(path_csv, "r") as p:
-		data = list(csv.reader((row for row in p if not row.startswith('#')), delimiter="\t"))
-	return data
-
-def writeCsv(data, path_csv):
-	with open(path_csv, "w") as f:
-		writer = csv.writer(f, delimiter = '\t',quoting = csv.QUOTE_NONE, quotechar='')
-		writer.writerows(data)
-
 def extractFromFastaByName(path_gffFile, path_fastaFile, path_fastaOut):
 	with open(path_gffFile, "r") as f:
 		data = list(csv.reader((row for row in f if not row.startswith('#')), delimiter="\t"))
@@ -1799,14 +1789,16 @@ def start(path_speciesInfoFile, path_referenceFile, path_orthoFinderOutputFile, 
 		run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_resultsDir, path_wDir, path_orthoFinderOutputFile, path_singletonsFile, int_cores, False, False, hitFilter, hintFilter, splitByChr)
 
 def unpackFitDistributionScript(path_scriptDestination):
-	str_script='library("gamlss")\n\nargs <- commandArgs(TRUE)\n\n\nsourceF=args[1]\naltSourceF= args[2]\noutF=args[3]\n\nprint(paste("reading in source table: ", args[1], sep=""))\na <- read.table(sourceF, sep="\\t", header=FALSE)\n\nnames(a) <- c("hitChr", "hitStart", "hitEnd", "mystery1", "mystery2", "hitStrand", "eVal", "score", "bias", "hitSpecies", "hitOg", "targetChr", "mystery3", "mystery4", "targetStart", "targetEnd", "mystery5", "mystery6", "targetStrand", "geneLabel", "targetSpecies", "targetOg", "match")\n\na <- cbind(a, score_adj=a$score/(a$hitEnd - a$hitStart))\n\nh <- hist(a$score_adj, breaks=50, plot=FALSE)\nb <- h$breaks\n\na_none <- a[a$match=="match_none",]\na_good <- a[a$match=="match_good",]\n\n#Declare variables\ng_good = ""\ng_bad = ""\n\ng_prob_good = ""\ng_prob_bad = "" \n\n# Sampling 1000 data points makes the curve-fitting quicker and hardly affects the fit.\ngetGamlss <- function(theData) { print(theData$t); theData_s <- as.data.frame(sample(theData$t, 1000)); colnames(theData_s) <- c("t"); gamlss(t ~ 1, data=theData_s, family="ST1", method=RS(), gd.tol=10000000, c.cyc=0.001, control=gamlss.control(n.cyc=200)) } \n\nif(nrow(a_good) > 1000) {\n\tprint("source table is good, going ahead...")\n\ta_bad_og <- a[a$match=="match_bad",]\n\ta_bad_singleton <- a[a$match=="match_singleton",]\n\ta_bad <- rbind(a_bad_og, a_bad_singleton)\n\n\tprint("fitting good hits")\n\tgoodScores=as.data.frame(a_good$score_adj); colnames(goodScores) <- c("t")\n\t\n\tg_good <- getGamlss(goodScores)\n\tprint("fitting bad hits")\
-\n\tbadScores=as.data.frame(a_bad$score_adj); colnames(badScores) <- c("t")\n\tg_bad <- getGamlss(badScores)\n\t\n\tg_prob_good =  nrow(a_good) / (nrow(a_bad) + nrow(a_good))\n\tg_prob_bad =  1 - g_prob_good\n\n} else {\n\tprint("source table too sparse, using aggregate distribution")\n\tz = read.table(altSourceF, sep="\\t", header=FALSE)\n\n\tnames(z) <- c("hitChr", "hitStart", "hitEnd", "mystery1", "mystery2", "hitStrand", "eVal", "score", "bias", "hitSpecies", "hitOg", "targetChr", "mystery3", "mystery4", "targetStart", "targetEnd", "mystery5", "mystery6", "targetStrand", "geneLabel", "targetSpecies", "targetOg", "match")\n\n\tz <- cbind(z, score_adj=z$score/(z$hitEnd - z$hitStart))\n\t\n\tz_good <- z[z$match=="match_good",]\n\tz_bad_og <- z[z$match=="match_bad",]\n	z_bad_singleton <- z[z$match=="match_singleton",]\n\tz_bad <- rbind(z_bad_og, z_bad_singleton)\n\n\tprint("fitting good hits")\t\n\tgoodScores=as.data.frame(z_good$score_adj); colnames(goodScores) <- c("t")\n	g_good <- getGamlss(goodScores)\n	\tprint("fitting bad hits")\n\tbadScores=as.data.frame(z_bad$score_adj); colnames(badScores) <- c("t")\n	g_bad <- getGamlss(badScores)\n\n	g_prob_good =  nrow(z_good) / (nrow(z_bad) + nrow(z_good))\n	g_prob_bad =  1 - g_prob_good\n\n}\n\nxg_fun <- function(x) { k=dST1(x, mu=g_good$mu.coefficients ,sigma=exp(g_good$sigma.coefficients), nu=g_good$nu.coefficients, tau=exp(g_good$tau.coefficients)) }\nxb_fun <- function(x) { k=dST1(x, mu=g_bad$mu.coefficients ,sigma=exp(g_bad$sigma.coefficients), nu=g_bad$nu.coefficients, tau=exp(g_bad$tau.coefficients)) }\n\ng_val <- function(x) { (xg_fun(x)*g_prob_good - xb_fun(x)*g_prob_bad) / (g_prob_good*xg_fun(x) + g_prob_bad*xb_fun(x)) }\n\nnone_g_scores = cbind(a_none, g_val=g_val(a_none$score_adj))\nnone_good = none_g_scores[none_g_scores$g_val >= 0,]\nnone_bad = none_g_scores[none_g_scores$g_val < 0,]\n\nprint(paste("writing to ", outF, sep=""))\n\nwrite.table(none_good, outF, quote=FALSE, row.names = FALSE, col.names = FALSE, sep="\\t")\n'
+	str_script='library("gamlss")\n\nargs <- commandArgs(TRUE)\n\n\nsourceF=args[1]\naltSourceF= args[2]\noutF=args[3]\n\nprint(paste("reading in source table: ", args[1], sep=""))\na <- read.table(sourceF, sep="\\t", header=FALSE)\n\nnames(a) <- c("hitChr", "hitStart", "hitEnd", "mystery1", "mystery2", "hitStrand", "eVal", "score", "bias", "hitSpecies", "hitOg", "targetChr", "mystery3", "mystery4", "targetStart", "targetEnd", "mystery5", "mystery6", "targetStrand", "geneLabel", "targetSpecies", "targetOg", "match")\n\na <- cbind(a, score_adj=a$score/(a$hitEnd - a$hitStart))\n\nh <- hist(a$score_adj, breaks=50, plot=FALSE)\nb <- h$breaks\n\na_none <- a[a$match=="match_none",]\na_good <- a[a$match=="match_good",]\n\n#Declare variables\ng_good = ""\ng_bad = ""\n\ng_prob_good = ""\ng_prob_bad = "" \n\n# Sampling 1000 data points makes the curve-fitting quicker and hardly affects the fit.\ngetGamlss <- function(theData) { print(theData$t); theData_s <- as.data.frame(sample(theData$t, 1000)); colnames(theData_s) <- c("t"); gamlss(t ~ 1, data=theData_s, family="ST1", method=RS(), gd.tol=10000000, c.cyc=0.001, control=gamlss.control(n.cyc=200)) } \n\nif(nrow(a_good) > 1000) {\n\tprint("source table is good, going ahead...")\n\ta_bad_og <- a[a$match=="match_bad",]\n\ta_bad_singleton <- a[a$match=="match_singleton",]\n\ta_bad <- rbind(a_bad_og, a_bad_singleton)\n\n\tprint("fitting good hits")\n\tgoodScores=as.data.frame(a_good$score_adj); colnames(goodScores) <- c("t")\n\t\n\tg_good <- getGamlss(goodScores)\n\tprint("fitting bad hits")\n\tbadScores=as.data.frame(a_bad$score_adj); colnames(badScores) <- c("t")\n\tg_bad <- getGamlss(badScores)\n\t\n\tg_prob_good =  nrow(a_good) / (nrow(a_bad) + nrow(a_good))\n\tg_prob_bad =  1 - g_prob_good\n\n} else {\n\tprint("source table too sparse, using aggregate distribution")\n\tz = read.table(altSourceF, sep="\\t", header=FALSE)\n\n\tnames(z) <- c("hitChr", "hitStart", "hitEnd", "mystery1", "mystery2", "hitStrand", "eVal", "score", "bias", "hitSpecies", "hitOg", "targetChr", "mystery3", "mystery4", "targetStart", "targetEnd", "mystery5", "mystery6", "targetStrand", "geneLabel", "targetSpecies", "targetOg", "match")\n\n\tz <- cbind(z, score_adj=z$score/(z$hitEnd - z$hitStart))\n\t\n\tz_good <- z[z$match=="match_good",]\n\tz_bad_og <- z[z$match=="match_bad",]\n     z_bad_singleton <- z[z$match=="match_singleton",]\n\tz_bad <- rbind(z_bad_og, z_bad_singleton)\n\n\tprint("fitting good hits")\t\n\tgoodScores=as.data.frame(z_good$score_adj); colnames(goodScores) <- c("t")\n        g_good <- getGamlss(goodScores)\n       \tprint("fitting bad hits")\n\tbadScores=as.data.frame(z_bad$score_adj); colnames(badScores) <- c("t")\n        g_bad <- getGamlss(badScores)\n\n       g_prob_good =  nrow(z_good) / (nrow(z_bad) + nrow(z_good))\n    g_prob_bad =  1 - g_prob_good\n\n}\n\nxg_fun <- function(x) { k=dST1(x, mu=g_good$mu.coefficients ,sigma=exp(g_good$sigma.coefficients), nu=g_good$nu.coefficients, tau=exp(g_good$tau.coefficients)) }\nxb_fun <- function(x) { k=dST1(x, mu=g_bad$mu.coefficients ,sigma=exp(g_bad$sigma.coefficients), nu=g_bad$nu.coefficients, tau=exp(g_bad$tau.coefficients)) }\n\ng_val <- function(x) { (xg_fun(x)*g_prob_good - xb_fun(x)*g_prob_bad) / (g_prob_good*xg_fun(x) + g_prob_bad*xb_fun(x)) }\n\nnone_g_scores = cbind(a_none, g_val=g_val(a_none$score_adj))\n\n#Make double sure that very high scores win and very low scores lose\n#(Sometimes they can slip through due to the nature of the calculations)\n\nnone_good = none_g_scores[none_g_scores$g_val >= 0,]\nnone_bad = none_g_scores[none_g_scores$g_val < 0,]\n\nmaxgoodscore = max(none_good$score_adj)\nminbadscore = min(none_bad$score_adj)\n\nrescued_good = none_g_scores[(none_g_scores$g_val >= 0 & none_g_scores$score_adj > minbadscore) | none_g_scores$score_adj > maxgoodscore,]\nrescued_bad = none_g_scores[(none_g_scores$g_val < 0 & none_g_scores$score_adj < maxgoodscore) | none_g_scores$score_adj < minbadscore,]\n\n\nprint(paste("writing to ", outF, sep=""))\n\nwrite.table(rescued_good, outF, quote=FALSE, row.names = FALSE, col.names = FALSE, sep="\\t")\nwrite.table(rescued_bad, paste(outF, ".rejected", sep=""), quote=FALSE, row.names = FALSE, col.names = FALSE, sep="\\t")'
+#	str_script='library("gamlss")\n\nargs <- commandArgs(TRUE)\n\n\nsourceF=args[1]\naltSourceF= args[2]\noutF=args[3]\n\nprint(paste("reading in source table: ", args[1], sep=""))\na <- read.table(sourceF, sep="\\t", header=FALSE)\n\nnames(a) <- c("hitChr", "hitStart", "hitEnd", "mystery1", "mystery2", "hitStrand", "eVal", "score", "bias", "hitSpecies", "hitOg", "targetChr", "mystery3", "mystery4", "targetStart", "targetEnd", "mystery5", "mystery6", "targetStrand", "geneLabel", "targetSpecies", "targetOg", "match")\n\na <- cbind(a, score_adj=a$score/(a$hitEnd - a$hitStart))\n\nh <- hist(a$score_adj, breaks=50, plot=FALSE)\nb <- h$breaks\n\na_none <- a[a$match=="match_none",]\na_good <- a[a$match=="match_good",]\n\n#Declare variables\ng_good = ""\ng_bad = ""\n\ng_prob_good = ""\ng_prob_bad = "" \n\n# Sampling 1000 data points makes the curve-fitting quicker and hardly affects the fit.\ngetGamlss <- function(theData) { print(theData$t); theData_s <- as.data.frame(sample(theData$t, 1000)); colnames(theData_s) <- c("t"); gamlss(t ~ 1, data=theData_s, family="ST1", method=RS(), gd.tol=10000000, c.cyc=0.001, control=gamlss.control(n.cyc=200)) } \n\nif(nrow(a_good) > 1000) {\n\tprint("source table is good, going ahead...")\n\ta_bad_og <- a[a$match=="match_bad",]\n\ta_bad_singleton <- a[a$match=="match_singleton",]\n\ta_bad <- rbind(a_bad_og, a_bad_singleton)\n\n\tprint("fitting good hits")\n\tgoodScores=as.data.frame(a_good$score_adj); colnames(goodScores) <- c("t")\n\t\n\tg_good <- getGamlss(goodScores)\n\tprint("fitting bad hits")\
+#\n\tbadScores=as.data.frame(a_bad$score_adj); colnames(badScores) <- c("t")\n\tg_bad <- getGamlss(badScores)\n\t\n\tg_prob_good =  nrow(a_good) / (nrow(a_bad) + nrow(a_good))\n\tg_prob_bad =  1 - g_prob_good\n\n} else {\n\tprint("source table too sparse, using aggregate distribution")\n\tz = read.table(altSourceF, sep="\\t", header=FALSE)\n\n\tnames(z) <- c("hitChr", "hitStart", "hitEnd", "mystery1", "mystery2", "hitStrand", "eVal", "score", "bias", "hitSpecies", "hitOg", "targetChr", "mystery3", "mystery4", "targetStart", "targetEnd", "mystery5", "mystery6", "targetStrand", "geneLabel", "targetSpecies", "targetOg", "match")\n\n\tz <- cbind(z, score_adj=z$score/(z$hitEnd - z$hitStart))\n\t\n\tz_good <- z[z$match=="match_good",]\n\tz_bad_og <- z[z$match=="match_bad",]\n	z_bad_singleton <- z[z$match=="match_singleton",]\n\tz_bad <- rbind(z_bad_og, z_bad_singleton)\n\n\tprint("fitting good hits")\t\n\tgoodScores=as.data.frame(z_good$score_adj); colnames(goodScores) <- c("t")\n	g_good <- getGamlss(goodScores)\n	\tprint("fitting bad hits")\n\tbadScores=as.data.frame(z_bad$score_adj); colnames(badScores) <- c("t")\n	g_bad <- getGamlss(badScores)\n\n	g_prob_good =  nrow(z_good) / (nrow(z_bad) + nrow(z_good))\n	g_prob_bad =  1 - g_prob_good\n\n}\n\nxg_fun <- function(x) { k=dST1(x, mu=g_good$mu.coefficients ,sigma=exp(g_good$sigma.coefficients), nu=g_good$nu.coefficients, tau=exp(g_good$tau.coefficients)) }\nxb_fun <- function(x) { k=dST1(x, mu=g_bad$mu.coefficients ,sigma=exp(g_bad$sigma.coefficients), nu=g_bad$nu.coefficients, tau=exp(g_bad$tau.coefficients)) }\n\ng_val <- function(x) { (xg_fun(x)*g_prob_good - xb_fun(x)*g_prob_bad) / (g_prob_good*xg_fun(x) + g_prob_bad*xb_fun(x)) }\n\nnone_g_scores = cbind(a_none, g_val=g_val(a_none$score_adj))\nnone_good = none_g_scores[none_g_scores$g_val >= 0,]\nnone_bad = none_g_scores[none_g_scores$g_val < 0,]\n\nprint(paste("writing to ", outF, sep=""))\n\nwrite.table(none_good, outF, quote=FALSE, row.names = FALSE, col.names = FALSE, sep="\\t")\nwrite.table(none_bad, paste(outF, ".rejected", sep=""), quote=FALSE, row.names = FALSE, col.names = FALSE, sep="\\t")'
 	f=open(path_scriptDestination, "w")
 	f.write(str_script)
 
 def unpackFitDistributionScript_noFilter(path_scriptDestination):
-	str_script='library("gamlss")\n\nargs <- commandArgs(TRUE)\n#args=c("all_coverage_annotated.orthogroupintersection.Ashgo1_1_GeneCatalog_proteins_20140830.aa.fasta.bed.hitTypes.new.tmp")\n\nsourceF=args[1]\naltSourceF= args[2]\noutF=args[3]\n\nprint(paste("reading in source table: ", args[1], sep=""))\na <- read.table(sourceF, sep="\\t", header=FALSE)\n\nnames(a) <- c("hitChr", "hitStart", "hitEnd", "mystery1", "mystery2", "hitStrand", "eVal", "score", "bias", "hitSpecies", "hitOg", "targetChr", "mystery3", "mystery4", "targetStart", "targetEnd", "mystery5", "mystery6", "targetStrand", "geneLabel", "targetSpecies", "targetOg", "match")\n\na <- cbind(a, score_adj=a$score/(a$hitEnd - a$hitStart))\n\nh <- hist(a$score_adj, breaks=50, plot=FALSE)\nb <- h$breaks\n\na_none <- a[a$match=="match_none",]\na_good <- a[a$match=="match_good",]\n\n#Declare variables\ng_good = ""\ng_bad = ""\n\ng_prob_good = ""\ng_prob_bad = "" \n\n# Sampling 1000 data points makes the curve-fitting quicker and hardly affects the fit.\n#getGamlss <- function(theData) { print(theData$t); theData_s <- as.data.frame(sample(theData$t, 1000)); colnames(theData_s) <- c("t"); gamlss(t ~ 1, data=theData_s, family="ST1", method=RS(), gd.tol=10000000, c.cyc=0.001, control=gamlss.control(n.cyc=200)) } \ngetGamlss <- function(theData) {}\n\nif(nrow(a_good) > 1000) {\n\tprint("source table is good, going ahead...")\n\ta_bad_og <- a[a$match=="match_bad",]\n\ta_bad_singleton <- a[a$match=="match_singleton",]\n\ta_bad <- rbind(a_bad_og, a_bad_singleton)\n\n\tprint("fitting good hits")\n\tgoodScores=as.data.frame(a_good$score_adj); colnames(goodScores) <- c("t")\n\t\n\tg_good <- getGamlss(goodScores)\n\tprint("fitting bad hits")\
-		\n\tbadScores=as.data.frame(a_bad$score_adj); colnames(badScores) <- c("t")\n\tg_bad <- getGamlss(badScores)\n\t\n\tg_prob_good =  nrow(a_good) / (nrow(a_bad) + nrow(a_good))\n\tg_prob_bad =  1 - g_prob_good\n\n} else {\n\tprint("source table too sparse, using aggregate distribution")\n\tz = read.table(altSourceF, sep="\\t", header=FALSE)\n\n\tnames(z) <- c("hitChr", "hitStart", "hitEnd", "mystery1", "mystery2", "hitStrand", "eVal", "score", "bias", "hitSpecies", "hitOg", "targetChr", "mystery3", "mystery4", "targetStart", "targetEnd", "mystery5", "mystery6", "targetStrand", "geneLabel", "targetSpecies", "targetOg", "match")\n\n\tz <- cbind(z, score_adj=z$score/(z$hitEnd - z$hitStart))\n\t\n\tz_good <- z[z$match=="match_good",]\n\tz_bad_og <- z[z$match=="match_bad",]\n	z_bad_singleton <- z[z$match=="match_singleton",]\n\tz_bad <- rbind(z_bad_og, z_bad_singleton)\n\n\tprint("fitting good hits")\t\n\tgoodScores=as.data.frame(z_good$score_adj); colnames(goodScores) <- c("t")\n	g_good <- getGamlss(goodScores)\n	\tprint("fitting bad hits")\n\tbadScores=as.data.frame(z_bad$score_adj); colnames(badScores) <- c("t")\n	g_bad <- getGamlss(badScores)\n\n	g_prob_good =  nrow(z_good) / (nrow(z_bad) + nrow(z_good))\n	g_prob_bad =  1 - g_prob_good\n\n}\n\nnone_good = a_none\n\nprint(paste("writing to ", outF, sep=""))\n\nwrite.table(none_good, outF, quote=FALSE, row.names = FALSE, col.names = FALSE, sep="\\t")\n'
+	str_script='library("gamlss")\n\nargs <- commandArgs(TRUE)\n\n\nsourceF=args[1]\naltSourceF= args[2]\noutF=args[3]\n\nprint(paste("reading in source table: ", args[1], sep=""))\na <- read.table(sourceF, sep="\\t", header=FALSE)\n\nnames(a) <- c("hitChr", "hitStart", "hitEnd", "mystery1", "mystery2", "hitStrand", "eVal", "score", "bias", "hitSpecies", "hitOg", "targetChr", "mystery3", "mystery4", "targetStart", "targetEnd", "mystery5", "mystery6", "targetStrand", "geneLabel", "targetSpecies", "targetOg", "match")\n\na <- cbind(a, score_adj=a$score/(a$hitEnd - a$hitStart))\n\nh <- hist(a$score_adj, breaks=50, plot=FALSE)\nb <- h$breaks\n\na_none <- a[a$match=="match_none",]\na_good <- a[a$match=="match_good",]\n\n#Declare variables\ng_good = ""\ng_bad = ""\n\ng_prob_good = ""\ng_prob_bad = "" \n\n# Sampling 1000 data points makes the curve-fitting quicker and hardly affects the fit.\n#getGamlss <- function(theData) { print(theData$t); theData_s <- as.data.frame(sample(theData$t, 1000)); colnames(theData_s) <- c("t"); gamlss(t ~ 1, data=theData_s, family="ST1", method=RS(), gd.tol=10000000, c.cyc=0.001, control=gamlss.control(n.cyc=200)) } \ngetGamlss <- function(theData) {}\n\nif(nrow(a_good) > 1000) {\n\tprint("source table is good, going ahead...")\n\ta_bad_og <- a[a$match=="match_bad",]\n\ta_bad_singleton <- a[a$match=="match_singleton",]\n\ta_bad <- rbind(a_bad_og, a_bad_singleton)\n\n\tprint("fitting good hits")\n\tgoodScores=as.data.frame(a_good$score_adj); colnames(goodScores) <- c("t")\n\t\n\tg_good <- getGamlss(goodScores)\n\tprint("fitting bad hits")\n\tbadScores=as.data.frame(a_bad$score_adj); colnames(badScores) <- c("t")\n\tg_bad <- getGamlss(badScores)\n\t\n\tg_prob_good =  nrow(a_good) / (nrow(a_bad) + nrow(a_good))\n\tg_prob_bad =  1 - g_prob_good\n\n} else {\n\tprint("source table too sparse, using aggregate distribution")\n\tz = read.table(altSourceF, sep="\\t", header=FALSE)\n\n\tnames(z) <- c("hitChr", "hitStart", "hitEnd", "mystery1", "mystery2", "hitStrand", "eVal", "score", "bias", "hitSpecies", "hitOg", "targetChr", "mystery3", "mystery4", "targetStart", "targetEnd", "mystery5", "mystery6", "targetStrand", "geneLabel", "targetSpecies", "targetOg", "match")\n\n\tz <- cbind(z, score_adj=z$score/(z$hitEnd - z$hitStart))\n\t\n\tz_good <- z[z$match=="match_good",]\n\tz_bad_og <- z[z$match=="match_bad",]\n     z_bad_singleton <- z[z$match=="match_singleton",]\n\tz_bad <- rbind(z_bad_og, z_bad_singleton)\n\n\tprint("fitting good hits")\t\n\tgoodScores=as.data.frame(z_good$score_adj); colnames(goodScores) <- c("t")\n        g_good <- getGamlss(goodScores)\n       \tprint("fitting bad hits")\n\tbadScores=as.data.frame(z_bad$score_adj); colnames(badScores) <- c("t")\n        g_bad <- getGamlss(badScores)\n\n       g_prob_good =  nrow(z_good) / (nrow(z_bad) + nrow(z_good))\n    g_prob_bad =  1 - g_prob_good\n\n}\n\nnone_good = a_none\n\nprint(paste("writing to ", outF, sep=""))\n\nwrite.table(none_good, outF, quote=FALSE, row.names = FALSE, col.names = FALSE, sep="\\t")\nwrite.table(none_bad, paste(outF, ".rejected", sep=""), quote=FALSE, row.names = FALSE, col.names = FALSE, sep="\\t")'
+#	str_script='library("gamlss")\n\nargs <- commandArgs(TRUE)\n\n\nsourceF=args[1]\naltSourceF= args[2]\noutF=args[3]\n\nprint(paste("reading in source table: ", args[1], sep=""))\na <- read.table(sourceF, sep="\\t", header=FALSE)\n\nnames(a) <- c("hitChr", "hitStart", "hitEnd", "mystery1", "mystery2", "hitStrand", "eVal", "score", "bias", "hitSpecies", "hitOg", "targetChr", "mystery3", "mystery4", "targetStart", "targetEnd", "mystery5", "mystery6", "targetStrand", "geneLabel", "targetSpecies", "targetOg", "match")\n\na <- cbind(a, score_adj=a$score/(a$hitEnd - a$hitStart))\n\nh <- hist(a$score_adj, breaks=50, plot=FALSE)\nb <- h$breaks\n\na_none <- a[a$match=="match_none",]\na_good <- a[a$match=="match_good",]\n\n#Declare variables\ng_good = ""\ng_bad = ""\n\ng_prob_good = ""\ng_prob_bad = "" \n\n# Sampling 1000 data points makes the curve-fitting quicker and hardly affects the fit.\n#getGamlss <- function(theData) { print(theData$t); theData_s <- as.data.frame(sample(theData$t, 1000)); colnames(theData_s) <- c("t"); gamlss(t ~ 1, data=theData_s, family="ST1", method=RS(), gd.tol=10000000, c.cyc=0.001, control=gamlss.control(n.cyc=200)) } \ngetGamlss <- function(theData) {}\n\nif(nrow(a_good) > 1000) {\n\tprint("source table is good, going ahead...")\n\ta_bad_og <- a[a$match=="match_bad",]\n\ta_bad_singleton <- a[a$match=="match_singleton",]\n\ta_bad <- rbind(a_bad_og, a_bad_singleton)\n\n\tprint("fitting good hits")\n\tgoodScores=as.data.frame(a_good$score_adj); colnames(goodScores) <- c("t")\n\t\n\tg_good <- getGamlss(goodScores)\n\tprint("fitting bad hits")\
+#\n\tbadScores=as.data.frame(a_bad$score_adj); colnames(badScores) <- c("t")\n\tg_bad <- getGamlss(badScores)\n\t\n\tg_prob_good =  nrow(a_good) / (nrow(a_bad) + nrow(a_good))\n\tg_prob_bad =  1 - g_prob_good\n\n} else {\n\tprint("source table too sparse, using aggregate distribution")\n\tz = read.table(altSourceF, sep="\\t", header=FALSE)\n\n\tnames(z) <- c("hitChr", "hitStart", "hitEnd", "mystery1", "mystery2", "hitStrand", "eVal", "score", "bias", "hitSpecies", "hitOg", "targetChr", "mystery3", "mystery4", "targetStart", "targetEnd", "mystery5", "mystery6", "targetStrand", "geneLabel", "targetSpecies", "targetOg", "match")\n\n\tz <- cbind(z, score_adj=z$score/(z$hitEnd - z$hitStart))\n\t\n\tz_good <- z[z$match=="match_good",]\n\tz_bad_og <- z[z$match=="match_bad",]\n	z_bad_singleton <- z[z$match=="match_singleton",]\n\tz_bad <- rbind(z_bad_og, z_bad_singleton)\n\n\tprint("fitting good hits")\t\n\tgoodScores=as.data.frame(z_good$score_adj); colnames(goodScores) <- c("t")\n	g_good <- getGamlss(goodScores)\n	\tprint("fitting bad hits")\n\tbadScores=as.data.frame(z_bad$score_adj); colnames(badScores) <- c("t")\n	g_bad <- getGamlss(badScores)\n\n	g_prob_good =  nrow(z_good) / (nrow(z_bad) + nrow(z_good))\n	g_prob_bad =  1 - g_prob_good\n\n}\n\nnone_good = a_none\n\nprint(paste("writing to ", outF, sep=""))\n\nwrite.table(none_good, outF, quote=FALSE, row.names = FALSE, col.names = FALSE, sep="\\t")\nwrite.table(none_bad, paste(outF, ".rejected", sep=""), quote=FALSE, row.names = FALSE, col.names = FALSE, sep="\\t")'
 	f=open(path_scriptDestination, "w")
 	f.write(str_script)
 
@@ -1857,6 +1849,11 @@ def checkSequences(path_gff, path_cds, path_aa):
 	if res != "":
 		sys.exit(res)
 
+def grabBasicInfo(line, sptype):
+	gff    = checkFileExists(line[0])
+	genome = checkFileExists(line[1])
+	return {"gff": gff, "genome": genome, "type": sptype}
+
 def prepareFromScratch(path_infile, path_outDir, int_cores, path_refFile = ""):
 	#Pull out Gtf files, extract dna and then rna
 	#Then run orthofinder
@@ -1864,8 +1861,8 @@ def prepareFromScratch(path_infile, path_outDir, int_cores, path_refFile = ""):
 	path_seqDir = makeIfAbsent(path_outDir + "/sequences")
 	path_cdsDir = makeIfAbsent(path_seqDir + "/cds")
 	path_aaDir  = makeIfAbsent(path_seqDir + "/aa")
-	path_speciesInfoFile=path_seqDir + "/inputs.csv"
-	path_refInfoFile = path_seqDir + "/inputs.ref.csv"
+	path_speciesInfoFile = path_seqDir + "/inputs.csv"
+	path_refInfoFile     = path_seqDir + "/inputs.ref.csv"
 	dict_basicInfo={}
 	data = readCsv(path_infile)
 	if useReference: rel = readCsv(path_refFile)
@@ -1873,47 +1870,36 @@ def prepareFromScratch(path_infile, path_outDir, int_cores, path_refFile = ""):
 		if not ''.join(line).strip(): continue
 		# Use genome name as key in dictionary
 		key = os.path.basename(line[1])
-		dict_basicInfo[key]={}
-		dict_basicInfo[key]["gff"]	= checkFileExists(line[0])
-		dict_basicInfo[key]["genome"]	= checkFileExists(line[1])
-		dict_basicInfo[key]["type"]     = "target"
+		dict_basicInfo[key] = grabBasicInfo(line, "target")
 	if useReference:
 		for line in rel:
 			if not ''.join(line).strip(): continue
 			key = os.path.basename(line[1])
-			dict_basicInfo[key]={}
-			dict_basicInfo[key]["gff"]      = checkFileExists(line[0])
-			dict_basicInfo[key]["genome"]   = checkFileExists(line[1])
-			dict_basicInfo[key]["type"]	= "reference"
-	with open(path_speciesInfoFile, "w") as f:
-		writer = csv.writer(f, delimiter = '\t',quoting = csv.QUOTE_NONE, quotechar='')
-		writer.writerow(["#protein", "gff", "genome", "cds"])
-	with open(path_refInfoFile, "w") as f:
-		writer = csv.writer(f, delimiter = '\t',quoting = csv.QUOTE_NONE, quotechar='')
-                writer.writerow(["#protein", "gff", "genome", "cds"])
+			dict_basicInfo[key] = grabBasicInfo(line, "reference")
+	spInfo  = [["#protein", "gff", "genome", "cds"]]
+	refInfo = [["#protein", "gff", "genome", "cds"]]
 	jobs=[]
 	for key in dict_basicInfo:
-		path_gffIn=dict_basicInfo[key]["gff"]
-		path_genome=dict_basicInfo[key]["genome"]
-		path_cdsFastaOut=path_cdsDir+"/"+key+".cds.fasta"
-		path_aaFastaOut=path_aaDir+"/"+key+".aa.fasta"
+		path_gffIn       = dict_basicInfo[key]["gff"]
+		path_genome      = dict_basicInfo[key]["genome"]
+		path_cdsFastaOut = path_cdsDir+"/"+key+".cds.fasta"
+		path_aaFastaOut  = path_aaDir+"/"+key+".aa.fasta"
 		if dict_basicInfo[key]["type"] == "target":
-			with open(path_speciesInfoFile, "a") as f:
-				writer = csv.writer(f, delimiter = '\t',quoting = csv.QUOTE_NONE, quotechar='')
-				writer.writerow([path_aaFastaOut, path_gffIn, path_genome, path_cdsFastaOut])
+			spInfo += [[path_aaFastaOut, path_gffIn, path_genome, path_cdsFastaOut]]
 		else:
-			with open(path_refInfoFile, "a") as f:
-                                writer = csv.writer(f, delimiter = '\t',quoting = csv.QUOTE_NONE, quotechar='')
-                                writer.writerow([path_aaFastaOut, path_gffIn, path_genome, path_cdsFastaOut])
+			refInfo += [[path_aaFastaOut, path_gffIn, path_genome, path_cdsFastaOut]]
 		jobs.append([prepareSpecies, (path_gffIn, path_genome, path_cdsFastaOut, path_aaFastaOut)])
 	runJobs(jobs, int_cores)
+	writeCsv(spInfo, path_speciesInfoFile)
+	writeCsv(refInfo, path_refInfoFile)
+	# Run orthofinder on the newly extracted proteomes
 	for path_file in glob.glob(path_aaDir + "/Results*"):
 		deleteIfPresent(path_file)
 	runOrthoFinder(path_aaDir, int_cores)
+	# Grab the output files from orthofinder
 	path_orthoFinderOutputFile	= getOrthogroupsFile(path_aaDir)
 	path_singletonsFile		= getSingletonsFile(path_aaDir)
-	if not useReference:
-		path_refInfoFile == ""
+	if not useReference: path_refInfoFile == ""
 	return path_speciesInfoFile, path_orthoFinderOutputFile, path_singletonsFile, path_refInfoFile
 
 def prepareSpecies(path_gffIn, path_genome, path_cdsFastaOut, path_aaFastaOut):
@@ -1948,6 +1934,26 @@ def runOrthoFinder(path_aaDir, int_cores=16):
 ####################################
 ############ Utilities #############
 ####################################
+
+def readCsv(path_csv):
+	with open(path_csv, "r") as p:
+		data = list(csv.reader((row for row in p if not row.startswith('#')), delimiter="\t"))
+	return data
+
+def writeCsv(data, path_csv):
+	with open(path_csv, "w") as f:
+		writer = csv.writer(f, delimiter = '\t',quoting = csv.QUOTE_NONE, quotechar='')
+		writer.writerows(data)
+
+def move(path_orig, path_target):
+	callFunction("mv " + path_orig + " " + path_target)
+	
+def concatFiles(str_patt, path_outfile, removeOrig=False):
+	with open(path_outfile,'wb') as o:
+		for path_indi in glob.glob(str_patt):
+			with open(path_indi,'rb') as p:
+				shutil.copyfileobj(p, o)
+			if removeOrig: os.remove(path_indi)
 
 def merge_dicts(*dict_args):
 	"""
@@ -2037,12 +2043,13 @@ def makeIfAbsent(path_dir):
 		return path_dir
 	except OSError as exc:  # Python >2.5
 		if exc.errno == errno.EEXIST and os.path.isdir(path_dir):
-			pass
+			return path_dir
 		else:
 			raise
 
 def blankFile(path_file):
 	open(path_file,"w").close()
+	return path_file
 
 def appendFileToFile(path_source, path_dest):
 	with open(path_dest, "a") as f:
@@ -2112,7 +2119,6 @@ if __name__ == '__main__':
 	
 	print("\n0.2. Checking and unpacking input data")
 	print(  "======================================")
-
 	path_resultsDir, path_wDir = prepareOutputFolder(path_outDir)
 	
 	#If the data isn't pre-prepared, we must prepare it.
