@@ -138,7 +138,6 @@ def callFunction(str_function):
 def callFunctionQuiet(str_function):
 	"""Call a function in the shell, but suppress output.
 	"""
-	#callFunction(str)
 	with open(os.devnull, 'w') as FNULL:
 		subprocess.call([str_function], shell = True, stdout=FNULL, stderr=subprocess.STDOUT)
 
@@ -148,73 +147,65 @@ def callFunctionMezzoPiano(str_function):
 	with open(os.devnull, 'w') as FNULL:
 		subprocess.call([str_function], shell = True, stdout=FNULL)
 
+def check(boolVal, trueMsg=" - ok", falseMsg=" - failed", trueExtra="", falseExtra=""):
+	if boolVal:
+		print trueMsg;
+		if trueExtra: print trueExtra
+		return True
+	else:
+		print falseMsg;
+		if falseExtra: print falseExtra
+		return False
+
+
 def CanRunCommand(command, qAllowStderr = False):
 	sys.stdout.write("Test can run \"%s\"" % command)
 	capture = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 	stdout = [x for x in capture.stdout]
 	stderr = [x for x in capture.stderr]
-	if len(stdout) > 0 and (qAllowStderr or len(stderr) == 0):
-		print(" - ok")
+	return check(len(stdout) > 0 and (qAllowStderr or len(stderr) == 0))
+
+def canRunSpecific(line, lineFormatted):
+	if CanRunCommand(line):
 		return True
 	else:
-		print(" - failed")
+		print("ERROR: Cannot run " + lineFormatted)
+		print("    Please check "+ lineFormatted +" is installed and that the executables are in the system path\n")
 		return False
 
 def CanRunMinusH(package, packageFormatted):
-	if CanRunCommand(package + " -h"):
-		return True
-	else:
-		print("ERROR: Cannot run " + packageFormatted)
-		print("    Please check "+ packageFormatted +" is installed and that the executables are in the system path\n")
-		return False
+	return canRunSpecific(package + " -h", packageFormatted)
 
 def CanRunHelp(package, packageFormatted):
-	if CanRunCommand(package + " -help"):
-                return True
-        else:
-                print("ERROR: Cannot run " + packageFormatted)
-                print("    Please check "+ packageFormatted +" is installed and that the executables are in the system path\n")
-                return False
+	return canRunSpecific(package + " -help", packageFormatted)
 
 def CanRunMan(package, packageFormatted):
-        if CanRunCommand("man " + package):
-                return True
-        else:
-                print("ERROR: Cannot run " + packageFormatted)
-                print("    Please check "+ packageFormatted +" is installed and that the executables are in the system path\n")
-                return False
+        return canRunSpecific("man " + package, packageFormatted)
 
 def CanRunBlank(package, packageFormatted):
-        if CanRunCommand(package):
-                return True
-        else:
-                print("ERROR: Cannot run " + packageFormatted)
-                print("    Please check "+ packageFormatted +" is installed and that the executables are in the system path\n")
-                return False
+	return canRunSpecific(package, packageFormatted)
 
 def CanRunOrthoFinder():
+	success = False
 	if "ORTHOFINDER_DIR" in os.environ:
-		return CanRunCommand("python " + os.environ["ORTHOFINDER_DIR"] + "/orthofinder.py -h")	
+		success = CanRunCommand("python " + os.environ["ORTHOFINDER_DIR"] + "/orthofinder.py -h")	
         elif os.path.isfile(os.path.dirname(os.path.abspath(__file__)) + "/orthofinder.py"):
-		return CanRunCommand("python " + os.path.dirname(os.path.abspath(__file__)) + "/orthofinder.py -h ")
+		success =  CanRunCommand("python " + os.path.dirname(os.path.abspath(__file__)) + "/orthofinder.py -h ")
         elif os.path.isfile("orthofinder.py"):
-                return CanRunCommand("python orthofinder.py -h")
+                success =  CanRunCommand("python orthofinder.py -h")
         else:
-                return CanRunCommand("orthofinder -h")	
+                success =  CanRunCommand("orthofinder -h")
+	if not success:
+		print("    Cannot find the orthofinder.py file. Either\n        1) Set the orthofinder location as an environment variable using \"export ORTHOFINDER_DIR=dir\", where dir is the path to the directory containing orthofinder.py\n        2) include orthofinder.py in the same directory as OrthoFiller; or\n        3) install an orthofinder executable in your system PATH\n    Orthofinder can be downloaded from https://github.com/davidemms/OrthoFinder")
+	return success
 
 def CanRunAwk():
 	sys.stdout.write("Test can run \"awk '{print 4 + 5}'\"")
 	path_tf = tempfile.mktemp()
-	with open(path_tf, "w") as f:
-		f.write("a")
-	a=commands.getstatusoutput("awk '{print 4 + 5}' " + path_tf)[1]
+	write("a", path_tf)
+	a = commands.getstatusoutput("awk '{print 4 + 5}' " + path_tf)[1]
 	os.remove(path_tf)
-	if a == "9":
-		print(" - ok")
-		return True
-	else:
-		print(" - failed")
-		return False
+	return check(a == "9")
 
 def CanRunMafft():
 	sys.stdout.write("Test can run \"mafft\"")
@@ -227,35 +218,17 @@ def CanRunMafft():
 		a=g.read()
 	os.remove(path_tf)
 	os.remove(path_tf2)
-	if not a == ">1\nAAABBBCCCDDD\n>2\nAAA---CCCDDD\n":
-                print(" - failed")
-		return False
-	else:
-		print(" - ok")
-		return True
+	return check(a == ">1\nAAABBBCCCDDD\n>2\nAAA---CCCDDD\n")
 
 def CanRunGeneric(package, packageFormatted):
 	sys.stdout.write("Test can run \"" + package + "\"")
 	runit = subprocess.call("type " + package, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE) == 0
-	if runit:
-                print(" - ok")
-                return True
-        else:
-                print(" - failed")
-		print("ERROR: Cannot run " + packageFormatted)
-                print("    Please check "+ packageFormatted +" is installed and that the executables are in the system path\n")
-                return False
+	return check(runit, falseExtra="ERROR: Cannot run " + packageFormatted+"\n    Please check "+ packageFormatted +" is installed and that the executables are in the system path\n")
 		
 def CanRunAugTrain():
 	sys.stdout.write("Test can run \"autoAugTrain.pl\"")
 	runit = subprocess.call("type " + "autoAugTrain.pl", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE) == 0
-	if runit:
-		print(" - ok")
-		return True
-	else:
-		print(" - failed")
-		print("    The path to the AUGUSTUS scripts folder must be exported into the path before running, i.e.\n        export PATH=$PATH:path_to_aug_scripts_folder")
-		return False
+	return check(runit, falseExtra="    The path to the AUGUSTUS scripts folder must be exported into the path before running, i.e.\n        export PATH=$PATH:path_to_aug_scripts_folder")
 
 def CanRunR():
 	sys.stdout.write("Test can run \"R, Rscript\"")
@@ -372,58 +345,30 @@ def CanRunBedTools():
 	except ValueError:
 		callFunction("rm -r " + path_td)
 		print(" - fail")
+		print("The version of BedTools you're using is causing problems with OrthoFiller.\nSometimes BedTools updates prevent BedTools itself from running properly.\nTry downloading bedtools v2.25.0 and run OrthoFiller again.")
 		return False
 
 def checkShell():
 	""" Run quick checks to ensure the relevant packages are installed, and that they do
 		the things we need them to do (applies in particular to bedtools and to R).
-		- perl
-		- awk
-		- sed
-		- echo
-		- cut
-		- sort
-		- grep
-		- tac/cat
-		- R/Rscript
-		- hmmbuild/nhmmer/makehmmerdb
+		- perl          - awk          -orthofinder
+		- echo          - sed          - bedtools
+		- cut           - grep         - R/Rscript
+		- sort          -tac/cat       - hmmer/hmmbuild
 		- augustus/autoAugTrain.pl
-		- orthofinder
-		- bedtools
 		"""
 	checks = []
+	for program in ["sed", "echo", "cut", "sort", "grep", "uniq", "tac", "cat", "Rscript", "mktemp"]:
+		checks.append(CanRunMan(program, program))
+	for program in ["nhmmer", "hmmbuild", "makehmmerdb", "bedtools", "mcl"]:
+		checks.append(CanRunMinusH(program, program))
 	checks.append(CanRunMinusH("perl", "PERL"))
-	checks.append(CanRunMan("sed", "sed"))
-	checks.append(CanRunMan("echo", "echo"))
-	checks.append(CanRunMan("cut", "cut"))
-	checks.append(CanRunMan("sort", "sort"))
-	checks.append(CanRunMan("grep", "grep"))
-	checks.append(CanRunMan("uniq", "uniq"))
-	checks.append(CanRunMan("tac", "tac"))
-	checks.append(CanRunMan("cat", "cat"))
-	checks.append(CanRunMan("Rscript", "Rscript"))
-	checks.append(CanRunMinusH("nhmmer", "nhmmer"))
-	checks.append(CanRunMinusH("hmmbuild", "hmmbuild"))
-	checks.append(CanRunMinusH("makehmmerdb", "makehmmerdb"))
 	checks.append(CanRunMinusH("makeblastdb", "blast+"))
-	checks.append(CanRunMinusH("bedtools", "bedtools"))
 	checks.append(CanRunBlank("augustus", "augustus"))
-	checks.append(CanRunAugTrain())
-	checks.append(CanRunMan("mktemp", "mktemp"))
-	checks.append(CanRunAwk())
-	checks.append(CanRunR())
-	checks.append(CanRunMafft())
-	checks.append(CanRunMinusH("mcl", "mcl"))
 	#Check presence of orthofinder
-	ortho=CanRunOrthoFinder()
-	checks.append(ortho)
-	if not ortho:
-		print("    Cannot find the orthofinder.py file. Either\n        1) Set the orthofinder location as an environment variable using \"export ORTHOFINDER_DIR=dir\", where dir is the path to the directory containing orthofinder.py\n        2) include orthofinder.py in the same directory as OrthoFiller; or\n        3) install an orthofinder executable in your system PATH\n    Orthofinder can be downloaded from https://github.com/davidemms/OrthoFinder")
+	checks += [CanRunAwk(), CanRunR(), CanRunMafft(), CanRunAugTrain(), CanRunOrthoFinder(), CanRunBedTools()]
 	if not all(checks):
 		print("\nSome programs required to run orthoFiller are not installed or are not callable.\nPlease ensure all of the above programs are installed and in the system path.")
-		sys.exit()
-	if not CanRunBedTools():
-		print("The version of BedTools you're using is causing problems with OrthoFiller.\nSometimes BedTools updates prevent BedTools itself from running properly.\nTry downloading bedtools v2.25.0 and run OrthoFiller again.")
 		sys.exit()
 
 ########################################################
@@ -556,10 +501,7 @@ def readInputIndividual(line, dict_speciesInfo):
 
 def gffsForOrthoGroups(path_ogGtfDir, path_orthogroups, path_singletons, dict_speciesInfo, int_cores):
 	b=[]; bs=[]
-	with open(path_orthogroups) as f:
-		b = list(csv.reader(f, delimiter="\t"))
-	with open(path_singletons) as f:
-		bs = list(csv.reader(f, delimiter="\t"))
+	b = readCsv(path_orthogroups); 	bs = readCsv(path_singletons)
 	speciesList_og		= b[0]
 	speciesList_original    = list(dict_speciesInfo.keys())
 	speciesList_useful	= convertOrthoFinderSpeciesNames(speciesList_og, speciesList_original)
@@ -567,9 +509,7 @@ def gffsForOrthoGroups(path_ogGtfDir, path_orthogroups, path_singletons, dict_sp
 	jobs=[]
 	for i in range(1,len(speciesList_useful)):
 		str_species=speciesList_useful[i]
-		a=[];
-		with open(dict_speciesInfo[str_species]["gff"]) as f:
-			a = list(csv.reader(f, delimiter="\t"))
+		a = readCsv(dict_speciesInfo[str_species]["gff"])
 		print("Extracting orthogroup and singleton gtf files for " + str_species)
 		jobs.append([gffsForGroups, (a, orthogroups, path_ogGtfDir, str_species, "_orthoProtein.gtf", i)])
 		jobs.append([gffsForGroups, (a, singletons, path_ogGtfDir, str_species, "_singletonProtein.gtf", i)])
@@ -757,8 +697,7 @@ def makeProteinAlignment(path_proteinFastaFile, path_fastaOut):
 	# "auto" means l-ins-i is used when the protein set is small enough, FFT-NS2 otherwise.
 	alignment = MafftCommandline(input=path_proteinFastaFile, auto="on")
 	stdout, stderr = alignment()
-	with open(path_fastaOut, "w") as outHandle:
-		outHandle.write(stdout)
+	write(stdout, path_fastaOut)
 
 def getAlignmentStats(path_proteinAlignmentFastaFile):
 	"""Calculates some statistics on the alignment, specifically gap quantities.
@@ -1042,6 +981,7 @@ def runHmms(orthogroups, dict_speciesInfo, path_ogHmmDir, path_ogHitsDir, int_co
 					path_hitsFile = path_chrHitDir + "/" + orthogroup + "." + species + "." + chromosome + ".hits"
 					jobs[orthogroup] = [implementHmmSearch, (path_hmmFile, path_hmmdb, path_hitsFile, species, orthogroup)]
 				runAndTrackJobs(jobs, int_cores, "Chromosome/scaffold " + str_nChr + " of " + str(tChr) + ": ", False)
+			print("\n")
 		else:
 			path_hitDir = dict_speciesInfo[species]["hitDirs"][0]["hitDir"]
 			path_hmmdb = dict_speciesInfo[species]["hitDirs"][0]["hmmdb"]
@@ -1050,7 +990,7 @@ def runHmms(orthogroups, dict_speciesInfo, path_ogHmmDir, path_ogHitsDir, int_co
 				path_hitsFile = path_hitDir + "/" + orthogroup + "." + species + ".hits"
 				jobs[orthogroup] = [implementHmmSearch, (path_hmmFile, path_hmmdb, path_hitsFile, species, orthogroup)]
 			runAndTrackJobs(jobs, int_cores, "", True)
-		print("\n")
+			print("")
 
 def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_resultsDir, path_wDir, path_orthoFinderOutputFile, path_singletonsFile, int_cores=16, firstPass=False, augOnly=False, hitFilter=True, hintFilter=True, splitByChr=False):
 	"""Takes orthofinder output and a collection of genome info locations as input.
@@ -1062,10 +1002,7 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 	# don't want the first pass stuff to interfere with
 	# subsequent runs. So create a separate folder.
 	######################################################
-	if firstPass:
-		path_wDirS = makeIfAbsent(path_wDir + "/firstpass_working")
-	else:
-		path_wDirS = path_wDir
+	path_wDirS = makeIfAbsent(path_wDir + "/firstpass_working") if firstPass else path_wDir
 	#####################################################
 	# Set off the Augustus training
 	#####################################################
@@ -1935,15 +1872,19 @@ def runOrthoFinder(path_aaDir, int_cores=16):
 ############ Utilities #############
 ####################################
 
-def readCsv(path_csv):
+def readCsv(path_csv, ignoreHash=False):
 	with open(path_csv, "r") as p:
-		data = list(csv.reader((row for row in p if not row.startswith('#')), delimiter="\t"))
+		data = list(csv.reader((row for row in p if (ignoreHash or not row.startswith('#'))), delimiter="\t"))
 	return data
 
 def writeCsv(data, path_csv):
 	with open(path_csv, "w") as f:
 		writer = csv.writer(f, delimiter = '\t',quoting = csv.QUOTE_NONE, quotechar='')
 		writer.writerows(data)
+
+def write(strObj, path_file, tag="w"):
+	with open(path_file, tag) as f:
+		f.write(strObj)
 
 def move(path_orig, path_target):
 	callFunction("mv " + path_orig + " " + path_target)
