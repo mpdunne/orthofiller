@@ -1039,7 +1039,7 @@ def implementHmmSearch(path_hmmFile, path_db, path_hitsFile, species, orthogroup
 	"""
 	callFunctionMezzoPiano("nhmmer --tformat hmmerfm --dna --cpu 1 --tblout " + path_hitsFile + " " + 	path_hmmFile + " " + path_db) #qgr
 	path_hitsFileBed = path_hitsFile + ".bed"
-	makeBed(path_hitsFile, species, orthogroup, path_hitsFileBed)
+	makeBed(path_hitsFile, species, orthogroup, path_hitsFileBed, remove=True)
 
 def prepareHmmDbInfo(dict_speciesInfo, path_hmmDbDir, splitByChr):
 	"""Separate this out to make it easier to turn off hmmdb creation
@@ -1195,11 +1195,12 @@ def getBases(path_gtf, path_gtfBases):
 		entries[t_id][4] = max(coords[t_id])
 	writeCsv(entries.values(), path_gtfBases)
 
-def makeBed(path_hitsFile, species, orthogroup, path_hitsFileBed):
+def makeBed(path_hitsFile, species, orthogroup, path_hitsFileBed, remove = False):
 	callFunction("grep -v \"#\" " + path_hitsFile + " | sed -r \"s/ +/\t/g\" | cut -f1,7,8,12,13,14,15 | perl -ne \
                                 'chomp;@l=split; printf \"%s\\t%s\\t%s\\t.\\t.\\t%s\\t" + species + "\\t" + orthogroup +
                                 "\\n\", $l[0], ($l[1] + $l[2] - abs($l[1] - $l[2])) / 2, ($l[1] + $l[2] + abs($l[2] - $l[1])) / 2,\
-                                 join(\"\\t\", @l[3..6])' > " + path_hitsFileBed)	
+                                 join(\"\\t\", @l[3..6])' > " + path_hitsFileBed)
+	if remove: os.remove(path_hitsFile)
 
 def extractFromFastaByName(path_GtfFile, path_fastaFile, path_fastaOut):
 	with open(path_GtfFile, "r") as f:
