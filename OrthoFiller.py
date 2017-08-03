@@ -213,28 +213,28 @@ def canRunBedTools():
 		path_getFasta = path_td + "/getfasta.fa"
 		callFunctionMezzoPiano("infile=" +  path_mockGtf1 + "; outfile=" + path_getFasta + "; genome=" + path_mockGenome + """;
 			tf=`mktemp -d`
-			GtfCds="$tf/GtfCds"
-			GtfBed="$tf/GtfBed"
+			gtfCds="$tf/gtfCds"
+			gtfBed="$tf/gtfBed"
 
-			#Prepare the Gtf
-			#echo "preparing Gtf..."
-			grep -vP "^$" $infile | awk '$3=="CDS"' > $GtfCds
-			cut -f1-8 $GtfCds > $GtfBed.1
-			sed -r "s/.*transcript_id[ =]\\"?([^\\";]*)\\"?;?.*/\\1/g" $GtfCds > $GtfBed.2
-			paste $GtfBed.1 $GtfBed.2 | perl -ne 'chomp; @l=split; printf "$l[0]\\t%s\\t$l[4]\\t$l[8]\\t.\\t$l[6]\\n", $l[3]-1' | sort -u | sort -k1,1V -k2,2n > $GtfBed
+			#Prepare the gtf
+			#echo "preparing gtf..."
+			grep -vP "^$" $infile | awk '$3=="CDS"' > $gtfCds
+			cut -f1-8 $gtfCds > $gtfBed.1
+			sed -r "s/.*transcript_id[ =]\\"?([^\\";]*)\\"?;?.*/\\1/g" $gtfCds > $gtfBed.2
+			paste $gtfBed.1 $gtfBed.2 | perl -ne 'chomp; @l=split; printf "$l[0]\\t%s\\t$l[4]\\t$l[8]\\t.\\t$l[6]\\n", $l[3]-1' | sort -u | sort -k1,1V -k2,2n > $gtfBed
 			#Negative strand
 			#echo "negative strand..."
-			awk '$6=="-"' $GtfBed > $GtfBed.neg
-			bedtools getfasta -name -s -fullHeader -fi $genome -fo $GtfBed.neg.tab -bed $GtfBed.neg -tab
-			tac $GtfBed.neg.tab | awk '{a[$1]=a[$1]""$2} END {for (i in a) {print ">"i"\\n"a[i]}}' > $GtfBed.neg.fa
+			awk '$6=="-"' $gtfBed > $gtfBed.neg
+			bedtools getfasta -name -s -fullHeader -fi $genome -fo $gtfBed.neg.tab -bed $gtfBed.neg -tab
+			tac $gtfBed.neg.tab | awk '{a[$1]=a[$1]""$2} END {for (i in a) {print ">"i"\\n"a[i]}}' > $gtfBed.neg.fa
 
 			#Then positive strand
 			#echo "positive strand..."
-			awk '$6=="+"' $GtfBed > $GtfBed.pos
-			bedtools getfasta -name -s -fullHeader -fi $genome -fo $GtfBed.pos.tab -bed $GtfBed.pos -tab
-			cat $GtfBed.pos.tab | awk '{a[$1]=a[$1]""$2} END {for (i in a) {print ">"i"\\n"a[i]}}' > $GtfBed.pos.fa
+			awk '$6=="+"' $gtfBed > $gtfBed.pos
+			bedtools getfasta -name -s -fullHeader -fi $genome -fo $gtfBed.pos.tab -bed $gtfBed.pos -tab
+			cat $gtfBed.pos.tab | awk '{a[$1]=a[$1]""$2} END {for (i in a) {print ">"i"\\n"a[i]}}' > $gtfBed.pos.fa
 
-			cat $GtfBed.pos.fa $GtfBed.neg.fa | sed -r "s/^>(.*)$/£££>\\1###/g" | sed -r \"s/$/###/g\" | tr '\\n' ' ' | sed -r "s/£££/\\n/g" | sed -r "s/### //g" | grep -v XXX | grep -v "\*[A-Z]" | grep -v "###$" | sed -r "s/###/\\n/g" | grep -vP "^$" > $outfile
+			cat $gtfBed.pos.fa $gtfBed.neg.fa | sed -r "s/^>(.*)$/£££>\\1###/g" | sed -r \"s/$/###/g\" | tr '\\n' ' ' | sed -r "s/£££/\\n/g" | sed -r "s/### //g" | grep -v XXX | grep -v "\*[A-Z]" | grep -v "###$" | sed -r "s/###/\\n/g" | grep -vP "^$" > $outfile
 
 			#echo $tf
 			rm -r $tf
@@ -504,34 +504,34 @@ def prepareOutputFolder(path_outDir):
 	return path_resultsDir, path_wDir
 
 
-def checkChromosomes(path_Gtf, path_genome):
+def checkChromosomes(path_gtf, path_genome):
 	genomeChr = grabLines("grep \">\" " + path_genome + " | sed -r \"s/>//g\"")
-	gtfChr    = grabLines("cut -f1 " + path_Gtf + " | sort -u")
+	gtfChr    = grabLines("cut -f1 " + path_gtf + " | sort -u")
 	errMsg    = ""
 	if len(genomeChr) != len(set(genomeChr)):
 		errMsg += "Genome file $genome has duplicate chromosomes. Please adjust and try again."
 	if not all([g in genomeChr for g in gtfChr]):
-		errMsg += "\nGtf file " + path_Gtf + " contains coordinates that do not exist in genome file $genome. Please adjust and try again."
+		errMsg += "\nGtf file " + path_gtf + " contains coordinates that do not exist in genome file $genome. Please adjust and try again."
 	if errMsg: sys.exit(errMsg)
 
-def checkSequences(path_Gtf, path_cds, path_aa):
+def checkSequences(path_gtf, path_cds, path_aa):
 	cdsEntries = grabLines("grep \">\" " + path_cds + " | sed -r \"s/>//g\" | sort -u")
 	aaEntries  = grabLines("grep \">\" " + path_aa + " | sed -r \"s/>//g\" | sort -u")
-	gtfEntries = grabLines("cut -f9 " + path_Gtf + " | grep \"transcript_id\" | sed -r \"s:.*transcript_id[= ]\\\"([^\\\"]*)\\\".*:\\1:g\" | sort -u")
+	gtfEntries = grabLines("cut -f9 " + path_gtf + " | grep \"transcript_id\" | sed -r \"s:.*transcript_id[= ]\\\"([^\\\"]*)\\\".*:\\1:g\" | sort -u")
 	errMsg = ""
 	missingCds = [a for a in aaEntries if not a in cdsEntries]
 	if missingCds:
 		errMsg += str(len(missingCds)) + " entries from aa fasta file are missing in cds fasta file. Entries must be identically named."
 	missingAa = [a for a in aaEntries if not a in gtfEntries]
 	if missingAa:
-		errMsg += "\n"+str(len(missingCds)) + " entries from aa fasta file are missing in gtf file $Gtf. Gtf entries must have attribute 'transcript_id \\\"[sequence name]\\\";'."
+		errMsg += "\n"+str(len(missingCds)) + " entries from aa fasta file are missing in gtf file $gtf. gtf entries must have attribute 'transcript_id \\\"[sequence name]\\\";'."
 	if errMsg: sys.exit(errMsg)
 
 def grabBasicInfo(line, sptype):
 	return {"gtf": checkFileExists(line[0]), "genome": checkFileExists(line[1]), "type": sptype}
 
 def prepareFromScratch(path_infile, path_outDir, int_cores, path_refFile = ""):
-	#Pull out Gtf files, extract dna and then rna
+	#Pull out gtf files, extract dna and then rna
 	#Then run orthofinder
 	useReference = not path_refFile == ""
 	path_seqDir = makeIfAbsent(path_outDir + "/sequences")
@@ -556,33 +556,33 @@ def prepareFromScratch(path_infile, path_outDir, int_cores, path_refFile = ""):
 	refInfo = [["#protein", "gtf", "genome", "cds"]]
 	jobs=[]
 	for key in dict_basicInfo:
-		path_GtfIn       = dict_basicInfo[key]["gtf"]
+		path_gtfIn       = dict_basicInfo[key]["gtf"]
 		path_genome      = dict_basicInfo[key]["genome"]
 		path_cdsFastaOut = path_cdsDir+"/"+key+".cds.fasta"
 		path_aaFastaOut  = path_aaDir+"/"+key+".aa.fasta"
 		if dict_basicInfo[key]["type"] == "target":
-			spInfo += [[path_aaFastaOut, path_GtfIn, path_genome, path_cdsFastaOut]]
+			spInfo += [[path_aaFastaOut, path_gtfIn, path_genome, path_cdsFastaOut]]
 		else:
-			refInfo += [[path_aaFastaOut, path_GtfIn, path_genome, path_cdsFastaOut]]
-		jobs.append([prepareSpecies, (path_GtfIn, path_genome, path_cdsFastaOut, path_aaFastaOut)])
+			refInfo += [[path_aaFastaOut, path_gtfIn, path_genome, path_cdsFastaOut]]
+		jobs.append([prepareSpecies, (path_gtfIn, path_genome, path_cdsFastaOut, path_aaFastaOut)])
 	runJobs(jobs, int_cores)
 	writeCsv(spInfo, path_speciesInfoFile)
 	writeCsv(refInfo, path_refInfoFile)
 	# Run orthofinder on the newly extracted proteomes
-	for path_file in glob.glob(path_aaDir + "/Results*"):
-		deleteIfPresent(path_file)
-	runOrthoFinder(path_aaDir, int_cores)
+#qe	for path_file in glob.glob(path_aaDir + "/Results*"):
+#qe		deleteIfPresent(path_file)
+#qe	runOrthoFinder(path_aaDir, int_cores)
 	# Grab the output files from orthofinder
 	path_orthoFinderOutputFile	= getOrthogroupsFile(path_aaDir)
 	path_singletonsFile		= getSingletonsFile(path_aaDir)
 	if not useReference: path_refInfoFile == ""
 	return path_speciesInfoFile, path_orthoFinderOutputFile, path_singletonsFile, path_refInfoFile
 
-def prepareSpecies(path_GtfIn, path_genome, path_cdsFastaOut, path_aaFastaOut):
-	print("Extracting sequences from " + path_GtfIn)
-	checkChromosomes(path_GtfIn, path_genome)
-	fetchSequences(path_GtfIn, path_genome, path_cdsFastaOut, path_aaFastaOut, 1)
-	print("Finished extracting sequences from " + path_GtfIn)
+def prepareSpecies(path_gtfIn, path_genome, path_cdsFastaOut, path_aaFastaOut):
+	print("Extracting sequences from " + path_gtfIn)
+	checkChromosomes(path_gtfIn, path_genome)
+	fetchSequences(path_gtfIn, path_genome, path_cdsFastaOut, path_aaFastaOut, 1)
+	print("Finished extracting sequences from " + path_gtfIn)
 
 def checkCdsHealth(path_inputGtf, path_outputGtf):
 	gtf = readCsv(path_inputGtf)
@@ -651,7 +651,7 @@ def addSpecies(str_species, dict_speciesInfo):
 
 def readInputLocations(path_speciesInfoFile, path_referenceFile):
 	"""Read CSV file containing the locations for the sequence files, etc.
-	   Each row is a species. The columns are [proteins, Gtfs, genome, cds].
+	   Each row is a species. The columns are [proteins, gtfs, genome, cds].
 	   The proteins string should be the same as the species element in the OrthoFinder output.
 	   As such, we use the basename of this file as the species name.
 	"""
@@ -688,7 +688,7 @@ def readInputIndividual(line, dict_speciesInfo):
 ###########################################
 ######## Orthogroup GTF extraction ########
 ###########################################
-def GtfsForOrthoGroups(path_ogGtfDir, path_orthogroups, path_singletons, dict_speciesInfo, int_cores):
+def gtfsForOrthoGroups(path_ogGtfDir, path_orthogroups, path_singletons, dict_speciesInfo, int_cores):
 	b = readCsv(path_orthogroups); 	bs = readCsv(path_singletons)
 	speciesList_og        = b[0]
 	speciesList_original  = list(dict_speciesInfo.keys())
@@ -699,13 +699,13 @@ def GtfsForOrthoGroups(path_ogGtfDir, path_orthogroups, path_singletons, dict_sp
 		str_species=speciesList_useful[i]
 		a = readCsv(dict_speciesInfo[str_species]["gtf"])
 		print("Extracting orthogroup and singleton gtf files for " + str_species)
-		jobs.append([GtfsForGroups, (a, orthogroups, path_ogGtfDir, str_species, "_orthoProtein.gtf", i)])
-		jobs.append([GtfsForGroups, (a, singletons, path_ogGtfDir, str_species, "_singletonProtein.gtf", i)])
+		jobs.append([gtfsForGroups, (a, orthogroups, path_ogGtfDir, str_species, "_orthoProtein.gtf", i)])
+		jobs.append([gtfsForGroups, (a, singletons, path_ogGtfDir, str_species, "_singletonProtein.gtf", i)])
 	runJobs(jobs, int_cores)
 	
-def GtfsForGroups(list_Gtf, orthogroups, path_ogGtfDir, str_species, str_outsuffix, int_speciesNum):
-	#Gtf entries by transcript name
-	aa = [[re.sub(".*transcript_id[ =]\"([^\"]*)\".*", r'\1', x[8]), x] for x in list_Gtf]
+def gtfsForGroups(list_gtf, orthogroups, path_ogGtfDir, str_species, str_outsuffix, int_speciesNum):
+	#gtf entries by transcript name
+	aa = [[re.sub(".*transcript_id[ =]\"([^\"]*)\".*", r'\1', x[8]), x] for x in list_gtf]
 	c  = dict((x[0], []) for x in aa)
 	for x in aa: c[x[0]].append(x[1])
 	e = dict((x[0], [c[i] for i in itertools.ifilterfalse(lambda x: x=='', re.split("[ ,]*", x[int_speciesNum]))]) for x in orthogroups)
@@ -838,34 +838,34 @@ def threadGappedProteinSequenceThroughDNA(gappedProteinSequence, dnaSourceSequen
 			int_counter = int_counter + 3
 	return gappedDnaSequence
 
-def fetchSequences(path_GtfIn, path_genome, path_cdsFastaOut, path_aaFastaOut, int_translationTable):
+def fetchSequences(path_gtfIn, path_genome, path_cdsFastaOut, path_aaFastaOut, int_translationTable):
 	path_nucleotideSequences = path_cdsFastaOut
-	#print("fetching nucleotide sequences for " + path_GtfIn)
-	callFunction("infile=" +  path_GtfIn+ "; outfile=" + path_nucleotideSequences + "; genome=" + path_genome + """;
+	#print("fetching nucleotide sequences for " + path_gtfIn)
+	callFunction("infile=" +  path_gtfIn+ "; outfile=" + path_nucleotideSequences + "; genome=" + path_genome + """;
 		tf=`mktemp -d`
-		GtfCds="$tf/GtfCds"
-		GtfBed="$tf/GtfBed"
+		gtfCds="$tf/gtfCds"
+		gtfBed="$tf/gtfBed"
 		
-		#Prepare the Gtf
-		#echo "preparing Gtf..."
-		grep -vP "^$" $infile | awk '$3=="CDS"' > $GtfCds
-		cut -f1-8 $GtfCds > $GtfBed.1
-		sed -r "s/.*transcript_id[ =]\\"?([^\\";]*)\\"?;?.*/\\1/g" $GtfCds > $GtfBed.2
-		paste $GtfBed.1 $GtfBed.2 | perl -ne 'chomp; @l=split; printf "$l[0]\\t%s\\t$l[4]\\t$l[8]\\t.\\t$l[6]\\n", $l[3]-1' | sort -u | sort -k1,1V -k2,2n > $GtfBed
+		#Prepare the gtf
+		#echo "preparing gtf..."
+		grep -vP "^$" $infile | awk '$3=="CDS"' > $gtfCds
+		cut -f1-8 $gtfCds > $gtfBed.1
+		sed -r "s/.*transcript_id[ =]\\"?([^\\";]*)\\"?;?.*/\\1/g" $gtfCds > $gtfBed.2
+		paste $gtfBed.1 $gtfBed.2 | perl -ne 'chomp; @l=split; printf "$l[0]\\t%s\\t$l[4]\\t$l[8]\\t.\\t$l[6]\\n", $l[3]-1' | sort -u | sort -k1,1V -k2,2n > $gtfBed
 
 		#Negative strand
 		#echo "negative strand..."
-		awk '$6=="-"' $GtfBed > $GtfBed.neg
-		bedtools getfasta -name -s -fullHeader -fi $genome -fo $GtfBed.neg.tab -bed $GtfBed.neg -tab
-		tac $GtfBed.neg.tab | awk '{a[$1]=a[$1]""$2} END {for (i in a) {print ">"i"\\n"a[i]}}' > $GtfBed.neg.fa
+		awk '$6=="-"' $gtfBed > $gtfBed.neg
+		bedtools getfasta -name -s -fullHeader -fi $genome -fo $gtfBed.neg.tab -bed $gtfBed.neg -tab
+		tac $gtfBed.neg.tab | awk '{a[$1]=a[$1]""$2} END {for (i in a) {print ">"i"\\n"a[i]}}' > $gtfBed.neg.fa
 
 		#Then positive strand
 		#echo "positive strand..."
-		awk '$6=="+"' $GtfBed > $GtfBed.pos
-		bedtools getfasta -name -s -fullHeader -fi $genome -fo $GtfBed.pos.tab -bed $GtfBed.pos -tab
-		cat $GtfBed.pos.tab | awk '{a[$1]=a[$1]""$2} END {for (i in a) {print ">"i"\\n"a[i]}}' > $GtfBed.pos.fa
+		awk '$6=="+"' $gtfBed > $gtfBed.pos
+		bedtools getfasta -name -s -fullHeader -fi $genome -fo $gtfBed.pos.tab -bed $gtfBed.pos -tab
+		cat $gtfBed.pos.tab | awk '{a[$1]=a[$1]""$2} END {for (i in a) {print ">"i"\\n"a[i]}}' > $gtfBed.pos.fa
 
-		cat $GtfBed.pos.fa $GtfBed.neg.fa | sed -r "s/^>(.*)$/£££>\\1###/g" | sed -r \"s/$/###/g\" | tr '\\n' ' ' | sed -r "s/£££/\\n/g" | sed -r "s/### //g" | grep -v XXX | grep -v "\*[A-Z]" | grep -v "###$" | sed -r "s/###/\\n/g" | grep -vP "^$" > $outfile
+		cat $gtfBed.pos.fa $gtfBed.neg.fa | sed -r "s/^>(.*)$/£££>\\1###/g" | sed -r \"s/$/###/g\" | tr '\\n' ' ' | sed -r "s/£££/\\n/g" | sed -r "s/### //g" | grep -v XXX | grep -v "\*[A-Z]" | grep -v "###$" | sed -r "s/###/\\n/g" | grep -vP "^$" > $outfile
 
 		#echo $tf
 		rm -r $tf
@@ -1202,8 +1202,8 @@ def makeBed(path_hitsFile, species, orthogroup, path_hitsFileBed, remove = False
                                  join(\"\\t\", @l[3..6])' > " + path_hitsFileBed)
 	if remove: os.remove(path_hitsFile)
 
-def extractFromFastaByName(path_GtfFile, path_fastaFile, path_fastaOut):
-	with open(path_GtfFile, "r") as f:
+def extractFromFastaByName(path_gtfFile, path_fastaFile, path_fastaOut):
+	with open(path_gtfFile, "r") as f:
 		data = list(csv.reader((row for row in f if not row.startswith('#')), delimiter="\t"))
 		#tids = [re.sub(r".*transcript_id[ =]\"([^\"]*)\".*", r"\1", i[8]) for i in data]
 		tids = [i[8] for i in data]
@@ -1222,16 +1222,16 @@ def trainAugustus(dict_speciesInfo, path_wDir, pool):
 	speciesList = [ x for x in dict_speciesInfo ]
 	for str_species in speciesList:
 		path_genome = dict_speciesInfo[str_species]["genome"]
-		path_GtfForTraining=dict_speciesInfo[str_species]["GtfForTraining"]
+		path_gtfForTraining=dict_speciesInfo[str_species]["gtfForTraining"]
 		path_augustusSpecies=dict_speciesInfo[str_species]["augustusSpecies"]
 		path_augSpeciesWDir = makeIfAbsent(path_augWDir + "/" + str_species)
 		if dict_speciesInfo[str_species]["needsTraining"]:
 			print("training augustus on " + str_species)
-			async(pool, trainAugustusIndividual, args=(path_augustusSpecies, path_genome, path_GtfForTraining, path_augSpeciesWDir))
+			async(pool, trainAugustusIndividual, args=(path_augustusSpecies, path_genome, path_gtfForTraining, path_augSpeciesWDir))
 
 def makeGtfTrainingFile(path_inputGtf, path_outputGtf):
 	"""For AUGUSTUS to train its algorithms correctly, we need to format
-	   the Gtf file in a certain way.
+	   the gtf file in a certain way.
 	"""
 	#print("making training file " + path_outputGtf + " from  " + path_inputGtf + "...")
 	#print("making training file " + path_outputGtf + "...")	
@@ -1248,14 +1248,14 @@ def makeGtfTrainingFile(path_inputGtf, path_outputGtf):
 		sed -r  '/transcript_id/! s/gene_id([ =])\\"([^\\"]*)\\";?( ?)/gene_id\\1\\"\\2\\"; transcript_id\\1\\"\\2.t999\\";\\3/g' $infile > $infile_td
 
 		#echo "Grouping into regions.."
-		sort -k1,1V -k4,4n $basefile | bedtools merge -s -i - > $td/Gtfmerged.bed.tmp
+		sort -k1,1V -k4,4n $basefile | bedtools merge -s -i - > $td/gtfmerged.bed.tmp
 
-		cut -f1,2,3,4 $td/Gtfmerged.bed.tmp | sed -r "s/\\t([^\\t]*)$/\\t.\\t.\\t\\1/g" > $td/Gtfmerged.bed
+		cut -f1,2,3,4 $td/gtfmerged.bed.tmp | sed -r "s/\\t([^\\t]*)$/\\t.\\t.\\t\\1/g" > $td/gtfmerged.bed
 
 		#echo "Intersecting..."
-		bedtools intersect -a $td/Gtfmerged.bed -b $infile_td -wa -wb > $td/Gtfis.bed
+		bedtools intersect -a $td/gtfmerged.bed -b $infile_td -wa -wb > $td/gtfis.bed
 		
-		cat $td/Gtfis.bed | shuf | sed -r  "s/(.*transcript_id[ =]\\")([^\\"]*)(\\".*)/\\2\\t\\1\\2\\3\\t\\2/g" | awk 'BEGIN {FS="\\t"} {if (a[$2"."$3"."$4"."$7] == "") { a[$2"."$3"."$4"."$7]=$1 } ; if (a[$2"."$3"."$4"."$7]==$1) {v[$2"."$3"."$4"."$7]=v[$2"."$3"."$4"."$7]"\\n"$0"\\t"$2"."$3"."$4"."$7 } } END { for ( i in a ) {print v[i] } } ' | awk 'NF' | cut -f8- | sed -r "s/.\tgene_id/.\tgene_id/g" | sed -r "s/\.\-/\.neg/g" | sed -r "s/\.\+/\.pos/g" > $td/tmp1
+		cat $td/gtfis.bed | shuf | sed -r  "s/(.*transcript_id[ =]\\")([^\\"]*)(\\".*)/\\2\\t\\1\\2\\3\\t\\2/g" | awk 'BEGIN {FS="\\t"} {if (a[$2"."$3"."$4"."$7] == "") { a[$2"."$3"."$4"."$7]=$1 } ; if (a[$2"."$3"."$4"."$7]==$1) {v[$2"."$3"."$4"."$7]=v[$2"."$3"."$4"."$7]"\\n"$0"\\t"$2"."$3"."$4"."$7 } } END { for ( i in a ) {print v[i] } } ' | awk 'NF' | cut -f8- | sed -r "s/.\tgene_id/.\tgene_id/g" | sed -r "s/\.\-/\.neg/g" | sed -r "s/\.\+/\.pos/g" > $td/tmp1
 		awk -F "\\t" '{print $1"\\t"$2"\\t"$3"\\t"$4"\\t"$5"\\t.\\t"$7"\\t.\\tgene_id \\""$11".gene\\"; transcript_id \\""$11".gene.t1\\";\t"$11}' $td/tmp1 | sort -u > $outfile
 		
 		rm $basefile
@@ -1269,10 +1269,10 @@ def makeGtfTrainingFile(path_inputGtf, path_outputGtf):
 	function="infile=\"" + path_outputGtf + "\"; tmpfile=`mktemp`; tmpfile2=`mktemp`; grep -P \"\\tCDS\\t\" $infile | sed -r \"s/\\tCDS\\t/\\texon\\t/g\" | sed -r \"s/\\t[^\\t]*\\tgene_id/\\t\\.\\tgene_id/g\" > $tmpfile2; cat $infile $tmpfile2 | sort -u | sort -k1,1V -k4,4n > $tmpfile; mv $tmpfile $infile; rm $tmpfile2"
 	callFunction(function)
 
-def trainAugustusIndividual(str_augustusSpecies, path_genome, path_Gtf, path_augSpeciesWDir):
+def trainAugustusIndividual(str_augustusSpecies, path_genome, path_gtf, path_augSpeciesWDir):
 	callFunctionQuiet("autoAugTrain.pl --useexisting -v -v -v --workingdir=" + \
 		path_augSpeciesWDir + " --species=" + str_augustusSpecies + \
-		" --trainingset=" + path_Gtf + " --genome=" + path_genome)
+		" --trainingset=" + path_gtf + " --genome=" + path_genome)
 
 def runAndParseAugustus(path_goodHits, path_genome, path_augustusOut, path_augustusParsedOut, path_fastaOut, path_augustusSpeciesName, path_hintsFile, path_sourceGtf):
 	#print("augustus out is " + path_augustusOut)
@@ -1282,17 +1282,17 @@ def runAndParseAugustus(path_goodHits, path_genome, path_augustusOut, path_augus
 
 def combineIndirectAugustusResults(path_otherSpeciesResults, path_augustusParsedOut, path_fastaOut):
 	print("Combining results for " + path_otherSpeciesResults +" into " + path_augustusParsedOut)
-	function="predictions=\"" + path_otherSpeciesResults + "\"; Gtfout=\""+path_augustusParsedOut+"\"; fastaout=\""+path_fastaOut+"\"; " + """
+	function="predictions=\"" + path_otherSpeciesResults + "\"; gtfout=\""+path_augustusParsedOut+"\"; fastaout=\""+path_fastaOut+"\"; " + """
 		working=`mktemp -d`
 		concat=`mktemp $working/concat.XXXXXXX`
 		doubles=`mktemp $working/doubles.XXXXXXX`
 		interim=`mktemp $working/interim.XXXXXXX`
 
 		### Get genes as merged consensus regions ###
-		cat  $predictions/*AugustusParsed.Gtf | grep -P "\\tgene\\t" | sort -k1,1V -k4,4n | bedtools merge -s -i - | cut -f1,2,3,5 | sed -r "s/\\t([^\\t]*)$/\\t.\\t.([^\\t]*)/g" |  perl -ne 'chomp; @l=split; printf "%s\\t%s\\t%s\\t.\\t.\\t%s\\tg%s\\n", $l[0], $l[1]-1, $l[2], $l[3], $., ' > $concat
+		cat  $predictions/*AugustusParsed.gtf | grep -P "\\tgene\\t" | sort -k1,1V -k4,4n | bedtools merge -s -i - | cut -f1,2,3,5 | sed -r "s/\\t([^\\t]*)$/\\t.\\t.([^\\t]*)/g" |  perl -ne 'chomp; @l=split; printf "%s\\t%s\\t%s\\t.\\t.\\t%s\\tg%s\\n", $l[0], $l[1]-1, $l[2], $l[3], $., ' > $concat
 
 		### Get only those gene regions which are predicted more than one time  ###
-		for file in `find $predictions -type "f" -name "*AugustusParsed.Gtf"`; do base=`basename $file` ; bfile=`mktemp`; grep -P "\\tgene\\t" $file | sed -r "s/$/\\t$base/g" > $bfile; bedtools intersect -a $concat -b $bfile -wa -wb ; done | sort -k1,1V -k2,2n | rev | uniq -D -f11 | rev  > $doubles
+		for file in `find $predictions -type "f" -name "*AugustusParsed.gtf"`; do base=`basename $file` ; bfile=`mktemp`; grep -P "\\tgene\\t" $file | sed -r "s/$/\\t$base/g" > $bfile; bedtools intersect -a $concat -b $bfile -wa -wb ; done | sort -k1,1V -k2,2n | rev | uniq -D -f11 | rev  > $doubles
 
 		### Pick one gene from each region ###
 		mkdir $working/split
@@ -1312,13 +1312,13 @@ def combineIndirectAugustusResults(path_otherSpeciesResults, path_augustusParsed
 
 		for almostsplit in `find $working/bysource -type "f"`; do
 			echo "working on $almostsplit"
-			Gtfsourcebase=`cut -f 11 $almostsplit | sort | uniq | head -n1`
-			Gtfsource="$predictions/$Gtfsourcebase"
-			fastasource=`echo "${Gtfsource%AugustusParsed.Gtf}AugustusParsed.sequences.fasta"`
-			echo "the Gtf source is $Gtfsource"
+			gtfsourcebase=`cut -f 11 $almostsplit | sort | uniq | head -n1`
+			gtfsource="$predictions/$gtfsourcebase"
+			fastasource=`echo "${gtfsource%AugustusParsed.gtf}AugustusParsed.sequences.fasta"`
+			echo "the gtf source is $gtfsource"
 			echo "the fasta source is $fastasource"
 			for tid in `grep -P "\\ttranscript\\t" $almostsplit | cut -f9`; do
-				###Edit names in the Gtf file
+				###Edit names in the gtf file
 				gid=`echo $tid | sed -r "s/(g[^.]*)\\.t.*/\\1/g"`
 				newgid="g$counter"
 				newtid=`echo $tid | sed -r "s/g[^.]*(\.t.*)/$newgid\\1/g"`
@@ -1335,7 +1335,7 @@ def combineIndirectAugustusResults(path_otherSpeciesResults, path_augustusParsed
 			done
 		done
 		mv $fastatmp $fastaout
-		cut -f1-10 $working/bysource/* > $Gtfout
+		cut -f1-10 $working/bysource/* > $gtfout
 		"""
 	callFunction(function)
 
@@ -1351,10 +1351,10 @@ def goAugustus(dict_speciesInfo, path_candidates):
 		path_genome        = dict_speciesInfo[str_speciesName]["genome"]
 		path_sourceGtf     = dict_speciesInfo[str_speciesName]["gtf"]
 		str_augustusOutNameStub = path_candidates + "/" + str_speciesName + ".proposedGenes"
-		dict_speciesInfo[str_speciesName]["augustusoutput"]    = path_augustusOut       = str_augustusOutNameStub + ".AugustusModels.Gtf"
+		dict_speciesInfo[str_speciesName]["augustusoutput"]    = path_augustusOut       = str_augustusOutNameStub + ".AugustusModels.gtf"
 		dict_speciesInfo[str_speciesName]["augustussequences"] = path_fastaOut          = str_augustusOutNameStub + ".AugustusParsed.sequences.fasta"
-		dict_speciesInfo[str_speciesName]["augustusparsed"]    = path_augustusParsedOut = str_augustusOutNameStub + ".AugustusParsed.Gtf"	
-		dict_speciesInfo[str_speciesName]["hints"]             = path_hintsFile         = str_augustusOutNameStub + ".hints.Gtf"
+		dict_speciesInfo[str_speciesName]["augustusparsed"]    = path_augustusParsedOut = str_augustusOutNameStub + ".AugustusParsed.gtf"	
+		dict_speciesInfo[str_speciesName]["hints"]             = path_hintsFile         = str_augustusOutNameStub + ".hints.gtf"
 		print("Running Augustus on " + str_speciesName)
 		if not dict_speciesInfo[str_speciesName]["indirectAugustus"]:
 			path_augustusSpeciesName = dict_speciesInfo[str_speciesName]["augustusSpecies"]
@@ -1366,8 +1366,8 @@ def goAugustus(dict_speciesInfo, path_candidates):
 			for str_otherSpecies in otherSpecies:
 				print(otherSpecies)
 				otherSpeciesStub = path_otherSpeciesResults + "/" + str_speciesName + ".proposedGenes." + str_otherSpecies
-				path_otherSpeciesAugustusOut       = otherSpeciesStub + ".AugustusModels.Gtf"
-				path_otherSpeciesAugustusParsedOut = otherSpeciesStub + ".AugustusParsed.Gtf"
+				path_otherSpeciesAugustusOut       = otherSpeciesStub + ".AugustusModels.gtf"
+				path_otherSpeciesAugustusParsedOut = otherSpeciesStub + ".AugustusParsed.gtf"
 				path_otherSpeciesFastaOut          = otherSpeciesStub + ".AugustusParsed.sequences.fasta"
 				otherSpeciesAugustusSpeciesName = dict_speciesInfo[str_otherSpecies]["augustusSpecies"]
 				jobs.append([runAndParseAugustus, (path_proposedGenes, path_genome, path_otherSpeciesAugustusOut, path_otherSpeciesAugustusParsedOut, path_otherSpeciesFastaOut, otherSpeciesAugustusSpeciesName, path_hintsFile, path_sourceGtf)])
@@ -1625,7 +1625,7 @@ def makeNewProteome(path_oldProteome, path_predictedProteinSequences, path_newPr
 ########################################################
 
 def makeHintsFile(path_goodHits, path_hitsHintsGtf):
-	"""Converts our hits output file into a Gtf file which can be used to give hints to AUGUSTUS.
+	"""Converts our hits output file into a gtf file which can be used to give hints to AUGUSTUS.
 	"""
 	callFunction("grep -v \"#\" " + path_goodHits + " | sed -r \"s/ +/\\t/g\" | perl -ne 'chomp;@l=split; printf \"%s\\tOrthoFiller\\texonpart\\t%s\\t%s\\t%s\\t%s\\t.\\torthogroup=%s;source=M\\n\", $l[0], $l[1], $l[2], $l[6], $l[5], $l[10]' | sed -r \"s/ +/\\t/g\"  > " + path_hitsHintsGtf)
 
@@ -1639,7 +1639,7 @@ def goHintFscoreFilter(dict_speciesInfo, hintFilter):
 		if not dict_speciesInfo[str_speciesName]["type"] == "target": continue
 		path_augustusParsed = dict_speciesInfo[str_speciesName]["augustusparsed"]
 		path_hintFile       = dict_speciesInfo[str_speciesName]["hints"]
-		path_augustusParsedHintFiltered = path_augustusParsed+".hintfiltered.Gtf"
+		path_augustusParsedHintFiltered = path_augustusParsed+".hintfiltered.gtf"
 		dict_speciesInfo[str_speciesName]["augustusparsed_hintfiltered"] = path_augustusParsedHintFiltered
 		num_threshold=0.8
 		path_augustusSequences = dict_speciesInfo[str_speciesName]["augustussequences"]	
@@ -1768,31 +1768,31 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 		######################################################
 		stage("2.1. Preparing HMM databases")
 		prepareHmmDbInfo(dict_speciesInfo, path_hmmDbDir, splitByChr)
-		prepareHmmDbs(dict_speciesInfo, path_hmmDbDir, int_cores)#ql
+#qe		prepareHmmDbs(dict_speciesInfo, path_hmmDbDir, int_cores)#ql
 		#####################################################
-		# Produce Gtf files for each orthogroup/species pair
+		# Produce gtf files for each orthogroup/species pair
 		#####################################################
 	        stage("2.2. Extracting orthogroup gtf files")
-		GtfsForOrthoGroups(path_ogGtfDir, path_orthoFinderOutputFile, path_singletonsFile, dict_speciesInfo, int_cores)#ql
+#qe		gtfsForOrthoGroups(path_ogGtfDir, path_orthoFinderOutputFile, path_singletonsFile, dict_speciesInfo, int_cores)#ql
 		#####################################################
 		# Process each individual orthogroup in parallel
 		#####################################################
-		proteinSequences = getProteinSequences(dict_sequenceInfoById, dict_speciesInfo)
+#qe		proteinSequences = getProteinSequences(dict_sequenceInfoById, dict_speciesInfo)
 		stage("2.3. Extracting protein fasta sequences")
 		print("Getting protein fasta sets for all orthogroups...")
-		getProteinFastaFiles(orthogroups, proteinSequences, dict_sequenceInfoById, dict_speciesInfo, path_ogAlDir, int_cores)
+#qe		getProteinFastaFiles(orthogroups, proteinSequences, dict_sequenceInfoById, dict_speciesInfo, path_ogAlDir, int_cores)
 		stage("2.4. Aligning orthogroup sequences")
 		print("Grabbing alignments...")
-		getProteinAlignments(orthogroups, path_ogAlDir, int_cores)
+#qe		getProteinAlignments(orthogroups, path_ogAlDir, int_cores)
 		stage("2.5. Extracting nucleotide alignments")
 		print("Threading nucleotides through alignments...")
-		getNucleotideAlignments(orthogroups, path_ogAlDir, dict_sequenceInfoById, dict_speciesInfo, int_cores)
+#qe		getNucleotideAlignments(orthogroups, path_ogAlDir, dict_sequenceInfoById, dict_speciesInfo, int_cores)
 		stage("2.6. Building HMMs")
 		print("Grabbing HMMs for each orthogroup...")
-		buildHmms(orthogroups, path_ogAlDir, path_ogHmmDir, int_cores)
+#qe		buildHmms(orthogroups, path_ogAlDir, path_ogHmmDir, int_cores)
 		stage("2.7. Running HMMs...")
 		prepareHitDirs(orthogroups, dict_speciesInfo, path_ogHmmDir, path_ogHitsDir, splitByChr)
-		runHmms(orthogroups, dict_speciesInfo, path_ogHmmDir, path_ogHitsDir, int_cores, splitByChr)
+#qe		runHmms(orthogroups, dict_speciesInfo, path_ogHmmDir, path_ogHitsDir, int_cores, splitByChr)
 		####################################################
 		# Start a new pool for processing the hmm outfiles.
 		####################################################
@@ -1885,15 +1885,15 @@ def start(path_speciesInfoFile, path_referenceFile, path_orthogroups, path_singl
 			firstPassMode=True
 			dict_speciesInfo[str_species]["indirectAugustus"] = True
 			dict_speciesInfo[str_species]["augustusSpecies"]  = ""
-			dict_speciesInfo[str_species]["GtfForTraining"]   = ""
+			dict_speciesInfo[str_species]["gtfForTraining"]   = ""
 		else:
-			path_Gtf = dict_speciesInfo[str_species]["gtf"]
+			path_gtf = dict_speciesInfo[str_species]["gtf"]
 			dict_speciesInfo[str_species]["needsTraining"] = (dict_speciesInfo[str_species]["type"] == "target")
-			path_GtfForTraining = path_trainingDir + "/" + str_species + ".training.gtf"
+			path_gtfForTraining = path_trainingDir + "/" + str_species + ".training.gtf"
 #qr			dict_speciesInfo[str_species]["augustusSpecies"]=commands.getstatusoutput("a=`find " + path_wDir+ "/augustus/"+str_species+"/autoAugTrain -name \"tmp_opt*\" -exec stat {} --printf=\"%y\\t%n\\n\" \\;  | sort -t\"-\" -k1,1n -k2,2n -k3,3n | head -n1  | cut -f2`; echo ${a##*/} | sed -r \"s/tmp_opt_//g\"")[1]
 			dict_speciesInfo[str_species]["augustusSpecies"] = makeAugustusSpeciesName(str_species)
-			dict_speciesInfo[str_species]["GtfForTraining"] = path_GtfForTraining
-			jobs.append([makeGtfTrainingFile, (path_Gtf, path_GtfForTraining)])#ql
+			dict_speciesInfo[str_species]["gtfForTraining"] = path_gtfForTraining
+			jobs.append([makeGtfTrainingFile, (path_gtf, path_gtfForTraining)])#ql
 	runJobs(jobs, int_cores)
 	if firstPassMode:
 		path_firstPassOutDir = makeIfAbsent(path_outDir + "/firstPass")
@@ -1906,12 +1906,12 @@ def start(path_speciesInfoFile, path_referenceFile, path_orthogroups, path_singl
 				# Make a unique (statistically..!) name for this iteration of the training. This loses
 				# some efficiency, but AUGUSTUS seems to have problems when we try to train to the same
 				# set too many times. (and it complains quietly).
-				path_Gtf            = dict_speciesInfo[str_species]["resultsGtf"]
-				path_GtfForTraining = path_trainingDir + "/" + str_species + ".training.gtf"
+				path_gtf            = dict_speciesInfo[str_species]["resultsGtf"]
+				path_gtfForTraining = path_trainingDir + "/" + str_species + ".training.gtf"
 				dict_speciesInfo[str_species]["augustusSpecies"] = makeAugustusSpeciesName(str_species)
-				dict_speciesInfo[str_species]["GtfForTraining"]  = path_GtfForTraining
+				dict_speciesInfo[str_species]["gtfForTraining"]  = path_gtfForTraining
 				dict_speciesInfo[str_species]["needsTraining"]   = True
-				jobs.append([makeGtfTrainingFile, (path_Gtf, path_GtfForTraining)])
+				jobs.append([makeGtfTrainingFile, (path_gtf, path_gtfForTraining)])
 			else:
 				dict_speciesInfo[str_species]["needsTraining"] = False
 		runJobs(jobs, int_cores)
