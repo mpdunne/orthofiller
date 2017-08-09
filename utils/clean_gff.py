@@ -15,8 +15,6 @@ import re
 #
 ##########################
 
-
-
 def readCsv(path_csv):
 	with open(path_csv, "r") as p:
 		data = list(csv.reader((row for row in p if not row.startswith('#')), delimiter="\t"))
@@ -39,10 +37,18 @@ def getParents(lines):
 		res_lines[l_id]  = res_lines.get(l_id, []) + [l]
 	return res_parents, res_lines, res_children
 
+def deDup(dlist):
+	nlist = []
+	for i in dlist:
+		if i not in nlist:
+			nlist.append(i)
+	return nlist
+
+
 def go(infile, outfile):
 	# Grab all the bits of gff
 	print "Reading gff..."
-	gff   = readCsv(infile)
+	gff   = [a for a in readCsv(infile) if not a == []]
 	genes = [a for a in gff if a[2].lower() == "gene"]
 	mrna  = [a for a in gff if a[2].lower() == "mrna"]
 	exon  = [a for a in gff if a[2].lower() == "exon"]
@@ -78,8 +84,8 @@ def go(infile, outfile):
 		for m in g_mrna:
 			# Check that each mrna has cds's and exons.
 			if (not m in mrna_children_exon) or (not m in mrna_children_cds): continue
-			m_exon = mrna_children_exon[m]
-			m_cds  = mrna_children_cds[m]
+			m_exon = deDup(mrna_children_exon[m])
+			m_cds  = deDup(mrna_children_cds[m])
 			if not added:
 				res += gene_lines[g_id]
 				survivors += 1
