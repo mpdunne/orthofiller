@@ -40,7 +40,7 @@ def convert(path_in, path_out):
         subprocess.call([function], shell = True)
 
 def checkForScript():
-	if not path_to_gff_converter or not os.path.isfile(path_to_gff_converter+"/gff_to_gtf.py"):
+	if not path_to_gff_converter_dir or not os.path.isfile(path_to_gff_converter_dir+"/gff_to_gtf.py"):
 		print "ERROR: Please specify the path to the directory containing the Galaxy gtf_to_gff converter script.\n"
 		print "       This can be downloaded from https://toolshed.g2.bx.psu.edu/repository?repository_id=afcb6456d8e300ed\n"
 		print "       Or cloned from github from https://github.com/vipints/GFFtools-GX.git"
