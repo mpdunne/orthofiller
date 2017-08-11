@@ -1,4 +1,4 @@
-# OrthoFiller — identifying missing annotations for evolutionarily conserved genes.
+OrthoFiller — identifying missing annotations for evolutionarily conserved genes.
 
 What does OrthoFiller do?
 ==========
@@ -78,6 +78,14 @@ For large genomes, HMMER sometimes runs into memory problems when applying HMM s
 ### OrthoFiller likes well-made GTF files.
 
 In the event that a GTF file contains coordinates not present in the genome fasta file, OrthoFiller will throw an error and will fail to run. Ensure that all chromosome names in the GTF file match those in the fasta before running.
+
+### OrthoFiller likes clean FASTA files.
+
+The current iteration of OrthoFiller requires that chromosome names in the genome FASTA files consist of unspaced IDs only (i.e. no description lines or information other than the name). This will be fixed in future versions. In the meantime, you may wish simply to modify the names of your chromosome entries using:
+
+```
+sed -r "s/>([^ ]+*) .*/>\1/g" genome.fa > genome_clean.fa
+```
 
 Obtaining GTFs from GFF3 files
 ==============================
