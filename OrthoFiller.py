@@ -569,9 +569,9 @@ def prepareFromScratch(path_infile, path_outDir, int_cores, path_refFile = ""):
 	writeCsv(spInfo, path_speciesInfoFile)
 	writeCsv(refInfo, path_refInfoFile)
 	# Run orthofinder on the newly extracted proteomes
-#qe	for path_file in glob.glob(path_aaDir + "/Results*"):
-#qe		deleteIfPresent(path_file)
-#qe	runOrthoFinder(path_aaDir, int_cores)
+	for path_file in glob.glob(path_aaDir + "/Results*"):
+		deleteIfPresent(path_file)
+	runOrthoFinder(path_aaDir, int_cores)
 	# Grab the output files from orthofinder
 	path_orthoFinderOutputFile	= getOrthogroupsFile(path_aaDir)
 	path_singletonsFile		= getSingletonsFile(path_aaDir)
@@ -1768,31 +1768,31 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 		######################################################
 		stage("2.1. Preparing HMM databases")
 		prepareHmmDbInfo(dict_speciesInfo, path_hmmDbDir, splitByChr)
-#qe		prepareHmmDbs(dict_speciesInfo, path_hmmDbDir, int_cores)#ql
+		prepareHmmDbs(dict_speciesInfo, path_hmmDbDir, int_cores)#ql
 		#####################################################
 		# Produce gtf files for each orthogroup/species pair
 		#####################################################
 	        stage("2.2. Extracting orthogroup gtf files")
-#qe		gtfsForOrthoGroups(path_ogGtfDir, path_orthoFinderOutputFile, path_singletonsFile, dict_speciesInfo, int_cores)#ql
+		gtfsForOrthoGroups(path_ogGtfDir, path_orthoFinderOutputFile, path_singletonsFile, dict_speciesInfo, int_cores)#ql
 		#####################################################
 		# Process each individual orthogroup in parallel
 		#####################################################
-#qe		proteinSequences = getProteinSequences(dict_sequenceInfoById, dict_speciesInfo)
+		proteinSequences = getProteinSequences(dict_sequenceInfoById, dict_speciesInfo)
 		stage("2.3. Extracting protein fasta sequences")
 		print("Getting protein fasta sets for all orthogroups...")
-#qe		getProteinFastaFiles(orthogroups, proteinSequences, dict_sequenceInfoById, dict_speciesInfo, path_ogAlDir, int_cores)
+		getProteinFastaFiles(orthogroups, proteinSequences, dict_sequenceInfoById, dict_speciesInfo, path_ogAlDir, int_cores)
 		stage("2.4. Aligning orthogroup sequences")
 		print("Grabbing alignments...")
-#qe		getProteinAlignments(orthogroups, path_ogAlDir, int_cores)
+		getProteinAlignments(orthogroups, path_ogAlDir, int_cores)
 		stage("2.5. Extracting nucleotide alignments")
 		print("Threading nucleotides through alignments...")
-#qe		getNucleotideAlignments(orthogroups, path_ogAlDir, dict_sequenceInfoById, dict_speciesInfo, int_cores)
+		getNucleotideAlignments(orthogroups, path_ogAlDir, dict_sequenceInfoById, dict_speciesInfo, int_cores)
 		stage("2.6. Building HMMs")
 		print("Grabbing HMMs for each orthogroup...")
-#qe		buildHmms(orthogroups, path_ogAlDir, path_ogHmmDir, int_cores)
+		buildHmms(orthogroups, path_ogAlDir, path_ogHmmDir, int_cores)
 		stage("2.7. Running HMMs...")
 		prepareHitDirs(orthogroups, dict_speciesInfo, path_ogHmmDir, path_ogHitsDir, splitByChr)
-#qe		runHmms(orthogroups, dict_speciesInfo, path_ogHmmDir, path_ogHitsDir, int_cores, splitByChr)
+		runHmms(orthogroups, dict_speciesInfo, path_ogHmmDir, path_ogHitsDir, int_cores, splitByChr)
 		####################################################
 		# Start a new pool for processing the hmm outfiles.
 		####################################################
