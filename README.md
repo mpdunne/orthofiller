@@ -1,5 +1,7 @@
 OrthoFiller — identifying missing annotations for evolutionarily conserved genes.
 
+![alt text](http://empede.co.uk/imgrepos/OrthoFiller.png "OrthoFiller logo")
+
 What does OrthoFiller do?
 ==========
 OrthoFiller simultaneously leverages data from multiple species to mutually improve genome annotations. It is designed specifically to address the problem of “missing” genes in sets of predicted genes: that is, to identify those genes that should be present in a genome’s annotation, but which have not been predicted, and whose existence can be verified through comparison with known gene families. OrthoFiller requires only a set of input genome files and a set of corresponding gene GTF files.
