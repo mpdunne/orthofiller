@@ -1,5 +1,3 @@
-OrthoFiller — identifying missing annotations for evolutionarily conserved genes.
-
 ![alt text](http://empede.co.uk/imgrepos/OrthoFiller.png "OrthoFiller logo")
 
 What does OrthoFiller do?
