@@ -22,7 +22,7 @@ For more details, see the OrthoFiller paper:
 
 [Dunne, M.P. and Kelly, S. (2017) OrthoFiller: utilising data from multiple species to improve the completeness of genome annotations, BMC Genomics 18:390](https://bmcgenomics.biomedcentral.com/articles/10.1186/s12864-017-3771-x)
 
-[<img src="http://empede.co.uk/imgrepos/OrthoFiller_preview.jpg?">](https://bmcgenomics.biomedcentral.com/articles/10.1186/s12864-017-3771-x)
+[<img src="http://empede.co.uk/imgrepos/OrthoFiller_paper.jpg?">](https://bmcgenomics.biomedcentral.com/articles/10.1186/s12864-017-3771-x)
 
 Github link:
 
