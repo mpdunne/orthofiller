@@ -1,4 +1,4 @@
-![alt text](http://empede.co.uk/imgrepos/OrthoFiller.png "OrthoFiller logo")
+![alt text](http://empede.co.uk/imgrepos/OrthoFiller_head.png "OrthoFiller logo")
 
 What does OrthoFiller do?
 ==========
