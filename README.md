@@ -140,7 +140,7 @@ OrthoFiller is written to run on linux and requires the following to be installe
 
 6. Hmmer
 
-### python and scipy
+### Python and scipy
 
 Up-to-date and clear instructions are provided here: http://www.scipy.org/install.html, be sure to chose a version using python 2.7. As websites can change, an alternative is to search online for "install scipy".
 
