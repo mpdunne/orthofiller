@@ -1359,7 +1359,6 @@ def goAugustus(dict_speciesInfo, path_candidates):
 		if not dict_speciesInfo[str_speciesName]["indirectAugustus"]:
 			path_augustusSpeciesName = dict_speciesInfo[str_speciesName]["augustusSpecies"]
 			jobs.append([runAndParseAugustus, (path_proposedGenes, path_genome, path_augustusOut, path_augustusParsedOut, path_fastaOut, path_augustusSpeciesName, path_hintsFile, path_sourceGtf)])
-			runAndParseAugustus(path_proposedGenes, path_genome, path_augustusOut, path_augustusParsedOut, path_fastaOut, path_augustusSpeciesName, path_hintsFile, path_sourceGtf)
 		else:
 			path_otherSpeciesResults = makeIfAbsent(path_wDirS + "/" + str_speciesName + ".augustus_otherSpecies")
 			dict_speciesInfo[str_speciesName]["indirectAugustusFolder"]=path_otherSpeciesResults
@@ -1372,7 +1371,6 @@ def goAugustus(dict_speciesInfo, path_candidates):
 				path_otherSpeciesFastaOut          = otherSpeciesStub + ".AugustusParsed.sequences.fasta"
 				otherSpeciesAugustusSpeciesName = dict_speciesInfo[str_otherSpecies]["augustusSpecies"]
 				jobs.append([runAndParseAugustus, (path_proposedGenes, path_genome, path_otherSpeciesAugustusOut, path_otherSpeciesAugustusParsedOut, path_otherSpeciesFastaOut, otherSpeciesAugustusSpeciesName, path_hintsFile, path_sourceGtf)])
-#qx				runAndParseAugustus(path_proposedGenes, path_genome, path_otherSpeciesAugustusOut, path_otherSpeciesAugustusParsedOut, path_otherSpeciesFastaOut, otherSpeciesAugustusSpeciesName, path_hintsFile, path_sourceGtf)
 				print(otherSpeciesAugustusSpeciesName)
 	runJobs(jobs, int_cores)
 
