@@ -6,8 +6,10 @@ What does OrthoFiller do?
 
 ![alt text](http://empede.co.uk/imgrepos/Workflow-03.png "OrthoFiller workflow")
 
-
 ### Recent Updates
+**2018-01-31** - General updates
+* Bug fixes
+* Code refactoring
 
 **2017-06-07** - Speed updates:
 * Improved speed of early protein fasta file manipulation.
@@ -24,11 +26,17 @@ For more details, see the OrthoFiller paper:
 
 [<img src="http://empede.co.uk/imgrepos/OrthoFiller_paper.jpg?">](https://bmcgenomics.biomedcentral.com/articles/10.1186/s12864-017-3771-x)
 
-Github link:
+**Github link:** https://github.com/mdunne/OrthoFiller
 
-https://github.com/mdunne/OrthoFiller
+Table of Contents
+=================
+1. [Usage](#usage)
+2. [File formats](#ffmt)
+3. [Output formats](#ofmt)
+4. [Dependencies](#dep)
+5. [See also](#also)
 
-Usage
+Usage <a name="usage"></a>
 =====
 
 ### Default usage
@@ -89,7 +97,7 @@ The current iteration of OrthoFiller requires that chromosome names in the genom
 sed -r "s/>([^ ]+*) .*/>\1/g" genome.fa > genome_clean.fa
 ```
 
-Obtaining GTFs from GFF3 files
+Obtaining GTFs from GFF3 files <a name="ffmt"></a>
 ==============================
 OrthoFiller uses GTF files for both its input and output, due to the superior uniformity of GTF naming and attribute conventions. To convert files from GFF3 to GTF format, we recommend using the simple tool fml_gff3togtf, from the Galaxy Tool Shed. This can be found at https://toolshed.g2.bx.psu.edu/repository?repository_id=afcb6456d8e300ed, and is implemented using python:
 
@@ -109,9 +117,7 @@ Note that, in order to function properly, the above conversion script requires t
 python clean_gff.py infile.gff3 infile_clean.gff3
 ```
 
-
-
-Output File Format
+Output File Format <a name="ofmt"></a>
 ==================
 OrthoFiller output can be found in the `results` folder of the specified output directory. For each species, four files are produced:
 
@@ -123,8 +129,7 @@ OrthoFiller output can be found in the `results` folder of the specified output 
 
 4. `results/species.results.aa.fasta` is an amino acid FASTA file containing sequences of the new genes discovered by OrthoFiller as well as sequences of all genes from the original annotation.
 
-
-Installing Dependencies
+Installing Dependencies <a name="dep"></a>
 =======================
 OrthoFiller is written to run on linux and requires the following to be installed and in the system path:
 
@@ -160,7 +165,7 @@ HMMER can be downloaded from http://hmmer.org/.
 
 OrthoFinder can be downloaded here: https://github.com/davidemms/OrthoFinder
 
-Other useful software
+Other useful software <a name="also"></a>
 =====================
 
 ### Alan
