@@ -4,9 +4,7 @@ What does OrthoFiller do?
 ==========
 **OrthoFiller** simultaneously leverages data from multiple species to **mutually improve genome annotations**. It is designed specifically to address the problem of **“missing” genes** in sets of predicted genes: that is, to identify those genes that should be present in a genome’s annotation, but which have not been predicted, and whose existence can be verified through comparison with known gene families. OrthoFiller requires only a set of input genome files and a set of corresponding gene GTF files.
 
-<p align="center">
 ![alt text](http://empede.co.uk/imgrepos/Workflow-03.png "OrthoFiller workflow")
-</p>
 
 ### Recent Updates
 **2018-01-31** - General updates
@@ -26,9 +24,7 @@ For more details, see the OrthoFiller paper:
 
 [Dunne, M.P. and Kelly, S. (2017) OrthoFiller: utilising data from multiple species to improve the completeness of genome annotations, BMC Genomics 18:390](https://bmcgenomics.biomedcentral.com/articles/10.1186/s12864-017-3771-x)
 
-<p align="center">
 [<img src="http://empede.co.uk/imgrepos/OrthoFiller_paper.jpg?">](https://bmcgenomics.biomedcentral.com/articles/10.1186/s12864-017-3771-x)
-</p>
 
 
 **Github link:** https://github.com/mdunne/OrthoFiller
