@@ -69,9 +69,9 @@ except ImportError as e:
 #        globals()[libpair[1]] = lib
 
 if errors:
-	print("Missing modules :(\nThe following module errors need to be resolved before running OrthoFiller:")
-	for error in errors: print("-- " + str(error))
-	sys.exit()
+	exitstring = "Missing modules :(\nThe following module errors need to be resolved before running OrthoFiller:"
+	for error in errors: exitstring += "\n-- " + str(error)
+	exit(exitstring)
 	
 ########################################################
 ################ Check Linux Packages ##################
@@ -291,43 +291,35 @@ def callFunction(str_function):
 def callFunctionQuiet(str_function):
 	"""Call a function in the shell, but suppress output.
 	"""
-	with open(os.devnull, 'w') as FNULL:
-		subprocess.call([str_function], shell = True, stdout=FNULL, stderr=subprocess.STDOUT)
+	with open(os.devnull, 'w') as FNULL: subprocess.call([str_function], shell = True, stdout=FNULL, stderr=subprocess.STDOUT)
 
 def callFunctionMezzoPiano(str_function):
 	"""Call function in the shell, and suppress output but not stderr.
 	"""
-	with open(os.devnull, 'w') as FNULL:
-		subprocess.call([str_function], shell = True, stdout=FNULL)
+	with open(os.devnull, 'w') as FNULL: subprocess.call([str_function], shell = True, stdout=FNULL)
 
 def grabLines(command):
 	return commands.getstatusoutput(command)[1].split("\n")
 
 def readCsv(path_csv, ignoreHash=False):
-	with open(path_csv, "r") as p:
-		data = list(csv.reader((row for row in p if (ignoreHash or not row.startswith('#'))), delimiter="\t"))
+	with open(path_csv, "r") as p: data = list(csv.reader((row for row in p if (ignoreHash or not row.startswith('#'))), delimiter="\t"))
 	return data
 
 def writeCsv(data, path_csv):
 	with open(path_csv, "w") as f:
 		writer = csv.writer(f, delimiter = '\t',quoting = csv.QUOTE_NONE, quotechar='')
 		writer.writerows(data)
-
-def cleanCsv(path_csvIn, path_csvOut, ftest):
-	data = []
-	with open(path_csvIn, "r") as f:
-		reader = csv.reader(f, delimiter="\t")
-		for a in reader:
-			if ftest(a): data.append(a)
-	writeCsv(data, path_csvOut)
 		
 def write(strObj, path_file, tag="w"):
-	with open(path_file, tag) as f:
-		f.write(strObj)
+	with open(path_file, tag) as f: f.write(strObj)
 
 def read(path_file, tag="r"):
-	with open(path_file, tag) as f:
-		return f.read()
+	with open(path_file, tag) as f: return f.read()
+
+def flattenLol(lol):
+        res = []
+        for l in lol: res += l
+        return res
 
 def move(path_orig, path_target):
 	callFunction("mv " + path_orig + " " + path_target)
@@ -370,13 +362,16 @@ def concatFiles(list_files, path_outfile, removeOrig=False):
 def concatGlob(str_patt, path_outfile, removeOrig=False):
 	concatFiles(glob.glob(str_patt), path_outfile, removeOrig)
 
-def merge_dicts(*dict_args):
+def exit(msg):
+	sys.exit(msg)
+
+def merge_dicts(*d_args):
 	"""
 	Given any number of dicts, shallow copy and merge into a new dict,
 	precedence goes to key value pairs in latter dicts.
 	"""
 	result = {}
-	for dictionary in dict_args:
+	for dictionary in d_args:
 		result.update(dictionary)
 	return result
 
@@ -453,8 +448,9 @@ def find(name, path):
 		if name in files:
 			return os.path.join(root, name)
 
-def makeIfAbsent(path_dir):
+def makeIfAbsent(path_dir, fresh=False):
 	try:
+		if fresh: deleteIfPresent(path_dir)
 		os.makedirs(path_dir)
 		return path_dir
 	except OSError as exc:  # Python >2.5
@@ -469,8 +465,7 @@ def blankFile(path_file):
 
 def appendFileToFile(path_source, path_dest):
 	with open(path_dest, "a") as f:
-		with open(path_source, "r") as g:
-			f.write(g.read())
+		with open(path_source, "r") as g: f.write(g.read())
 
 def deleteIfPresent(path):
 	"""Delete a folder which may or may not exist
@@ -478,15 +473,15 @@ def deleteIfPresent(path):
 	try:
 		if os.path.isdir(path):
 			callFunction("rm -r " + path)
-			return path
 		else:
 			os.remove(path)
+		return path
 	except OSError:
 		pass
 
 def checkFileExists(path_file):
 	if not os.path.exists(path_file):
-		sys.exit("File does not exist: " + path_file)
+		exit("File does not exist: " + path_file)
 	else:
 		return path_file
 
@@ -512,7 +507,7 @@ def checkChromosomes(path_gtf, path_genome):
 		errMsg += "Genome file $genome has duplicate chromosomes. Please adjust and try again."
 	if not all([g in genomeChr for g in gtfChr]):
 		errMsg += "\nGtf file " + path_gtf + " contains coordinates that do not exist in genome file $genome. Please adjust and try again."
-	if errMsg: sys.exit(errMsg)
+	if errMsg: exit(errMsg)
 
 def checkSequences(path_gtf, path_cds, path_aa):
 	cdsEntries = grabLines("grep \">\" " + path_cds + " | sed -r \"s/>//g\" | sort -u")
@@ -525,7 +520,7 @@ def checkSequences(path_gtf, path_cds, path_aa):
 	missingAa = [a for a in aaEntries if not a in gtfEntries]
 	if missingAa:
 		errMsg += "\n"+str(len(missingCds)) + " entries from aa fasta file are missing in gtf file $gtf. gtf entries must have attribute 'transcript_id \\\"[sequence name]\\\";'."
-	if errMsg: sys.exit(errMsg)
+	if errMsg: exit(errMsg)
 
 def grabBasicInfo(line, sptype):
 	return {"gtf": checkFileExists(line[0]), "genome": checkFileExists(line[1]), "type": sptype}
@@ -539,28 +534,28 @@ def prepareFromScratch(path_infile, path_outDir, int_cores, path_refFile = ""):
 	path_aaDir  = makeIfAbsent(path_seqDir + "/aa")
 	path_speciesInfoFile = path_seqDir + "/inputs.csv"
 	path_refInfoFile     = path_seqDir + "/inputs.ref.csv"
-	dict_basicInfo={}
+	d_basicInfo={}
 	data = readCsv(path_infile)
 	if useReference: rel = readCsv(path_refFile)
 	for line in data:
 		if not ''.join(line).strip(): continue
 		# Use genome name as key in dictionary
 		key = os.path.basename(line[1])
-		dict_basicInfo[key] = grabBasicInfo(line, "target")
+		d_basicInfo[key] = grabBasicInfo(line, "target")
 	if useReference:
 		for line in rel:
 			if not ''.join(line).strip(): continue
 			key = os.path.basename(line[1])
-			dict_basicInfo[key] = grabBasicInfo(line, "reference")
+			d_basicInfo[key] = grabBasicInfo(line, "reference")
 	spInfo  = [["#protein", "gtf", "genome", "cds"]]
 	refInfo = [["#protein", "gtf", "genome", "cds"]]
 	jobs=[]
-	for key in dict_basicInfo:
-		path_gtfIn       = dict_basicInfo[key]["gtf"]
-		path_genome      = dict_basicInfo[key]["genome"]
+	for key in d_basicInfo:
+		path_gtfIn       = d_basicInfo[key]["gtf"]
+		path_genome      = d_basicInfo[key]["genome"]
 		path_cdsFastaOut = path_cdsDir+"/"+key+".cds.fasta"
 		path_aaFastaOut  = path_aaDir+"/"+key+".aa.fasta"
-		if dict_basicInfo[key]["type"] == "target":
+		if d_basicInfo[key]["type"] == "target":
 			spInfo += [[path_aaFastaOut, path_gtfIn, path_genome, path_cdsFastaOut]]
 		else:
 			refInfo += [[path_aaFastaOut, path_gtfIn, path_genome, path_cdsFastaOut]]
@@ -569,9 +564,9 @@ def prepareFromScratch(path_infile, path_outDir, int_cores, path_refFile = ""):
 	writeCsv(spInfo, path_speciesInfoFile)
 	writeCsv(refInfo, path_refInfoFile)
 	# Run orthofinder on the newly extracted proteomes
-	for path_file in glob.glob(path_aaDir + "/Results*"):
-		deleteIfPresent(path_file)
-	runOrthoFinder(path_aaDir, int_cores)
+#qq	for path_file in glob.glob(path_aaDir + "/Results*"):
+#qq		deleteIfPresent(path_file)
+#qq	runOrthoFinder(path_aaDir, int_cores)
 	# Grab the output files from orthofinder
 	path_orthoFinderOutputFile	= getOrthogroupsFile(path_aaDir)
 	path_singletonsFile		= getSingletonsFile(path_aaDir)
@@ -586,30 +581,20 @@ def prepareSpecies(path_gtfIn, path_genome, path_cdsFastaOut, path_aaFastaOut):
 
 def checkCdsHealth(path_inputGtf, path_outputGtf):
 	gtf = readCsv(path_inputGtf)
-	transcripts={}; cds={}; starts={}; stops={}; entries={}; strands={}
+	transcripts=[]; cds={}; starts={}; stops={}; entries={}; strands={}
 	for line in gtf:
-		transcript_id = re.sub(r'.*transcript_id \"([^\"]*)\".*', r'\1', line[8])
-		if not transcript_id in transcripts:
-			transcripts[transcript_id] = []
-			entries[transcript_id] = []
-		if not transcript_id in strands:
-			strands[transcript_id] = []
-		strands[transcript_id] += [line[6]]
+		tid = re.sub(r'.*transcript_id \"([^\"]*)\".*', r'\1', line[8])
+		transcripts.append(tid)
 		if line[2].lower() == "start_codon":
-			if not transcript_id in starts:
-				starts[transcript_id] = []
-			starts[transcript_id] += [[int(line[3]), int(line[4])+1]]
+			starts[tid] = starts.get(tid, []) + [[int(line[3]), int(line[4])+1]]
 		elif line[2].lower() == "stop_codon":
-			if not transcript_id in stops:
-				stops[transcript_id] = []
-			stops[transcript_id] += [[int(line[3]), int(line[4])+1]]
+			stops[tid] = stops.get(tid, []) + [[int(line[3]), int(line[4])+1]]
 		elif line[2].lower() == "cds":
-			if not transcript_id in cds:
-				cds[transcript_id] = []
-			cds[transcript_id] += range(int(line[3]), int(line[4])+1)
-		entries[transcript_id].append(line)
+			cds[tid] += range(int(line[3]), int(line[4])+1)
+		strands[tid] = strands.get(tid, []) + [line[6]]
+		entries[tid] = entries.get(tid, []) + [line]
 	badGenes=[]
-	for t_id in transcripts:
+	for t_id in set(transcripts):
 		if not t_id in cds or len(cds[t_id]) != len(set(cds[t_id])):
 			badGenes.append(t_id); continue
 		if not t_id in strands or len(set(strands[t_id])) != 1:
@@ -617,37 +602,30 @@ def checkCdsHealth(path_inputGtf, path_outputGtf):
 		if not t_id in stops or not t_id in starts or len(stops[t_id]) !=1 or len(starts[t_id]) !=1:
 			badGenes.append(t_id); continue
 		if strands[t_id][0] == "+":
-			startstart=starts[t_id][0][0]
-			cdsstart=min(cds[t_id])
-			if cdsstart != startstart:
+			if starts[t_id][0][0] != min(cds[t_id]):
 				badGenes.append(t_id); continue
-			endend=stops[t_id][0][1]
-			cdsend=max(cds[t_id])
-			if cdsend != endend -1 :
+			if max(cds[t_id]) != stops[t_id][0][1] -1:
 				badGenes.append(t_id); continue
 		elif strands[t_id][0] == "-":
-			startstart=starts[t_id][0][1]
-			cdsstart=max(cds[t_id])
-			if cdsstart != startstart -1:
+			if max(cds[t_id]) != starts[t_id][0][1] -1:
 				badGenes.append(t_id); continue
-			endend=stops[t_id][0][0]
-			cdsend=min(cds[t_id])
-			if cdsend != endend:
+			if min(cds[t_id]) != stops[t_id][0][0]:
 				badGenes.append(t_id); continue
 		else:
 			badGenes.append(t_id); continue
-	with open(path_outputGtf, "w") as p:
-		writer = csv.writer(p, delimiter="\t", quoting = csv.QUOTE_NONE, quotechar='')
-		for t_id in entries:
-			if not t_id in badGenes:
-				for entry in entries[t_id]:
-					writer.writerow(entry[0:9])
+	writeCsv(flattenLol([entries[t_id] for t_id in entries if not t_id in badGenes]), path_outputGtf)
 
-def addSpecies(str_species, dict_speciesInfo):
-	if not str_species in dict_speciesInfo:
-		highestVal = max([ x["number"] for x in dict_speciesInfo.values() ] or [0])
-		dict_speciesInfo[str_species] = {"number": highestVal + 1}
-	return dict_speciesInfo
+def addSpecies(str_species, d_spInfo):
+	if not str_species in d_spInfo:
+		highestVal = max([ x["number"] for x in d_spInfo.values() ] or [0])
+		d_spInfo[str_species] = {"number": highestVal + 1}
+	return d_spInfo
+
+def readInputSet(dataset, d_spInfo, tag):
+	for line in dataset:
+		if not ''.join(line).strip(): continue
+		d_spInfo, str_species = readInputIndividual(line, d_spInfo, tag)
+	return d_spInfo	
 
 def readInputLocations(path_speciesInfoFile, path_referenceFile):
 	"""Read CSV file containing the locations for the sequence files, etc.
@@ -656,48 +634,40 @@ def readInputLocations(path_speciesInfoFile, path_referenceFile):
 	   As such, we use the basename of this file as the species name.
 	"""
 	print("Loading and checking input data locations...")
-	dict_speciesInfo = {}
-	data = readCsv(path_speciesInfoFile)
+	d_spInfo = readInputSet(readCsv(path_speciesInfoFile), {}, "target")
 	if not path_referenceFile == "":
-		rel = readCsv(path_referenceFile)
-	for line in data:
-		if not ''.join(line).strip(): continue
-		dict_speciesInfo, str_species = readInputIndividual(line, dict_speciesInfo)
-		dict_speciesInfo[str_species]["type"] = "target"
-	for line in rel:
-		if not ''.join(line).strip(): continue
-		dict_speciesInfo, str_species = readInputIndividual(line, dict_speciesInfo)
-		dict_speciesInfo[str_species]["type"] = "reference"
-	return dict_speciesInfo
+		d_spInfo = readInputSet(readCsv(path_referenceFile), d_spInfo, "reference")
+	return d_spInfo
 
-def readInputIndividual(line, dict_speciesInfo):
+def readInputIndividual(line, d_spInfo, tag):
 	# The "species", i.e. the basename for the source protein file
 	# will be the key in the dictionary.
 	str_species = os.path.basename(line[0])
-	dict_speciesInfo = addSpecies(str_species, dict_speciesInfo)
+	d_spInfo = addSpecies(str_species, d_spInfo)
 	# Then just build up the dictionary with human-readable names
-	dict_speciesInfo[str_species]["protein"] = path_aa      = checkFileExists(line[0])
-	dict_speciesInfo[str_species]["gtf"]     = path_gtf     = checkFileExists(line[1])
-	dict_speciesInfo[str_species]["genome"]  = path_genome  = checkFileExists(line[2])
-	dict_speciesInfo[str_species]["cds"]     = path_cds	= checkFileExists(line[3])
+	d_spInfo[str_species]["protein"] = path_aa      = checkFileExists(line[0])
+	d_spInfo[str_species]["gtf"]     = path_gtf     = checkFileExists(line[1])
+	d_spInfo[str_species]["genome"]  = path_genome  = checkFileExists(line[2])
+	d_spInfo[str_species]["cds"]     = path_cds     = checkFileExists(line[3])
+	d_spInfo[str_species]["type"]    = tag
 	print("Checking chromosomes...")
 	checkChromosomes(path_gtf, path_genome)
 	checkSequences(path_gtf, path_cds, path_aa)
-	return dict_speciesInfo, str_species
+	return d_spInfo, str_species
 
 ###########################################
 ######## Orthogroup GTF extraction ########
 ###########################################
-def gtfsForOrthoGroups(path_ogGtfDir, path_orthogroups, path_singletons, dict_speciesInfo, int_cores):
+def gtfsForOrthoGroups(path_ogGtfDir, path_orthogroups, path_singletons, d_spInfo, int_cores):
 	b = readCsv(path_orthogroups); 	bs = readCsv(path_singletons)
 	speciesList_og        = b[0]
-	speciesList_original  = list(dict_speciesInfo.keys())
+	speciesList_original  = list(d_spInfo.keys())
 	speciesList_useful    = convertOrthoFinderSpeciesNames(speciesList_og, speciesList_original)
 	orthogroups = b[1:]; singletons  = bs[1:]
 	jobs=[]
 	for i in range(1,len(speciesList_useful)):
 		str_species=speciesList_useful[i]
-		a = readCsv(dict_speciesInfo[str_species]["gtf"])
+		a = readCsv(d_spInfo[str_species]["gtf"])
 		print("Extracting orthogroup and singleton gtf files for " + str_species)
 		jobs.append([gtfsForGroups, (a, orthogroups, path_ogGtfDir, str_species, "_orthoProtein.gtf", i)])
 		jobs.append([gtfsForGroups, (a, singletons, path_ogGtfDir, str_species, "_singletonProtein.gtf", i)])
@@ -731,21 +701,21 @@ def implementGetProteinAlignments(path_proteinFastaFile, path_fastaOut):
         stdout, stderr = alignment()
 	write(stdout, path_fastaOut)
 
-def getProteinFastaFiles(orthogroups, proteinSequences, dict_sequenceInfoById, dict_speciesInfo, path_ogAlDir, int_cores):
+def getProteinFastaFiles(orthogroups, proteinSequences, d_sequenceInfoById, d_spInfo, path_ogAlDir, int_cores):
 	jobs={}
 	for orthogroup in orthogroups:
 		orthogroupProteinSequences = [proteinSequences[x] for x in orthogroups[orthogroup]]
 		jobs[orthogroup] = [implementGetProteinFastaFiles, (orthogroup, orthogroupProteinSequences, path_ogAlDir)]
 	runAndTrackJobs(jobs, int_cores)
 
-def getNucleotideAlignment(alignedProteinsFastaIn, fastaOut, dict_cds):
+def getNucleotideAlignment(alignedProteinsFastaIn, fastaOut, d_cds):
 	"""Get a nucleotide alignment from the protein alignment.
         """
 	aa = SeqIO.parse(alignedProteinsFastaIn, "fasta")
 	nuc = []
 	for sequence in aa:
 		# Grab the cds sequence
-		cds = dict_cds[sequence.id]; dnaSourceSequence = str(cds.seq);
+		cds = d_cds[sequence.id]; dnaSourceSequence = str(cds.seq);
 		# Grab the gapped aa sequence
 		gappedProteinSequence = str(sequence.seq)
 		# Run one through the other
@@ -763,65 +733,28 @@ def getProteinAlignments(orthogroups, path_ogAlDir, int_cores):
         jobs[orthogroup]= [implementGetProteinAlignments, (path_prots, path_alignment)]
     runAndTrackJobs(jobs, int_cores)
 
-def getNucleotideAlignments(orthogroups, path_ogAlDir, dict_sequenceInfoById, dict_speciesInfo, int_cores):
-        jobs={}; dict_indexedCds = {}
-	for str_species in dict_speciesInfo:
-                dict_indexedCds[str_species] = SeqIO.index(dict_speciesInfo[str_species]["cds"], "fasta")
+def getNucleotideAlignments(orthogroups, path_ogAlDir, d_sequenceInfoById, d_spInfo, int_cores):
+        jobs={}; d_indexedCds = {}
+	for str_species in d_spInfo:
+                d_indexedCds[str_species] = SeqIO.index(d_spInfo[str_species]["cds"], "fasta")
 	l = len(orthogroups)
 	for i, orthogroup in enumerate(orthogroups):
 		path_proteinAlignmentFile = path_ogAlDir + "/" + orthogroup + "_ProteinAlignment.fasta"
 		path_nucAlignmentFile	  = path_ogAlDir + "/" + orthogroup + "_NucAlignment.fasta"
 		orthogroupProteinSequences = [x for x in orthogroups[orthogroup]]
-		dict_cds = {}
+		d_cds = {}
 		for o in orthogroupProteinSequences:
-			seqid = dict_sequenceInfoById[o].seqId
-			species = dict_sequenceInfoById[o].species
-			cds = dict_indexedCds[species][seqid]
-			dict_cds[o] = cds
-		jobs[orthogroup] = [getNucleotideAlignment, (path_proteinAlignmentFile, path_nucAlignmentFile, dict_cds)]
+			seqid    = d_sequenceInfoById[o].seqId
+			species  = d_sequenceInfoById[o].species
+			cds      = d_indexedCds[species][seqid]
+			d_cds[o] = cds
+		jobs[orthogroup] = [getNucleotideAlignment, (path_proteinAlignmentFile, path_nucAlignmentFile, d_cds)]
 		sys.stdout.write("\r    Preparing "+str(i)+" of "+str(l)+" orthogroups...")
 		sys.stdout.flush()
 	sys.stdout.write("\r    Finished preparing orthogroups            ")
 	sys.stdout.flush()
 	runAndTrackJobs(jobs, int_cores)
 
-def makeProteinAlignment(path_proteinFastaFile, path_fastaOut):
-	"""Makes an alignment and save it in fasta format to the fastaOut.
-	"""
-	# "auto" means l-ins-i is used when the protein set is small enough, FFT-NS2 otherwise.
-	alignment = MafftCommandline(input=path_proteinFastaFile, auto="on")
-	stdout, stderr = alignment()
-	write(stdout, path_fastaOut)
-
-def getAlignmentStats(path_proteinAlignmentFastaFile):
-	"""Calculates some statistics on the alignment, specifically gap quantities.
-	"""
-	protAl = SeqIO.parse(path_proteinAlignmentFastaFile, "fasta")
-	# We're going to write the sequences into a matrix of characters.
-	protAlSequencesCharArray = []
-	for sequence in protAl:
-		protAlSequencesCharArray.append(list(str(sequence.seq)))
-	# The sequences should all be the same length
-	# Count the number of gaps in each sequence and output it as a percentage of
-	# The total length of the sequence.
-	sequenceGapCounts = list(x.count('-') for x in protAlSequencesCharArray)
-	sequenceLengths = list(len(x) for x in protAlSequencesCharArray)
-	firstSequenceLength = len(protAlSequencesCharArray[0])
-	if not sequenceLengths.count(firstSequenceLength) == len(protAlSequencesCharArray):
-		raise ValueError('There is a problem with the protein alignment, lengths should be equal.')
-	sequenceGapPercentages = []
-	for value in sequenceGapCounts:
-		sequenceGapPercentages.append(value / float(firstSequenceLength))
-	# Now turn the array around and find the gap percentage per position.
-	protAlSequencesCharArrayTransposed = zip(*protAlSequencesCharArray)
-	positionGapCounts = list(x.count('-') for x in protAlSequencesCharArrayTransposed)
-	positionLength = len(protAlSequencesCharArrayTransposed[0])
-	positionGapPercentages = []
-	for value in positionGapCounts:
-		positionGapPercentages.append(value / float(positionLength))
-	# Output
-	return sequenceGapPercentages, positionGapPercentages
-	
 def threadGappedProteinSequenceThroughDNA(gappedProteinSequence, dnaSourceSequence):
 	"""Protein must correspond exactly to DNA sequence.
 	   Both sequences should be provided as strings.
@@ -832,8 +765,7 @@ def threadGappedProteinSequenceThroughDNA(gappedProteinSequence, dnaSourceSequen
 			gappedDnaSequence = gappedDnaSequence + "---"
 		else:
 			codon=dnaSourceSequence[int_counter:int_counter+3]
-			if not len(codon) == 3:	
-				codon = codon + "-" * (-len(codon) % 3)
+			if not len(codon) == 3:	codon += "-"*(-len(codon) % 3)
 			gappedDnaSequence = gappedDnaSequence + codon
 			int_counter = int_counter + 3
 	return gappedDnaSequence
@@ -879,51 +811,48 @@ def fetchSequences(path_gtfIn, path_genome, path_cdsFastaOut, path_aaFastaOut, i
 		protSequences.append(s_p)
 	SeqIO.write(protSequences, path_aaFastaOut, "fasta")
 
-def getProteinSequences(sequencesHolder, dict_speciesInfoDict):
+def getProteinSequences(sequencesHolder, d_spInfoDict):
 	"""Get the protein sequences for each feature per species in an orthogroup
-	   dict_speciesInfo should be the dictionary version of the file locations, indexed by species
+	   d_spInfo should be the dictionary version of the file locations, indexed by species
 	"""
 	# To make protein sequence access faster, index.
-	dict_indexedProteinFiles = {}
-	for str_species in dict_speciesInfoDict:
-		dict_indexedProteinFiles[str_species] = SeqIO.index(dict_speciesInfoDict[str_species]["protein"], "fasta")
-	dict_proteinSequencesHolder = {}
+	d_indexedProteinFiles = {}
+	for str_species in d_spInfoDict:
+		d_indexedProteinFiles[str_species] = SeqIO.index(d_spInfoDict[str_species]["protein"], "fasta")
+	d_proteinSequencesHolder = {}
 	for sequence in sequencesHolder:
 		seqRef = sequencesHolder[sequence]
-		proteinSequence = dict_indexedProteinFiles[seqRef.species][seqRef.seqId]
+		proteinSequence = d_indexedProteinFiles[seqRef.species][seqRef.seqId]
 		# Replace the species-local id with the uniqueId
 		proteinSequence.id = seqRef.uniqueId
-		dict_proteinSequencesHolder[seqRef.uniqueId] = proteinSequence
+		d_proteinSequencesHolder[seqRef.uniqueId] = proteinSequence
 	# Returns a dictionary of id / SeqIO sequence object.
-	return dict_proteinSequencesHolder
+	return d_proteinSequencesHolder
 
 def writeSequencesToFastaFile(proteinSequences, path_outputFile):
 	"""Write out sequences into fasta file. Overwrites file if necessary.
 	"""
 	SeqIO.write(proteinSequences, path_outputFile, "fasta")
 
-	
 ######################################
 ############ OrthFinder ##############
 ######################################
 
-def rerunOrthoFinder(path_wDirS, dict_speciesInfo):
-	path_newProteomesDir = path_wDirS + "/newProteomes"
-	deleteIfPresent(path_newProteomesDir)
-	makeIfAbsent(path_newProteomesDir)
-	dict_speciesInfo_modern = {}
-	for str_speciesName in dict_speciesInfo:
-		dict_speciesInfo[str_speciesName]["newProtein"] = path_newProteome = path_newProteomesDir + "/" + str_speciesName + "newProteome.fasta"
-		dict_speciesInfo[str_speciesName]["newSpeciesName"] =  str_speciesName + "newProteome.fasta"
-		path_oldProteome = dict_speciesInfo[str_speciesName]["protein"]
-		if dict_speciesInfo[str_speciesName]["type"] == "target":
-			path_predictedProteinSequences = dict_speciesInfo[str_speciesName]["augustussequences_hintfiltered"]
+def rerunOrthoFinder(path_wDir, d_spInfo):
+	path_newProteomesDir = makeIfAbsent(path_newProteomesDir, fresh = True)
+	d_spInfo_modern = {}
+	for str_species in d_spInfo:
+		d_spInfo[str_species]["newProtein"]     = path_newProteome = path_newProteomesDir + "/" + str_species + "newProteome.fasta"
+		d_spInfo[str_species]["newSpeciesName"] = str_species + "newProteome.fasta"
+		path_oldProteome = d_spInfo[str_species]["protein"]
+		if d_spInfo[str_species]["type"] == "target":
+			path_predictedProteinSequences = d_spInfo[str_species]["augustussequences_hintfiltered"]
 			makeNewProteome(path_oldProteome, path_predictedProteinSequences, path_newProteome)
 		else:
 			callFunction("cp " + path_oldProteome + " " + path_newProteome)
-		dict_speciesInfo_modern[str_speciesName + "newProteome.fasta"] = {"number": dict_speciesInfo[str_speciesName]["number"]}
+		d_spInfo_modern[str_species + "newProteome.fasta"] = {"number": d_spInfo[str_species]["number"]}
 	runOrthoFinder(path_newProteomesDir, int_cores)
-	return dict_speciesInfo_modern, path_newProteomesDir
+	return d_spInfo_modern, path_newProteomesDir
 
 def runOrthoFinder(path_aaDir, int_cores=16):
 	if "ORTHOFINDER_DIR" in os.environ:
@@ -937,15 +866,14 @@ def runOrthoFinder(path_aaDir, int_cores=16):
 			callFunctionQuiet("orthofinder -h")
 			finderString="orthofinder"
 		except OSError:
-			sys.stderr.write("Error: Can't find orthofinder. Looked for orthofinder in the following order: OrthoFiller.py directory, execution directory, system PATH. Please ensure orthofinder is either installed and included in your PATH or that the orthofinder.py file is included in the same directory as the OrthoFiller.py file. Orthofinder can be downloaded from https://github.com/davidemms/OrthoFinder")
-			sys.exit()
+			exit("Error: Can't find orthofinder. Looked for orthofinder in the following order: OrthoFiller.py directory, execution directory, system PATH. Please ensure orthofinder is either installed and included in your PATH or that the orthofinder.py file is included in the same directory as the OrthoFiller.py file. Orthofinder can be downloaded from https://github.com/davidemms/OrthoFinder")
 	# Call orthofinder
 	version=tuple([int(i) for i in commands.getstatusoutput(finderString + " -h | grep -P \"version +[0-9\.]+\" | sed -r \"s/.*version ([0-9.]+).*/\\1/g\"")[1].split(".")])
 	basicCall = finderString + " -f " + path_aaDir + " -t " + str(int_cores)
 	ending = "" if version < (1,0,2) else (" -g" if version < (1,1,2) else " -og")
 	callFunction(basicCall + ending)
 
-def readOrthoFinderOutput(path_orthoFinderOutputFile, path_orthoFinderSingletonsFile, dict_speciesInfo):
+def readOrthoFinderOutput(path_orthoFinderOutputFile, path_orthoFinderSingletonsFile, d_spInfo):
 	"""Read CSV file into 3-tiered dictionary: orthogoup > species > sequences.
 	   The last entry is an array of sequence strings.
 	   The species names need a little extra attention, since some versions of orthofinder change the names
@@ -953,43 +881,39 @@ def readOrthoFinderOutput(path_orthoFinderOutputFile, path_orthoFinderSingletons
 	   Output is a dictionary, keyed by unique id valued by a seqRef object, and a list of the orthogroups, and of the singletons.
 	"""
 	print("Reading orthogroups from " + path_orthoFinderOutputFile)
-	dict_orthogroups, sequences_orthogroups = readOrthoFinderOutputIndividual(path_orthoFinderOutputFile, dict_speciesInfo)
+	d_orthogroups, sequences_orthogroups = readOrthoFinderOutputIndividual(path_orthoFinderOutputFile, d_spInfo)
 	print("Reading singletons from " + path_orthoFinderSingletonsFile)
-	dict_singletons, sequences_singletons = readOrthoFinderOutputIndividual(path_orthoFinderSingletonsFile, dict_speciesInfo)
+	d_singletons, sequences_singletons = readOrthoFinderOutputIndividual(path_orthoFinderSingletonsFile, d_spInfo)
 	sequences_all = merge_dicts(sequences_orthogroups, sequences_singletons)
-	return sequences_all, dict_orthogroups, dict_singletons
+	return sequences_all, d_orthogroups, d_singletons
 	
-def readOrthoFinderOutputIndividual(path_orthoFinderOutputFile, dict_speciesInfo):
-	dict_groups = {}
+def readOrthoFinderOutputIndividual(path_orthoFinderOutputFile, d_spInfo):
+	d_groups = {}
 	sequences_local = {}
 	with open(path_orthoFinderOutputFile) as csvfile:
 		data = csv.reader(csvfile, delimiter="\t")
 		# First line contains the names of the species, which orthoFinder automatically
 		# generates from the fasta input names. Need to double check these names against the ones we have.
-		speciesList_og       = data.next()
-		speciesList_original = list(dict_speciesInfo.keys())
-		# The useful species list is just a copy of the dict_speciesInfo species, just making sure that 
+		# The useful species list is just a copy of the d_spInfo species, just making sure that 
 		# it's in the same order as the species listed in the orthofinder output file header.
-		speciesList_useful = convertOrthoFinderSpeciesNames(speciesList_og, speciesList_original)
+		speciesList_original = list(d_spInfo.keys())
+		speciesList_useful   = convertOrthoFinderSpeciesNames(data.next(), speciesList_original)
 		# Each subsequent line has orthogroup as first entry, and grouped sequence IDs
 		# for each numbered column.
 		for line in data:
-			groupId = line[0]
-			dict_groups[groupId] = []
+			og = line[0]
 			for i in range(1,len(speciesList_useful)):
-				species = speciesList_useful[i]
-				speciesNum = dict_speciesInfo[species]["number"]
-				entry = re.split("[,]*", line[i])
-				# Get rid of any empty entries.
-				entryClean = itertools.ifilterfalse(lambda x: x=='', entry)
-				for sequence in entryClean:
-					seqRef = SeqRef(species, speciesNum, sequence.strip('"').strip(" "))
-					dict_groups[groupId].append(seqRef.uniqueId)
+				species    = speciesList_useful[i]
+				speciesNum = d_spInfo[species]["number"]
+				# Get rid of any empty entries.			
+				for sequence in itertools.ifilterfalse(lambda x: x=='', re.split("[,]*", line[i])):
+					seqRef       = SeqRef(species, speciesNum, sequence.strip('"').strip(" "))
+					d_groups[og] = d_groups.get(og, []) + [seqRef.uniqueId]
 					sequences_local[seqRef.uniqueId] = seqRef
-	return dict_groups, sequences_local
+	return d_groups, sequences_local
 				
 def convertOrthoFinderSpeciesNames(speciesList_og, speciesList_original):
-	speciesList_useful      = [""]
+	speciesList_useful = [""]
 	for i in range(1,len(speciesList_og)):
 		species_og = speciesList_og[i]
 		catch = ""
@@ -1003,16 +927,14 @@ def convertOrthoFinderSpeciesNames(speciesList_og, speciesList_original):
 			speciesList_useful.append(catch)
 			speciesList_original.remove(catch)
 		else:
-			print("OrthoFinder output contains one or more names that do not corrrespond to the inputted fasta names.\n Please ensure all protein fasta names are unique.\n If you ran OrthoFiller without using the --prep option, make sure you have the latest version of OrthoFinder and try again.")
-			sys.exit(1)
+			exit("OrthoFinder output contains one or more names that do not corrrespond to the inputted fasta names.\n Please ensure all protein fasta names are unique.\n If you ran OrthoFiller without using the --prep option, make sure you have the latest version of OrthoFinder and try again.")
 	return speciesList_useful
 
 def findFile(options, directory, errMsg):
 	for f in options:
 		a = find(f, directory)
 		if a: return a
-	print errMsg
-	sys.exit()
+	exit(errMsg)
 
 def getOrthogroupsFile(path_aaDir):
 	return findFile(["OrthologousGroups.csv", "Orthogroups.csv"], path_aaDir, "Can't find Orthogroup output file... exiting...")
@@ -1041,35 +963,35 @@ def implementHmmSearch(path_hmmFile, path_db, path_hitsFile, species, orthogroup
 	path_hitsFileBed = path_hitsFile + ".bed"
 	makeBed(path_hitsFile, species, orthogroup, path_hitsFileBed, remove=True)
 
-def prepareHmmDbInfo(dict_speciesInfo, path_hmmDbDir, splitByChr):
+def prepareHmmDbInfo(d_spInfo, path_hmmDbDir, splitByChr):
 	"""Separate this out to make it easier to turn off hmmdb creation
 	"""
-	for str_speciesName in dict_speciesInfo:
-		if not dict_speciesInfo[str_speciesName]["type"] == "target": continue
-		print("Preparing database directories for " + str_speciesName)
-		path_genome = dict_speciesInfo[str_speciesName]["genome"]
+	for str_species in d_spInfo:
+		if not d_spInfo[str_species]["type"] == "target": continue
+		print("Preparing database directories for " + str_species)
+		path_genome = d_spInfo[str_species]["genome"]
 		#Working by chromosome reduces memory consumption.
-		speciesTag=path_hmmDbDir+"/"+str_speciesName
+		speciesTag=path_hmmDbDir+"/"+str_species
 		if splitByChr:
-			makeIfAbsent(path_hmmDbDir+"/"+str_speciesName)
+			makeIfAbsent(path_hmmDbDir+"/"+str_species)
 			chromosomes = list(SeqIO.parse(path_genome, "fasta"))
-			dict_speciesInfo[str_speciesName]["hmmdb"]={}
+			d_spInfo[str_species]["hmmdb"]={}
 			for chrInfo in chromosomes:
-				path_chr = speciesTag + "/"+ str_speciesName + "."+chrInfo.id+".fa"
+				path_chr = speciesTag + "/"+ str_species + "."+chrInfo.id+".fa"
 				path_db  = path_chr + ".hmmdb"
-				dict_speciesInfo[str_speciesName]["hmmdb"][chrInfo.id] = [path_chr, path_db]
+				d_spInfo[str_species]["hmmdb"][chrInfo.id] = [path_chr, path_db]
 				SeqIO.write(chrInfo, path_chr, "fasta")
 		else:
-			dict_speciesInfo[str_speciesName]["hmmdb"] = {"full": [path_genome, speciesTag+".hmmdb"]}
+			d_spInfo[str_species]["hmmdb"] = {"full": [path_genome, speciesTag+".hmmdb"]}
 		
-def prepareHmmDbs(dict_speciesInfo, path_hmmDbDir, int_cores):
+def prepareHmmDbs(d_spInfo, path_hmmDbDir, int_cores):
 	jobs = []
-	for str_speciesName in dict_speciesInfo:
-		if not dict_speciesInfo[str_speciesName]["type"] == "target": continue
-		print("Preparing databases for " + str_speciesName)
+	for str_species in d_spInfo:
+		if not d_spInfo[str_species]["type"] == "target": continue
+		print("Preparing databases for " + str_species)
 		#Working by chromosome reduces memory consumption.
-		for i in dict_speciesInfo[str_speciesName]["hmmdb"]:
-			path_fa, path_db = dict_speciesInfo[str_speciesName]["hmmdb"][i]
+		for i in d_spInfo[str_species]["hmmdb"]:
+			path_fa, path_db = d_spInfo[str_species]["hmmdb"][i]
 			jobs.append([makeHmmerDb, (path_fa, path_db)])
 	runJobs(jobs, int_cores)
 
@@ -1081,36 +1003,36 @@ def buildHmms(orthogroups, path_ogAlDir, path_ogHmmDir, int_cores):
 		jobs[orthogroup]       = [buildHmm, (path_nucAlignmentFile, path_hmmFile)]
 	runAndTrackJobs(jobs, int_cores)
 
-def prepareHitDirs(orthogroups, dict_speciesInfo, path_ogHmmDir, path_ogHitsDir, splitByChr):
+def prepareHitDirs(orthogroups, d_spInfo, path_ogHmmDir, path_ogHitsDir, splitByChr):
 	print("Preparing HMMs and HMM directories...")
 	# Split the genomes up by chromosome if necessary, and run the hmms.
-	for species in dict_speciesInfo:
-		if not dict_speciesInfo[species]["type"] == "target": continue
+	for species in d_spInfo:
+		if not d_spInfo[species]["type"] == "target": continue
 		path_spHitsDir = makeIfAbsent(path_ogHitsDir + "/" + species)
-		dict_speciesInfo[species]["hitDirs"] = []
+		d_spInfo[species]["hitDirs"] = []
 		if splitByChr:
-			tChr=len(dict_speciesInfo[species]["hmmdb"])
-			for nChr, chromosome in enumerate(dict_speciesInfo[species]["hmmdb"]):
-				path_hmmdb =dict_speciesInfo[species]["hmmdb"][chromosome][1]
+			tChr=len(d_spInfo[species]["hmmdb"])
+			for nChr, chromosome in enumerate(d_spInfo[species]["hmmdb"]):
+				path_hmmdb =d_spInfo[species]["hmmdb"][chromosome][1]
 				str_nChr   = str(nChr+1)
 				path_chrHitDir = makeIfAbsent(path_spHitsDir + "/chrscf_" + str_nChr)
-				dict_speciesInfo[species]["hitDirs"] += [{"id": chromosome, "num": str_nChr, "hitDir": path_chrHitDir, "hmmdb": path_hmmdb}]
+				d_spInfo[species]["hitDirs"] += [{"id": chromosome, "num": str_nChr, "hitDir": path_chrHitDir, "hmmdb": path_hmmdb}]
 		else:
-			path_hmmdb=dict_speciesInfo[species]["hmmdb"]["full"][1]
-			dict_speciesInfo[species]["hitDirs"] = [{"id": "full", "num": 1, "hitDir": path_spHitsDir, "hmmdb": path_hmmdb}]
+			path_hmmdb=d_spInfo[species]["hmmdb"]["full"][1]
+			d_spInfo[species]["hitDirs"] = [{"id": "full", "num": 1, "hitDir": path_spHitsDir, "hmmdb": path_hmmdb}]
 
-def runHmms(orthogroups, dict_speciesInfo, path_ogHmmDir, path_ogHitsDir, int_cores, splitByChr):
+def runHmms(orthogroups, d_spInfo, path_ogHmmDir, path_ogHitsDir, int_cores, splitByChr):
 	#Sort hmms by size so that we clear the biggest ones first.
 	weights=dict((o, os.path.getsize(path_ogHmmDir + "/" + o + ".hmm")) for o in orthogroups)
 	orthogroups_sorted = sorted(weights.keys(), key=lambda x: int(weights[x]), reverse=True)
 	# Split the genomes up by chromosome if necessary, and run the hmms.
-	for species in dict_speciesInfo:
-		if not dict_speciesInfo[species]["type"] == "target": continue
+	for species in d_spInfo:
+		if not d_spInfo[species]["type"] == "target": continue
 		print("Running HMMs on species " + species)
 		jobs={}
 		if splitByChr:
-			tChr = len(dict_speciesInfo[species]["hmmdb"])
-			for h in dict_speciesInfo[species]["hitDirs"]:
+			tChr = len(d_spInfo[species]["hmmdb"])
+			for h in d_spInfo[species]["hitDirs"]:
 				path_chrHitDir = h["hitDir"]
 				path_hmmdb     = h["hmmdb"]
 				str_nChr       = h["num"]
@@ -1122,8 +1044,8 @@ def runHmms(orthogroups, dict_speciesInfo, path_ogHmmDir, path_ogHitsDir, int_co
 				runAndTrackJobs(jobs, int_cores, "Chromosome/scaffold " + str_nChr + " of " + str(tChr) + ": ", False)
 			print("\n")
 		else:
-			path_hitDir = dict_speciesInfo[species]["hitDirs"][0]["hitDir"]
-			path_hmmdb = dict_speciesInfo[species]["hitDirs"][0]["hmmdb"]
+			path_hitDir = d_spInfo[species]["hitDirs"][0]["hitDir"]
+			path_hmmdb = d_spInfo[species]["hitDirs"][0]["hmmdb"]
 			for orthogroup in orthogroups_sorted:
 				path_hmmFile = path_ogHmmDir + "/" + orthogroup + ".hmm"
 				path_hitsFile = path_hitDir + "/" + orthogroup + "." + species + ".hits"
@@ -1131,36 +1053,36 @@ def runHmms(orthogroups, dict_speciesInfo, path_ogHmmDir, path_ogHitsDir, int_co
 			runAndTrackJobs(jobs, int_cores, "", True)
 			print("")
 
-def processHmmOutput(dict_speciesInfo, path_candidates, path_ogHitsDir, path_ogGtfDir, splitByChr):
-	dict_ogIntersectionFileNamesAnnotated = {}	
+def processHmmOutput(d_spInfo, path_candidates, path_ogHitsDir, path_ogGtfDir, splitByChr):
+	d_ogIntersectionFileNamesAnnotated = {}	
 	jobs = []
-	for str_speciesName in dict_speciesInfo:
-		if not dict_speciesInfo[str_speciesName]["type"] == "target": continue
-		print("Submitting HMM output files for species " + str_speciesName + "...")
-		dict_ogIntersectionFileNamesAnnotated[str_speciesName] = path_hitsOgIntersectionFileNameAnnotated \
-						= path_candidates + "/" + str_speciesName + ".hitsIntersectionOrthogroups.annotated.bed"
-		jobs.append([processHmmOutputIndividual, (str_speciesName, \
+	for str_species in d_spInfo:
+		if not d_spInfo[str_species]["type"] == "target": continue
+		print("Submitting HMM output files for species " + str_species + "...")
+		d_ogIntersectionFileNamesAnnotated[str_species] = path_hitsOgIntersectionFileNameAnnotated \
+						= path_candidates + "/" + str_species + ".hitsIntersectionOrthogroups.annotated.bed"
+		jobs.append([processHmmOutputIndividual, (str_species, \
 						path_candidates, \
 						path_ogHitsDir, \
 						path_ogGtfDir, \
 						path_hitsOgIntersectionFileNameAnnotated, \
-						dict_speciesInfo, \
+						d_spInfo, \
 						splitByChr)])
 	runJobs(jobs, int_cores)
-	return dict_ogIntersectionFileNamesAnnotated
+	return d_ogIntersectionFileNamesAnnotated
 
-def processHmmOutputIndividual(str_speciesName, path_wDir, path_ogHitsDir, path_ogGtfDir, path_hitsOgIntersectionFileNameAnnotated, dict_speciesInfo, splitByChr):
-	path_hitsBedFileName    = path_wDir + "/" + str_speciesName + ".allHits.bed"
-	path_ogBedFileName      = path_wDir + "/" + str_speciesName + ".allOrthogroups.bed"
-	path_hitsOgIntersectionFileName	= path_wDir + "/" + str_speciesName + ".hitsIntersectOrthogroups.bed"
+def processHmmOutputIndividual(str_species, path_wDir, path_ogHitsDir, path_ogGtfDir, path_hitsOgIntersectionFileNameAnnotated, d_spInfo, splitByChr):
+	path_hitsBedFileName    = path_wDir + "/" + str_species + ".allHits.bed"
+	path_ogBedFileName      = path_wDir + "/" + str_species + ".allOrthogroups.bed"
+	path_hitsOgIntersectionFileName	= path_wDir + "/" + str_species + ".hitsIntersectOrthogroups.bed"
 	# Get all hits together, and double check that they are good files.
 	# The hits directories should be neatly listed, regardless of whether they were calculated splitwise.
-	for i, hDir in enumerate(dict_speciesInfo[str_speciesName]["hitDirs"]):
+	for i, hDir in enumerate(d_spInfo[str_species]["hitDirs"]):
 		searchString = hDir["hitDir"] + "/*bed"
 		concatGlob(searchString, path_hitsBedFileName + ".chr." + str(i)+".tmp")
 	# Get all hits together, and all protein annotations.
 	concatGlob(path_hitsBedFileName + ".chr.*.tmp", path_hitsBedFileName, removeOrig = True)
-	concatGlob(path_ogGtfDir + "/*" + str_speciesName + "*Protein.gtf", path_ogBedFileName)
+	concatGlob(path_ogGtfDir + "/*" + str_species + "*Protein.gtf", path_ogBedFileName)
 	# Clean out the rubbish
 	bashIt("awk '$3 > 0 && $2 > 0'", path_hitsBedFileName)
 	bashIt("awk '$3==\"CDS\"' ", path_ogBedFileName)
@@ -1179,12 +1101,9 @@ def annotateIntersectedOutput(path_hitsOgIntersectionFileName, path_hitsOgInters
 def getBases(path_gtf, path_gtfBases):
 	"""Get the base for a gtf file
 	"""	
-	gtf = readCsv(path_gtf)
-	coords  = {}
-	entries = {}
+	gtf = readCsv(path_gtf); coords  = {}; 	entries = {}
 	for line in gtf:
-		if not line[2].lower() == "cds":
-			continue
+		if not line[2].lower() == "cds": continue
 		transcript_id = re.sub(r'.*transcript_id \"([^\"]*)\".*', r'\1', line[8])
 		if not transcript_id in coords:
 			coords[transcript_id] = []
@@ -1214,18 +1133,17 @@ def extractFromFastaByName(path_gtfFile, path_fastaFile, path_fastaOut):
 ###################### Augustus ########################
 ########################################################
 
-def trainAugustus(dict_speciesInfo, path_wDir, pool):
+def trainAugustus(d_spInfo, path_wDir, pool):
 	"""trainAugustus - Trains augustus using the genomes of the input species
 	"""
 	path_augWDir = makeIfAbsent(path_wDir + "/augustus")
 	#Python doesn't like us to edit a dictionary while iterating over it.
-	speciesList = [ x for x in dict_speciesInfo ]
-	for str_species in speciesList:
-		path_genome = dict_speciesInfo[str_species]["genome"]
-		path_gtfForTraining=dict_speciesInfo[str_species]["gtfForTraining"]
-		path_augustusSpecies=dict_speciesInfo[str_species]["augustusSpecies"]
-		path_augSpeciesWDir = makeIfAbsent(path_augWDir + "/" + str_species)
-		if dict_speciesInfo[str_species]["needsTraining"]:
+	for str_species in d_spInfo.keys()[:]:
+		path_genome          = d_spInfo[str_species]["genome"]
+		path_gtfForTraining  = d_spInfo[str_species]["gtfForTraining"]
+		path_augustusSpecies = d_spInfo[str_species]["augustusSpecies"]
+		path_augSpeciesWDir  = makeIfAbsent(path_augWDir + "/" + str_species)
+		if d_spInfo[str_species]["needsTraining"]:
 			print("training augustus on " + str_species)
 			async(pool, trainAugustusIndividual, args=(path_augustusSpecies, path_genome, path_gtfForTraining, path_augSpeciesWDir))
 
@@ -1272,7 +1190,7 @@ def makeGtfTrainingFile(path_inputGtf, path_outputGtf):
 def trainAugustusIndividual(str_augustusSpecies, path_genome, path_gtf, path_augSpeciesWDir):
 	callFunctionQuiet("autoAugTrain.pl --useexisting -v -v -v --workingdir=" + \
 		path_augSpeciesWDir + " --species=" + str_augustusSpecies + \
-		" --trainingset=" + path_gtf + " --genome=" + path_genome+"; wait")
+		" --trainingset=" + path_gtf + " --genome=" + path_genome +"; wait")
 
 def runAndParseAugustus(path_goodHits, path_genome, path_augustusOut, path_augustusParsedOut, path_fastaOut, path_augustusSpeciesName, path_hintsFile, path_sourceGtf):
 	#print("augustus out is " + path_augustusOut)
@@ -1280,107 +1198,25 @@ def runAndParseAugustus(path_goodHits, path_genome, path_augustusOut, path_augus
 	runAugustus(path_goodHits, path_genome, path_augustusOut, path_augustusSpeciesName, path_hintsFile) #ql
 	parseAugustusOutput(path_augustusOut, path_augustusParsedOut, path_fastaOut, path_sourceGtf)
 
-def combineIndirectAugustusResults(path_otherSpeciesResults, path_augustusParsedOut, path_fastaOut):
-	print("Combining results for " + path_otherSpeciesResults +" into " + path_augustusParsedOut)
-	function="predictions=\"" + path_otherSpeciesResults + "\"; gtfout=\""+path_augustusParsedOut+"\"; fastaout=\""+path_fastaOut+"\"; " + """
-		working=`mktemp -d`
-		concat=`mktemp $working/concat.XXXXXXX`
-		doubles=`mktemp $working/doubles.XXXXXXX`
-		interim=`mktemp $working/interim.XXXXXXX`
-
-		### Get genes as merged consensus regions ###
-		cat  $predictions/*AugustusParsed.gtf | grep -P "\\tgene\\t" | sort -k1,1V -k4,4n | bedtools merge -s -i - | cut -f1,2,3,5 | sed -r "s/\\t([^\\t]*)$/\\t.\\t.([^\\t]*)/g" |  perl -ne 'chomp; @l=split; printf "%s\\t%s\\t%s\\t.\\t.\\t%s\\tg%s\\n", $l[0], $l[1]-1, $l[2], $l[3], $., ' > $concat
-
-		### Get only those gene regions which are predicted more than one time  ###
-		for file in `find $predictions -type "f" -name "*AugustusParsed.gtf"`; do base=`basename $file` ; bfile=`mktemp`; grep -P "\\tgene\\t" $file | sed -r "s/$/\\t$base/g" > $bfile; bedtools intersect -a $concat -b $bfile -wa -wb ; done | sort -k1,1V -k2,2n | rev | uniq -D -f11 | rev  > $doubles
-
-		### Pick one gene from each region ###
-		mkdir $working/split
-		awk -v dir="$working/split" '{ f = dir "/" $1 "-" $2 "-" $3 ".tsv"; print  > f }' $doubles
-		for file in `find $working/split -type "f"`; do shuf $file | sort -s -k13,13nr | head -n1 >> $interim; done
-		almost=`mktemp $working/almost.XXXXXX`
-
-		echo "concatenating genes from all sources..."
-		while read line ; do file=`echo "$line" | cut -f18`; gid=`echo "$line" | cut -f16`; newgid=`echo "$line" | cut -f7`; grep -P "\\tgene\\t.*\\t$gid(\\t|\\z)|\\ttranscript\\t.*\\t$gid\\.t[^\\t]*(\\t|\\z)|\\t[^\\t]*gene_id[= ]\\"$gid\\";" $predictions/$file | sed -r "s/$/\\t$file/g" >> $almost; done < $interim
-
-		### Give new names to all the genes and reflect this in the sequences file ###
-		counter=1
-		mkdir $working/bysource
-		awk -v dir="$working/bysource" 'BEGIN { FS = "\\t" } { f = dir "/" $11 ".almost.tsv"; print  > f }' $almost
-
-		fastatmp=`mktemp $working/fasta.XXXXXX`
-
-		for almostsplit in `find $working/bysource -type "f"`; do
-			echo "working on $almostsplit"
-			gtfsourcebase=`cut -f 11 $almostsplit | sort | uniq | head -n1`
-			gtfsource="$predictions/$gtfsourcebase"
-			fastasource=`echo "${gtfsource%AugustusParsed.gtf}AugustusParsed.sequences.fasta"`
-			echo "the gtf source is $gtfsource"
-			echo "the fasta source is $fastasource"
-			for tid in `grep -P "\\ttranscript\\t" $almostsplit | cut -f9`; do
-				###Edit names in the gtf file
-				gid=`echo $tid | sed -r "s/(g[^.]*)\\.t.*/\\1/g"`
-				newgid="g$counter"
-				newtid=`echo $tid | sed -r "s/g[^.]*(\.t.*)/$newgid\\1/g"`
-				echo "old gene is called $gid, transcript $tid"
-				echo "writing out new gene $newgid, transcript $newtid."
-				sed -ri "s/(\\tgene\\t.*\\t)$gid(\\tpos.*)/\\1$newgid\\2/g" $almostsplit
-				sed -ri "s/(\\ttranscript\\t.*\\t)$tid(\\tpos.*)/\\1$newtid\\2/g" $almostsplit
-				sed -ri "s/transcript_id[= ]\\"$tid\\"; ?gene_id[= ]\\"$gid\\";/transcript_id \\"$newtid\\"; gene_id \\"$newgid\\";/g" $almostsplit
-
-				#Get the relevant fasta sequence and change the names
-				awk -v patt="gene_id[= ]\\"$gid\\";\\n" 'BEGIN {RS=">"} $0 ~ patt {print ">"$0}' $fastasource | grep -v "^$" | sed -r "s/transcript_id[= ]\\"$tid\\"; ?gene_id[= ]\\"$gid\\";/transcript_id \\"$newtid\\"; gene_id \\"$newgid\\";/g" >> $fastatmp
-				counter_tmp=`echo $[counter + 1]`
-				counter=$counter_tmp
-			done
-		done
-		mv $fastatmp $fastaout
-		cut -f1-10 $working/bysource/* > $gtfout
-		"""
-	callFunction(function)
-
 def makeAugustusSpeciesName(species):
 	return species+ ".orthofiller." + datetime.datetime.now().strftime("%y%m%d") + "." + \
 				''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(9))
 
-def goAugustus(dict_speciesInfo, path_candidates):
+def goAugustus(d_spInfo, path_candidates, int_cores):
 	jobs = []
-	for str_speciesName in dict_speciesInfo:
-		if not dict_speciesInfo[str_speciesName]["type"] == "target": continue
-		path_proposedGenes = dict_speciesInfo[str_speciesName]["proposedgenes"]
-		path_genome        = dict_speciesInfo[str_speciesName]["genome"]
-		path_sourceGtf     = dict_speciesInfo[str_speciesName]["gtf"]
-		str_augustusOutNameStub = path_candidates + "/" + str_speciesName + ".proposedGenes"
-		dict_speciesInfo[str_speciesName]["augustusoutput"]    = path_augustusOut       = str_augustusOutNameStub + ".AugustusModels.gtf"
-		dict_speciesInfo[str_speciesName]["augustussequences"] = path_fastaOut          = str_augustusOutNameStub + ".AugustusParsed.sequences.fasta"
-		dict_speciesInfo[str_speciesName]["augustusparsed"]    = path_augustusParsedOut = str_augustusOutNameStub + ".AugustusParsed.gtf"	
-		dict_speciesInfo[str_speciesName]["hints"]             = path_hintsFile         = str_augustusOutNameStub + ".hints.gtf"
-		print("Running Augustus on " + str_speciesName)
-		if not dict_speciesInfo[str_speciesName]["indirectAugustus"]:
-			path_augustusSpeciesName = dict_speciesInfo[str_speciesName]["augustusSpecies"]
-			jobs.append([runAndParseAugustus, (path_proposedGenes, path_genome, path_augustusOut, path_augustusParsedOut, path_fastaOut, path_augustusSpeciesName, path_hintsFile, path_sourceGtf)])
-		else:
-			path_otherSpeciesResults = makeIfAbsent(path_wDirS + "/" + str_speciesName + ".augustus_otherSpecies")
-			dict_speciesInfo[str_speciesName]["indirectAugustusFolder"]=path_otherSpeciesResults
-			otherSpecies = [ x for x in dict_speciesInfo if not dict_speciesInfo[x]["indirectAugustus"]]
-			for str_otherSpecies in otherSpecies:
-				print(otherSpecies)
-				otherSpeciesStub = path_otherSpeciesResults + "/" + str_speciesName + ".proposedGenes." + str_otherSpecies
-				path_otherSpeciesAugustusOut       = otherSpeciesStub + ".AugustusModels.gtf"
-				path_otherSpeciesAugustusParsedOut = otherSpeciesStub + ".AugustusParsed.gtf"
-				path_otherSpeciesFastaOut          = otherSpeciesStub + ".AugustusParsed.sequences.fasta"
-				otherSpeciesAugustusSpeciesName = dict_speciesInfo[str_otherSpecies]["augustusSpecies"]
-				jobs.append([runAndParseAugustus, (path_proposedGenes, path_genome, path_otherSpeciesAugustusOut, path_otherSpeciesAugustusParsedOut, path_otherSpeciesFastaOut, otherSpeciesAugustusSpeciesName, path_hintsFile, path_sourceGtf)])
-				print(otherSpeciesAugustusSpeciesName)
-	runJobs(jobs, int_cores)
-
-def goCombineAugustus(dict_speciesInfo):
-	jobs = []
-	for str_speciesName in [ x for x in dict_speciesInfo if dict_speciesInfo[x]["indirectAugustus"]]:
-		path_augustusParsedOut = dict_speciesInfo[str_speciesName]["augustusparsed"]
-		path_fastaOut = dict_speciesInfo[str_speciesName]["augustussequences"]
-		path_otherSpeciesResults = dict_speciesInfo[str_speciesName]["indirectAugustusFolder"]
-		jobs.append([combineIndirectAugustusResults, (path_otherSpeciesResults, path_augustusParsedOut, path_fastaOut)])
+	for str_species in d_spInfo:
+		if not d_spInfo[str_species]["type"] == "target": continue
+		path_proposedGenes = d_spInfo[str_species]["proposedgenes"]
+		path_genome        = d_spInfo[str_species]["genome"]
+		path_sourceGtf     = d_spInfo[str_species]["gtf"]
+		str_augustusOutNameStub = path_candidates + "/" + str_species + ".proposedGenes"
+		d_spInfo[str_species]["augustusoutput"]    = path_augustusOut       = str_augustusOutNameStub + ".AugustusModels.gtf"
+		d_spInfo[str_species]["augustussequences"] = path_fastaOut          = str_augustusOutNameStub + ".AugustusParsed.sequences.fasta"
+		d_spInfo[str_species]["augustusparsed"]    = path_augustusParsedOut = str_augustusOutNameStub + ".AugustusParsed.gtf"	
+		d_spInfo[str_species]["hints"]             = path_hintsFile         = str_augustusOutNameStub + ".hints.gtf"
+		print("Running Augustus on " + str_species)
+		path_augustusSpeciesName = d_spInfo[str_species]["augustusSpecies"]
+		jobs.append([runAndParseAugustus, (path_proposedGenes, path_genome, path_augustusOut, path_augustusParsedOut, path_fastaOut, path_augustusSpeciesName, path_hintsFile, path_sourceGtf)])
 	runJobs(jobs, int_cores)
 
 def runAugustus(path_goodHits, path_genome, path_augustusOut, path_augustusSpeciesName, path_hitsHintsGtf):
@@ -1435,11 +1271,11 @@ def parseAugustusOutput(path_augustusOutput, path_outputGtf, path_outputFasta, p
 ########### Orthogroup test / final output #############
 ########################################################
 
-def orthogroupTest(dict_speciesInfo, str_speciesName, silNew, oNew, sNew, orthogroups, dict_sequenceInfoById):
-	path_augustusParsed = dict_speciesInfo[str_speciesName]["augustusparsed_hintfiltered"]
+def orthogroupTest(d_spInfo, str_species, silNew, oNew, sNew, orthogroups, d_sequenceInfoById):
+	path_augustusParsed = d_spInfo[str_species]["augustusparsed_hintfiltered"]
 	path_augustusParsedUniq = path_augustusParsed + ".uniq"
 	callFunction("grep transcript_id " + path_augustusParsed + " | sed -r 's/.*transcript_id/transcript_id/g' | sort -u > " + path_augustusParsedUniq)
-	str_newSpeciesName=dict_speciesInfo[str_speciesName]["newSpeciesName"]
+	str_newSpeciesName=d_spInfo[str_species]["newSpeciesName"]
 	acceptedSequences=[]
 	potentialSequences={}
 	with open(path_augustusParsedUniq, "r") as csvfile:
@@ -1458,8 +1294,8 @@ def orthogroupTest(dict_speciesInfo, str_speciesName, silNew, oNew, sNew, orthog
 		for oldOrthogroup in oldOrthogroupsPotential:
 			overlap = 0
 			for oldOrthogroupSequenceId in orthogroups[oldOrthogroup]:
-				oldOrthSeq = dict_sequenceInfoById[oldOrthogroupSequenceId]
-				correspondingSpecies = dict_speciesInfo[oldOrthSeq.species]["newSpeciesName"]
+				oldOrthSeq = d_sequenceInfoById[oldOrthogroupSequenceId]
+				correspondingSpecies = d_spInfo[oldOrthSeq.species]["newSpeciesName"]
 				for newOrthogroupSequenceId in oNew[newOrthogroup]:
 					newOrthSeq = silNew[newOrthogroupSequenceId]
 					if newOrthSeq.species == correspondingSpecies and compareOutputSequences(newOrthSeq.seqId, oldOrthSeq.seqId):
@@ -1471,21 +1307,21 @@ def orthogroupTest(dict_speciesInfo, str_speciesName, silNew, oNew, sNew, orthog
 			acceptedSequences.append(seqId.replace(" ", "").replace("\"", ""))
 	return acceptedSequences
 
-def goOrthoGroupTest(path_newProteomesDir, dict_speciesInfo, dict_speciesInfo_modern, orthogroups, int_cores, dict_sequenceInfoById):
+def goOrthoGroupTest(path_newProteomesDir, d_spInfo, d_spInfo_modern, orthogroups, int_cores, d_sequenceInfoById):
 	path_orthofinderOutputNew	= getOrthogroupsFile(path_newProteomesDir)
 	path_orthofinderSingletonsNew	= getSingletonsFile(path_newProteomesDir)
 	silNew, oNew, sNew = readOrthoFinderOutput(path_orthofinderOutputNew, \
-									path_orthofinderSingletonsNew, dict_speciesInfo_modern)
+									path_orthofinderSingletonsNew, d_spInfo_modern)
 	jobs={}
-	for str_speciesName in dict_speciesInfo:
-		if not dict_speciesInfo[str_speciesName]["type"] == "target": continue
-		print("Double-checking membership for species " + str_speciesName)
-		jobs[str_speciesName] = [orthogroupTest, (dict_speciesInfo, str_speciesName, silNew, oNew, sNew, orthogroups, dict_sequenceInfoById)]
+	for str_species in d_spInfo:
+		if not d_spInfo[str_species]["type"] == "target": continue
+		print("Double-checking membership for species " + str_species)
+		jobs[str_species] = [orthogroupTest, (d_spInfo, str_species, silNew, oNew, sNew, orthogroups, d_sequenceInfoById)]
 	jobres = runAndTrackJobs(jobs, int_cores, ret = True, silent = True)
 	return jobres
 
-def assignNames(str_speciesName, path_acceptedGtf, path_geneNameConversionTable, protSequencesAccepted, dict_sequenceInfoById, path_augustusParsed, path_acceptedSequencesOut):
-	originalNames = [dict_sequenceInfoById[x].seqId for x in dict_sequenceInfoById if dict_sequenceInfoById[x].species == str_speciesName]
+def assignNames(str_species, path_acceptedGtf, path_geneNameConversionTable, protSequencesAccepted, d_sequenceInfoById, path_augustusParsed, path_acceptedSequencesOut):
+	originalNames = [d_sequenceInfoById[x].seqId for x in d_sequenceInfoById if d_sequenceInfoById[x].species == str_species]
 	originalNamesStubs = [x.split(".")[0] for x in originalNames ]
 	allNames= originalNames + originalNamesStubs
 	# for each new gene, give it a nice name and check that it hasn't been used before.
@@ -1518,46 +1354,46 @@ def assignNames(str_speciesName, path_acceptedGtf, path_geneNameConversionTable,
 			grep -P \"(transcript_id[= ]\\\"$tid\\\")|(gene_id[= ]\\\"$gid\\\")|(transcript\\t.*\\t$tid$)|(gene\\t.*\\t$gid$)\" " + \
 			path_augustusParsed + " | sed -r \"s/\\t$gid\\t/\\t$replacementId\\t/g\" \
 						| sed -r \"s/\\t$tid\\t/\\t$replacementId\\.$tnum\\t/g\" \
-						| sed -r \"s/transcript_id[= ]\\\"?$tid\\\"?; ?gene_id[= ]\\\"?$gid\\\"?;/transcript_id=\\\"$replacementId\\.$tnum\\\";gene_id=\\\"$replacementId\\\";/g\" | \
+						| sed -r \"s/transcript_id[= ]\\\"?$tid\\\"?; ?gene_id[= ]\\\"?$gid\\\"?;/transcript_id \\\"$replacementId\\.$tnum\\\"; gene_id \\\"$replacementId\\\";/g\" | \
 								sed -r 's/(.*)\\tpossibleOrthos.*/\\1/g' >> " + path_acceptedGtf +";\
 		done < " + path_geneNameConversionTable)
 
-def finishUp(path_resultsDir, dict_speciesInfo):
+def finishUp(path_resultsDir, d_spInfo):
 	print("Results directory is " + path_resultsDir)
-	for str_species in dict_speciesInfo:
-		if dict_speciesInfo[str_species]["type"] == "target":
-			print("-------" + str(len(dict_speciesInfo[str_species]["newGenes"])) + " new genes found for " + str_species)
+	for str_species in d_spInfo:
+		if d_spInfo[str_species]["type"] == "target":
+			print("-------" + str(len(d_spInfo[str_species]["newGenes"])) + " new genes found for " + str_species)
 
-def goRename(dict_speciesInfo, jobres, path_resultsDir, path_newProteomesDir, dict_sequenceInfoById):
-	for str_speciesName in dict_speciesInfo:
-		if not dict_speciesInfo[str_speciesName]["type"] == "target": continue
-		acceptedSequences = jobres[str_speciesName].get()
-		path_acceptedSequencesOut = path_resultsDir + "/" + str_speciesName + ".newSequences.fasta"
-		path_newProteome = path_newProteomesDir + "/" + str_speciesName + "newProteome.fasta"
+def goRename(d_spInfo, jobres, path_resultsDir, path_newProteomesDir, d_sequenceInfoById):
+	for str_species in d_spInfo:
+		if not d_spInfo[str_species]["type"] == "target": continue
+		acceptedSequences = jobres[str_species].get()
+		path_acceptedSequencesOut = path_resultsDir + "/" + str_species + ".newSequences.fasta"
+		path_newProteome = path_newProteomesDir + "/" + str_species + "newProteome.fasta"
 		protSequencesAccepted = [x for x in SeqIO.parse(path_newProteome, "fasta") if x.description.replace(" ", "").replace("\"", "") in acceptedSequences]
-		dict_speciesInfo[str_speciesName]["acceptedsequences"] = path_acceptedSequencesOut
-		dict_speciesInfo[str_speciesName]["newGenes"] = protSequencesAccepted
+		d_spInfo[str_species]["acceptedsequences"] = path_acceptedSequencesOut
+		d_spInfo[str_species]["newGenes"] = protSequencesAccepted
 		###########################################################
 		# Have to make sure gene names are not being duplicated,
 		# which can be a problem with iterated runs, for example.
 		###########################################################
 		# get the list of existing gene names
-		print("Reassigning names for " + str_speciesName + "...")
-		path_acceptedGtf             = path_resultsDir + "/" + str_speciesName + ".newGenes.gtf"
-		path_augustusParsed          = dict_speciesInfo[str_speciesName]["augustusparsed_hintfiltered"]
+		print("Reassigning names for " + str_species + "...")
+		path_acceptedGtf             = path_resultsDir + "/" + str_species + ".newGenes.gtf"
+		path_augustusParsed          = d_spInfo[str_species]["augustusparsed_hintfiltered"]
 		path_geneNameConversionTable = path_augustusParsed + ".geneNamesConversion.txt"
-		assignNames(str_speciesName, path_acceptedGtf, path_geneNameConversionTable, protSequencesAccepted, dict_sequenceInfoById, path_augustusParsed, path_acceptedSequencesOut)
+		assignNames(str_species, path_acceptedGtf, path_geneNameConversionTable, protSequencesAccepted, d_sequenceInfoById, path_augustusParsed, path_acceptedSequencesOut)
 		# write everything out
-		path_resultsFasta = path_resultsDir + "/" + str_speciesName + ".results.aa.fasta"
-		path_resultsGtf   = path_resultsDir + "/" + str_speciesName + ".results.gtf"
-		dict_speciesInfo[str_speciesName]["resultsGtf"] = path_resultsGtf
+		path_resultsFasta = path_resultsDir + "/" + str_species + ".results.aa.fasta"
+		path_resultsGtf   = path_resultsDir + "/" + str_species + ".results.gtf"
+		d_spInfo[str_species]["resultsGtf"] = path_resultsGtf
 		# write out the gtf results file
 		blankFile(path_resultsGtf)
-		appendFileToFile(dict_speciesInfo[str_speciesName]["gtf"], path_resultsGtf)
+		appendFileToFile(d_spInfo[str_species]["gtf"], path_resultsGtf)
 		appendFileToFile(path_acceptedGtf, path_resultsGtf)
 		# write out the fasta results file
 		blankFile(path_resultsFasta)
-		appendFileToFile(dict_speciesInfo[str_speciesName]["protein"], path_resultsFasta)
+		appendFileToFile(d_spInfo[str_species]["protein"], path_resultsFasta)
 		appendFileToFile(path_acceptedSequencesOut, path_resultsFasta)
 
 	
@@ -1571,22 +1407,20 @@ def checkReferenceHits(path_refFile):
 		match_good = 0; match_bad = 0;
 		while match_good <= 1000 or match_bad <= 1000:
 			a = data.next()
-			if a[-1] == "match_good":
-				match_good += 1
-			elif a[-1] == "match_bad":
-				match_bad += 1
+			if a[-1] == "match_good": match_good += 1
+			elif a[-1] == "match_bad": match_bad += 1
 		if match_good < 1000 or match_bad < 1000:
-			print("Error: hit quantity is not sufficient to classify potential new genes.")
-			sys.exit()			
+			exit("Error: hit quantity is not sufficient to classify potential new genes.")
 
-def proposeNewGenes(dict_speciesInfo, path_candidates, dict_ogIntersectionFileNamesAnnotated, hitFilter, path_allHitsOgIntersectionFileNameAnnotated):
+def proposeNewGenes(d_spInfo, path_candidates, d_ogIntersectionFileNamesAnnotated, hitFilter, path_allHitsOgIntersectionFileNameAnnotated):
+	path_pdir = makeIfAbsent(path_candidates+"/proposed_genes")
 	jobs = []
-	for str_speciesName in dict_speciesInfo:
-		if dict_speciesInfo[str_speciesName]["type"] == "target":
-			print "Fitting models to hit data for " + str_speciesName + "..."
-			dict_speciesInfo[str_speciesName]["proposedgenes"] = path_outFile = path_candidates + "/" + str_speciesName + ".proposedGenes"
-			path_hitsOgIntersectionFileNameAnnotated = dict_ogIntersectionFileNamesAnnotated[str_speciesName]
-			jobs.append([proposeNewGenesIndividual, (path_hitsOgIntersectionFileNameAnnotated, path_allHitsOgIntersectionFileNameAnnotated, str_speciesName, path_outFile, hitFilter)])#ql
+	for str_species in d_spInfo:
+		if d_spInfo[str_species]["type"] == "target":
+			print "Fitting models to hit data for " + str_species + "..."
+			d_spInfo[str_species]["proposedgenes"] = path_outFile = path_pdir + "/" + str_species + ".proposedGenes"
+			path_hitsOgIntersectionFileNameAnnotated = d_ogIntersectionFileNamesAnnotated[str_species]
+			jobs.append([proposeNewGenesIndividual, (path_hitsOgIntersectionFileNameAnnotated, path_allHitsOgIntersectionFileNameAnnotated, str_species, path_outFile, hitFilter)])#ql
 	runJobs(jobs, int_cores)
 
 def unpackFitDistributionScript(path_scriptDestination):
@@ -1599,7 +1433,7 @@ def unpackFitDistributionScript_noFilter(path_scriptDestination):
 	f=open(path_scriptDestination, "w")
 	f.write(str_script)
 
-def proposeNewGenesIndividual(path_hitsOgIntersectionFileNameAnnotated, path_allHitsOgIntersectionFileNameAnnotated, str_speciesName, path_candidatesFile, hitFilter):
+def proposeNewGenesIndividual(path_hitsOgIntersectionFileNameAnnotated, path_allHitsOgIntersectionFileNameAnnotated, str_species, path_candidatesFile, hitFilter):
 	# Use R to find candidates.
 	# Cupcakes, doesn't work if the total hit count is less than 1000.
 	fitDistributions(path_hitsOgIntersectionFileNameAnnotated, \
@@ -1633,24 +1467,23 @@ def hintFscoreFilter(path_augustusParsed, path_hintFile, path_augustusParsedHint
 	implementHintFscoreFilter(path_augustusParsed, path_hintFile, path_augustusParsedHintFiltered, num_threshold)
 	extractFromFastaByName(path_augustusParsedHintFiltered, path_augustusSequences, path_augustusSequencesHintFiltered)
 
-def goHintFscoreFilter(dict_speciesInfo, hintFilter):
+def goHintFscoreFilter(d_spInfo, hintFilter):
 	jobs=[]
-	for str_speciesName in dict_speciesInfo:
-		if not dict_speciesInfo[str_speciesName]["type"] == "target": continue
-		path_augustusParsed = dict_speciesInfo[str_speciesName]["augustusparsed"]
-		path_hintFile       = dict_speciesInfo[str_speciesName]["hints"]
+	for str_species in d_spInfo:
+		if not d_spInfo[str_species]["type"] == "target": continue
+		path_augustusParsed = d_spInfo[str_species]["augustusparsed"]
+		path_hintFile       = d_spInfo[str_species]["hints"]
 		path_augustusParsedHintFiltered = path_augustusParsed+".hintfiltered.gtf"
-		dict_speciesInfo[str_speciesName]["augustusparsed_hintfiltered"] = path_augustusParsedHintFiltered
+		d_spInfo[str_species]["augustusparsed_hintfiltered"] = path_augustusParsedHintFiltered
 		num_threshold=0.8
-		path_augustusSequences = dict_speciesInfo[str_speciesName]["augustussequences"]	
+		path_augustusSequences = d_spInfo[str_species]["augustussequences"]	
 		path_augustusSequencesHintFiltered = path_augustusSequences + ".hintfiltered.fasta"
-		dict_speciesInfo[str_speciesName]["augustussequences_hintfiltered"] = path_augustusSequencesHintFiltered	
+		d_spInfo[str_species]["augustussequences_hintfiltered"] = path_augustusSequencesHintFiltered	
 		if hintFilter:
 			jobs.append([hintFscoreFilter, (path_augustusParsed, path_hintFile, path_augustusParsedHintFiltered, num_threshold,  path_augustusSequences, path_augustusSequencesHintFiltered)])
-			pass
 		else:
-			dict_speciesInfo[str_speciesName]["augustusparsed_hintfiltered"]    = path_augustusParsed
-			dict_speciesInfo[str_speciesName]["augustussequences_hintfiltered"] = path_augustusSequences
+			d_spInfo[str_species]["augustusparsed_hintfiltered"]    = path_augustusParsed
+			d_spInfo[str_species]["augustussequences_hintfiltered"] = path_augustusSequences
 	runJobs(jobs, int_cores)
 
 def implementHintFscoreFilter(path_augustusParsed, path_hintFile, path_outFile, num_threshold):
@@ -1730,23 +1563,16 @@ def compareOutputSequences(seq1, seq2):
 ########### Entry code #############
 ####################################
 
-def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_resultsDir, path_wDir, path_orthoFinderOutputFile, path_singletonsFile, int_cores=16, firstPass=False, augOnly=False, hitFilter=True, hintFilter=True, splitByChr=False):
+def run(d_spInfo, d_sequenceInfoById, orthogroups, singletons, path_resultsDir, path_wDir, path_orthoFinderOutputFile, path_singletonsFile, int_cores=16, augOnly=False, hitFilter=True, hintFilter=True, splitByChr=False):
 	"""Takes orthofinder output and a collection of genome info locations as input.
 	   Processes orthogroups in parallel, filters hits, and generates gene models.
 	"""
-	######################################################
-	# If we're running on first pass mode, we want to keep
-	# all of the augustus-independent files for later, but
-	# don't want the first pass stuff to interfere with
-	# subsequent runs. So create a separate folder.
-	######################################################
-	path_wDirS = makeIfAbsent(path_wDir + "/firstpass_working") if firstPass else path_wDir
 	#####################################################
 	# Set off the Augustus training
 	#####################################################
 	trainingPool = multiprocessing.Pool(int_cores, init_worker)
 	print("Training AUGUSTUS")
-	trainAugustus(dict_speciesInfo, path_wDir, trainingPool)
+	trainAugustus(d_spInfo, path_wDir, trainingPool)
 	######################################################
 	# Prepare some working directories
 	######################################################
@@ -1756,7 +1582,7 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 	path_ogHmmDir   = makeIfAbsent(path_ogDir + "/hmm")
 	path_ogHitsDir  = makeIfAbsent(path_ogDir + "/hits")
 	path_hmmDbDir   = makeIfAbsent(path_wDir + "/hmmdb")
-	path_candidates = makeIfAbsent(path_wDirS + "/candidates")
+	path_candidates = makeIfAbsent(path_wDir + "/candidates")
 	#####################################################
 	# If we're on a second pass, where the first pass was
 	# used to create training files, we don't need to 
@@ -1767,37 +1593,37 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 		# Set up an hmm database for each species
 		######################################################
 		stage("2.1. Preparing HMM databases")
-		prepareHmmDbInfo(dict_speciesInfo, path_hmmDbDir, splitByChr)
-		prepareHmmDbs(dict_speciesInfo, path_hmmDbDir, int_cores)#ql
+		prepareHmmDbInfo(d_spInfo, path_hmmDbDir, splitByChr)
+		prepareHmmDbs(d_spInfo, path_hmmDbDir, int_cores)#ql
 		#####################################################
 		# Produce gtf files for each orthogroup/species pair
 		#####################################################
 	        stage("2.2. Extracting orthogroup gtf files")
-		gtfsForOrthoGroups(path_ogGtfDir, path_orthoFinderOutputFile, path_singletonsFile, dict_speciesInfo, int_cores)#ql
+		gtfsForOrthoGroups(path_ogGtfDir, path_orthoFinderOutputFile, path_singletonsFile, d_spInfo, int_cores)#ql
 		#####################################################
 		# Process each individual orthogroup in parallel
 		#####################################################
-		proteinSequences = getProteinSequences(dict_sequenceInfoById, dict_speciesInfo)
+		proteinSequences = getProteinSequences(d_sequenceInfoById, d_spInfo)
 		stage("2.3. Extracting protein fasta sequences")
 		print("Getting protein fasta sets for all orthogroups...")
-		getProteinFastaFiles(orthogroups, proteinSequences, dict_sequenceInfoById, dict_speciesInfo, path_ogAlDir, int_cores)
+		getProteinFastaFiles(orthogroups, proteinSequences, d_sequenceInfoById, d_spInfo, path_ogAlDir, int_cores)
 		stage("2.4. Aligning orthogroup sequences")
 		print("Grabbing alignments...")
 		getProteinAlignments(orthogroups, path_ogAlDir, int_cores)
 		stage("2.5. Extracting nucleotide alignments")
 		print("Threading nucleotides through alignments...")
-		getNucleotideAlignments(orthogroups, path_ogAlDir, dict_sequenceInfoById, dict_speciesInfo, int_cores)
+		getNucleotideAlignments(orthogroups, path_ogAlDir, d_sequenceInfoById, d_spInfo, int_cores)
 		stage("2.6. Building HMMs")
 		print("Grabbing HMMs for each orthogroup...")
 		buildHmms(orthogroups, path_ogAlDir, path_ogHmmDir, int_cores)
 		stage("2.7. Running HMMs...")
-		prepareHitDirs(orthogroups, dict_speciesInfo, path_ogHmmDir, path_ogHitsDir, splitByChr)
-		runHmms(orthogroups, dict_speciesInfo, path_ogHmmDir, path_ogHitsDir, int_cores, splitByChr)
+		prepareHitDirs(orthogroups, d_spInfo, path_ogHmmDir, path_ogHitsDir, splitByChr)
+		runHmms(orthogroups, d_spInfo, path_ogHmmDir, path_ogHitsDir, int_cores, splitByChr)
 		####################################################
 		# Start a new pool for processing the hmm outfiles.
 		####################################################
 		stage("3. Processing HMM output files")
-		dict_ogIntersectionFileNamesAnnotated = processHmmOutput(dict_speciesInfo, path_candidates, path_ogHitsDir, path_ogGtfDir, splitByChr)
+		d_ogIntersectionFileNamesAnnotated = processHmmOutput(d_spInfo, path_candidates, path_ogHitsDir, path_ogGtfDir, splitByChr)
 		print("Done processing HMM output files")
 		####################################################
 		# Concatenate all the files in case we need to 
@@ -1805,14 +1631,14 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 		####################################################
 		print("Generating concatenated version of HMM output")
 		path_allHitsOgIntersectionFileNameAnnotated = path_wDir + "/allSpecies.hitsIntersectionOrthogroups.annotated.bed"
-		concatFiles(dict_ogIntersectionFileNamesAnnotated.values(), path_allHitsOgIntersectionFileNameAnnotated)
+		concatFiles(d_ogIntersectionFileNamesAnnotated.values(), path_allHitsOgIntersectionFileNameAnnotated)
 		print("Checking quantity of reference hits...")
 		checkReferenceHits(path_allHitsOgIntersectionFileNameAnnotated)
 		####################################################
 		# Fit a model for each individual species. If data
 		# is insufficient, use aggregated data.
 		####################################################
-		proposeNewGenes(dict_speciesInfo, path_candidates, dict_ogIntersectionFileNamesAnnotated, hitFilter, path_allHitsOgIntersectionFileNameAnnotated)
+		proposeNewGenes(d_spInfo, path_candidates, d_ogIntersectionFileNamesAnnotated, hitFilter, path_allHitsOgIntersectionFileNameAnnotated)
 	####################################################
 	# Run Augustus. We need the training pool to have 
 	# finished by this point. Parse output
@@ -1829,36 +1655,32 @@ def run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_r
 #		trainingPool.join()
 	print("Done training.")
         stage("4. Running Augustus")
-	goAugustus(dict_speciesInfo, path_candidates)
-	####################################################
-	# Combine data from the species on which augustus 
-	# has been run indirectly
-	####################################################
-	goCombineAugustus(dict_speciesInfo)
+	path_aug = makeIfAbsent(path_candidates + "/augustus_predictions")
+	goAugustus(d_spInfo, path_aug, int_cores)
 	####################################################
 	# Get a hint f score for the new genes and abandon
 	# those genes whose score is not adequate.
 	####################################################
 	if hintFilter: stage("5.1 Filtering by hint F-score")
-	goHintFscoreFilter(dict_speciesInfo, hintFilter)
+	goHintFscoreFilter(d_spInfo, hintFilter)
 	####################################################
 	# Reinsert the sequences into the proteome and 
 	# rerun OrthoFiller
 	####################################################
 	stage("5.2 Re-running OrthoFinder")
-	dict_speciesInfo_modern, path_newProteomesDir = rerunOrthoFinder(path_wDirS, dict_speciesInfo)
+	d_spInfo_modern, path_newProteomesDir = rerunOrthoFinder(path_wDir, d_spInfo)
 	####################################################
 	# Check genes have ended up in the right orthogroup
 	####################################################
 	stage("5.3 Running orthogroup membership test")
-	jobres = goOrthoGroupTest(path_newProteomesDir, dict_speciesInfo, dict_speciesInfo_modern, orthogroups, int_cores, dict_sequenceInfoById)
+	jobres = goOrthoGroupTest(path_newProteomesDir, d_spInfo, d_spInfo_modern, orthogroups, int_cores, d_sequenceInfoById)
 	stage("5.4 Renaming new genes")
-	goRename(dict_speciesInfo, jobres, path_resultsDir, path_newProteomesDir, dict_sequenceInfoById)
+	goRename(d_spInfo, jobres, path_resultsDir, path_newProteomesDir, d_sequenceInfoById)
 	###################################################
 	# Leave a friendly goodbye message
 	###################################################
 	stage("6. Finishing up!")
-	finishUp(path_resultsDir, dict_speciesInfo)
+	finishUp(path_resultsDir, d_spInfo)
 
 def start(path_speciesInfoFile, path_referenceFile, path_orthogroups, path_singletonsFile, path_outDir, path_resultsDir, path_wDir, hitFilter, hintFilter, int_cores, splitByChr):
 	######################################################
@@ -1867,59 +1689,31 @@ def start(path_speciesInfoFile, path_referenceFile, path_orthogroups, path_singl
 	# MD-CC: will need to have a consistency check for this.:
 	######################################################
 	stage("1.1. Reading and checking orthofinder output and sequence info files")
-	dict_speciesInfo = readInputLocations(path_speciesInfoFile, path_referenceFile)
-	dict_sequenceInfoById, orthogroups, singletons = readOrthoFinderOutput(path_orthogroups, path_singletonsFile, dict_speciesInfo)
+	d_spInfo = readInputLocations(path_speciesInfoFile, path_referenceFile)
+	d_sequenceInfoById, orthogroups, singletons = readOrthoFinderOutput(path_orthogroups, path_singletonsFile, d_spInfo)
 	#####################################################
 	# How many genes are there for each species? If any
 	# species has less than 100, it needs special training.
 	#####################################################
-	firstPassMode=False
 	stage("1.2. Preparing gtf files for Augustus training")
 	path_trainingDir = makeIfAbsent(path_wDir + "/training")
 	jobs=[]
-	for str_species in dict_speciesInfo:
-		sequences = [ dict_sequenceInfoById[x].seqId for x in dict_sequenceInfoById if dict_sequenceInfoById[x].species == str_species ]
-		dict_speciesInfo[str_species]["needsTraining"]    = False
-		dict_speciesInfo[str_species]["indirectAugustus"] = False
+	for str_species in d_spInfo:
+		sequences = [ d_sequenceInfoById[x].seqId for x in d_sequenceInfoById if d_sequenceInfoById[x].species == str_species ]
 		if len(sequences) < 100:
-			firstPassMode=True
-			dict_speciesInfo[str_species]["indirectAugustus"] = True
-			dict_speciesInfo[str_species]["augustusSpecies"]  = ""
-			dict_speciesInfo[str_species]["gtfForTraining"]   = ""
-		else:
-			path_gtf = dict_speciesInfo[str_species]["gtf"]
-			dict_speciesInfo[str_species]["needsTraining"] = (dict_speciesInfo[str_species]["type"] == "target")
-			path_gtfForTraining = path_trainingDir + "/" + str_species + ".training.gtf"
-#qr			dict_speciesInfo[str_species]["augustusSpecies"]=commands.getstatusoutput("a=`find " + path_wDir+ "/augustus/"+str_species+"/autoAugTrain -name \"tmp_opt*\" -exec stat {} --printf=\"%y\\t%n\\n\" \\;  | sort -t\"-\" -k1,1n -k2,2n -k3,3n | head -n1  | cut -f2`; echo ${a##*/} | sed -r \"s/tmp_opt_//g\"")[1]
-			dict_speciesInfo[str_species]["augustusSpecies"] = makeAugustusSpeciesName(str_species)
-			dict_speciesInfo[str_species]["gtfForTraining"] = path_gtfForTraining
-			jobs.append([makeGtfTrainingFile, (path_gtf, path_gtfForTraining)])#ql
+			exit("Species " + str_species + " had fewer than 100 genes annotated. For training purposes, all species must have at least 100 genes annotated.")
+		path_gtf = d_spInfo[str_species]["gtf"]
+		d_spInfo[str_species]["needsTraining"] = (d_spInfo[str_species]["type"] == "target")
+		path_gtfForTraining = path_trainingDir + "/" + str_species + ".training.gtf"
+#qr		d_spInfo[str_species]["augustusSpecies"]=commands.getstatusoutput("a=`find " + path_wDir+ "/augustus/"+str_species+"/autoAugTrain -name \"tmp_opt*\" -exec stat {} --printf=\"%y\\t%n\\n\" \\;  | sort -t\"-\" -k1,1n -k2,2n -k3,3n | head -n1  | cut -f2`; echo ${a##*/} | sed -r \"s/tmp_opt_//g\"")[1]
+		d_spInfo[str_species]["augustusSpecies"] = makeAugustusSpeciesName(str_species)
+		d_spInfo[str_species]["gtfForTraining"]  = path_gtfForTraining
+		jobs.append([makeGtfTrainingFile, (path_gtf, path_gtfForTraining)])#ql
 	runJobs(jobs, int_cores)
-	if firstPassMode:
-		path_firstPassOutDir = makeIfAbsent(path_outDir + "/firstPass")
-		jobs=[]
-		run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_firstPassOutDir, path_wDir, path_orthogroups, path_singletonsFile, int_cores, True, False, hitFilter, hintFilter, splitByChr)
-		for str_species in dict_speciesInfo:
-			sequences = [ dict_sequenceInfoById[x].seqId for x in dict_sequenceInfoById if dict_sequenceInfoById[x].species == str_species ]
-			dict_speciesInfo[str_species]["indirectAugustus"]=False
-			if len(sequences) < 100:
-				# Make a unique (statistically..!) name for this iteration of the training. This loses
-				# some efficiency, but AUGUSTUS seems to have problems when we try to train to the same
-				# set too many times. (and it complains quietly).
-				path_gtf            = dict_speciesInfo[str_species]["resultsGtf"]
-				path_gtfForTraining = path_trainingDir + "/" + str_species + ".training.gtf"
-				dict_speciesInfo[str_species]["augustusSpecies"] = makeAugustusSpeciesName(str_species)
-				dict_speciesInfo[str_species]["gtfForTraining"]  = path_gtfForTraining
-				dict_speciesInfo[str_species]["needsTraining"]   = True
-				jobs.append([makeGtfTrainingFile, (path_gtf, path_gtfForTraining)])
-			else:
-				dict_speciesInfo[str_species]["needsTraining"] = False
-		runJobs(jobs, int_cores)
-		######################################################
-		# Run it
-		######################################################
-	run(dict_speciesInfo, dict_sequenceInfoById, orthogroups, singletons, path_resultsDir, path_wDir, path_orthogroups, path_singletonsFile, int_cores, False, firstPassMode, hitFilter, hintFilter, splitByChr)
-
+	######################################################
+	# Run it
+	######################################################
+	run(d_spInfo, d_sequenceInfoById, orthogroups, singletons, path_resultsDir, path_wDir, path_orthogroups, path_singletonsFile, int_cores, False, hitFilter, hintFilter, splitByChr)
 
 if __name__ == '__main__':
 	# Read in command-line arguments
@@ -1942,17 +1736,17 @@ if __name__ == '__main__':
 	# Check all the required programsare installed.
 	stage("0.1. Checking installed programs")
 	checkShell()
-	if args.checkOnly: sys.exit("Finished checking installed programs. Everything looks fine.")
+	if args.checkOnly: exit("Finished checking installed programs. Everything looks fine.")
 
 	#Check existence and non-confliction of arguments
 	if args.IN == None:
-		sys.exit("Input file list -i required.")
+		exit("Input file list -i required.")
 	if prep:
 		if (args.IN == None) | (args.OG == None) | (args.SN == None):
-			sys.exit("Option --prep requires options -i [input file list], -g [orthogroups file], and -s [singletons file].")
+			exit("Option --prep requires options -i [input file list], -g [orthogroups file], and -s [singletons file].")
 	else:
 		if (args.OG != None) | (args.SN != None):
-			sys.exit("Options -g and -s can only be used with option --prep for pre-prepared data.")
+			exit("Options -g and -s can only be used with option --prep for pre-prepared data.")
 
 	path_outDir = args.OD
 	int_cores   = int(args.CO)
@@ -1969,6 +1763,5 @@ if __name__ == '__main__':
 		path_singletonsFile        = checkFileExists(args.SN)
 		path_speciesInfoFile       = checkFileExists(args.IN)
 		if not args.RE == "": path_referenceFile = checkFileExists(args.RE)
-	
 	start(path_speciesInfoFile, path_referenceFile, path_orthoFinderOutputFile, path_singletonsFile, path_outDir, path_resultsDir, path_wDir, not args.noHitFilter, not args.noHintFilter, int_cores, splitByChr)
 
