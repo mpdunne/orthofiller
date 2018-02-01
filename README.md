@@ -4,9 +4,10 @@ What does OrthoFiller do?
 ==========
 **OrthoFiller** simultaneously leverages data from multiple species to **mutually improve genome annotations**. It is designed specifically to address the problem of **“missing” genes** in sets of predicted genes: that is, to identify those genes that should be present in a genome’s annotation, but which have not been predicted, and whose existence can be verified through comparison with known gene families. OrthoFiller requires only a set of input genome files and a set of corresponding gene GTF files.
 
-**Github link:** https://github.com/mdunne/OrthoFiller
-
 ![alt text](http://empede.co.uk/imgrepos/Workflow-03.png "OrthoFiller workflow")
+
+
+**Github link:** https://github.com/mdunne/OrthoFiller
 
 For more details, see the OrthoFiller paper:
 
@@ -14,19 +15,6 @@ For more details, see the OrthoFiller paper:
 
 [<img src="http://empede.co.uk/imgrepos/OrthoFiller_paper.jpg?">](https://bmcgenomics.biomedcentral.com/articles/10.1186/s12864-017-3771-x)
 
-### Recent Updates
-**2018-01-31** - General updates
-* Bug fixes
-* Code refactoring
-
-**2017-06-07** - Speed updates:
-* Improved speed of early protein fasta file manipulation.
-* Improved speed of nucleotide alignment acquisition
-
-**2017-05-31** - OrthoFiller 1.1.0 released. Including:
-* Introduction of target and reference species option
-* Ability to search chromosomes individually to limit memory usage
-* Bug fixes
 
 Table of Contents
 =================
@@ -119,13 +107,15 @@ python clean_gff.py infile.gff3 infile_clean.gff3
 
 Output File Format <a name="ofmt"></a>
 ==================
-OrthoFiller output can be found in the `results` folder of the specified output directory. For each species, four files are produced:
+OrthoFiller output can be found in the `results` folder of the specified output directory. By default, OrthoFiller outputs two files for each target species:
 
 1. `results/species.newGenes.gtf` is a GTF file containing new genes discovered by OrthoFiller;
 
-2. `results/species.results.gtf` is a GTF file containing new genes discovered by OrthoFiller as well as all genes from the original annotation;
+2. `results/species.newSequences.aa.fasta` is an amino acid FASTA file containing sequences of the new genes discovered by OrthoFiller;
 
-3. `results/species.newSequences.aa.fasta` is an amino acid FASTA file containing sequences of the new genes discovered by OrthoFiller;
+If the `--fulloutput` option is used, two additional files will be outputted:
+
+3. `results/species.results.gtf` is a GTF file containing new genes discovered by OrthoFiller as well as all genes from the original annotation;
 
 4. `results/species.results.aa.fasta` is an amino acid FASTA file containing sequences of the new genes discovered by OrthoFiller as well as sequences of all genes from the original annotation.
 
