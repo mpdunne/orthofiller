@@ -564,9 +564,9 @@ def prepareFromScratch(path_infile, path_outDir, int_cores, path_refFile = ""):
 	writeCsv(spInfo, path_speciesInfoFile)
 	writeCsv(refInfo, path_refInfoFile)
 	# Run orthofinder on the newly extracted proteomes
-#qq	for path_file in glob.glob(path_aaDir + "/Results*"):
-#qq		deleteIfPresent(path_file)
-#qq	runOrthoFinder(path_aaDir, int_cores)
+	for path_file in glob.glob(path_aaDir + "/Results*"):
+		deleteIfPresent(path_file)
+	runOrthoFinder(path_aaDir, int_cores)
 	# Grab the output files from orthofinder
 	path_orthoFinderOutputFile	= getOrthogroupsFile(path_aaDir)
 	path_singletonsFile		= getSingletonsFile(path_aaDir)
@@ -590,7 +590,7 @@ def checkCdsHealth(path_inputGtf, path_outputGtf):
 		elif line[2].lower() == "stop_codon":
 			stops[tid] = stops.get(tid, []) + [[int(line[3]), int(line[4])+1]]
 		elif line[2].lower() == "cds":
-			cds[tid] += range(int(line[3]), int(line[4])+1)
+			cds[tid] = cds.get(tid, []) + range(int(line[3]), int(line[4])+1)
 		strands[tid] = strands.get(tid, []) + [line[6]]
 		entries[tid] = entries.get(tid, []) + [line]
 	badGenes=[]
@@ -839,7 +839,7 @@ def writeSequencesToFastaFile(proteinSequences, path_outputFile):
 ######################################
 
 def rerunOrthoFinder(path_wDir, d_spInfo):
-	path_newProteomesDir = makeIfAbsent(path_newProteomesDir, fresh = True)
+	path_newProteomesDir = makeIfAbsent(path_wDir + "/newProteomes", fresh = True)
 	d_spInfo_modern = {}
 	for str_species in d_spInfo:
 		d_spInfo[str_species]["newProtein"]     = path_newProteome = path_newProteomesDir + "/" + str_species + "newProteome.fasta"
@@ -1364,7 +1364,7 @@ def finishUp(path_resultsDir, d_spInfo):
 		if d_spInfo[str_species]["type"] == "target":
 			print("-------" + str(len(d_spInfo[str_species]["newGenes"])) + " new genes found for " + str_species)
 
-def goRename(d_spInfo, jobres, path_resultsDir, path_newProteomesDir, d_sequenceInfoById):
+def goRename(d_spInfo, jobres, path_resultsDir, path_newProteomesDir, d_sequenceInfoById, fullout):
 	for str_species in d_spInfo:
 		if not d_spInfo[str_species]["type"] == "target": continue
 		acceptedSequences = jobres[str_species].get()
@@ -1384,17 +1384,18 @@ def goRename(d_spInfo, jobres, path_resultsDir, path_newProteomesDir, d_sequence
 		path_geneNameConversionTable = path_augustusParsed + ".geneNamesConversion.txt"
 		assignNames(str_species, path_acceptedGtf, path_geneNameConversionTable, protSequencesAccepted, d_sequenceInfoById, path_augustusParsed, path_acceptedSequencesOut)
 		# write everything out
-		path_resultsFasta = path_resultsDir + "/" + str_species + ".results.aa.fasta"
-		path_resultsGtf   = path_resultsDir + "/" + str_species + ".results.gtf"
-		d_spInfo[str_species]["resultsGtf"] = path_resultsGtf
-		# write out the gtf results file
-		blankFile(path_resultsGtf)
-		appendFileToFile(d_spInfo[str_species]["gtf"], path_resultsGtf)
-		appendFileToFile(path_acceptedGtf, path_resultsGtf)
-		# write out the fasta results file
-		blankFile(path_resultsFasta)
-		appendFileToFile(d_spInfo[str_species]["protein"], path_resultsFasta)
-		appendFileToFile(path_acceptedSequencesOut, path_resultsFasta)
+		if fullout:
+			path_resultsFasta = path_resultsDir + "/" + str_species + ".results.aa.fasta"
+			path_resultsGtf   = path_resultsDir + "/" + str_species + ".results.gtf"
+			d_spInfo[str_species]["resultsGtf"] = path_resultsGtf
+			# write out the gtf results file
+			blankFile(path_resultsGtf)
+			appendFileToFile(d_spInfo[str_species]["gtf"], path_resultsGtf)
+			appendFileToFile(path_acceptedGtf, path_resultsGtf)
+			# write out the fasta results file
+			blankFile(path_resultsFasta)
+			appendFileToFile(d_spInfo[str_species]["protein"], path_resultsFasta)
+			appendFileToFile(path_acceptedSequencesOut, path_resultsFasta)
 
 	
 ########################################################
@@ -1420,7 +1421,7 @@ def proposeNewGenes(d_spInfo, path_candidates, d_ogIntersectionFileNamesAnnotate
 			print "Fitting models to hit data for " + str_species + "..."
 			d_spInfo[str_species]["proposedgenes"] = path_outFile = path_pdir + "/" + str_species + ".proposedGenes"
 			path_hitsOgIntersectionFileNameAnnotated = d_ogIntersectionFileNamesAnnotated[str_species]
-			jobs.append([proposeNewGenesIndividual, (path_hitsOgIntersectionFileNameAnnotated, path_allHitsOgIntersectionFileNameAnnotated, str_species, path_outFile, hitFilter)])#ql
+			jobs.append([proposeNewGenesIndividual, (path_hitsOgIntersectionFileNameAnnotated, path_allHitsOgIntersectionFileNameAnnotated, str_species, path_outFile, hitFilter)])
 	runJobs(jobs, int_cores)
 
 def unpackFitDistributionScript(path_scriptDestination):
@@ -1563,7 +1564,7 @@ def compareOutputSequences(seq1, seq2):
 ########### Entry code #############
 ####################################
 
-def run(d_spInfo, d_sequenceInfoById, orthogroups, singletons, path_resultsDir, path_wDir, path_orthoFinderOutputFile, path_singletonsFile, int_cores=16, augOnly=False, hitFilter=True, hintFilter=True, splitByChr=False):
+def run(d_spInfo, d_sequenceInfoById, orthogroups, singletons, path_resultsDir, path_wDir, path_orthoFinderOutputFile, path_singletonsFile, fullout, int_cores=16, augOnly=False, hitFilter=True, hintFilter=True, splitByChr=False):
 	"""Takes orthofinder output and a collection of genome info locations as input.
 	   Processes orthogroups in parallel, filters hits, and generates gene models.
 	"""
@@ -1675,14 +1676,14 @@ def run(d_spInfo, d_sequenceInfoById, orthogroups, singletons, path_resultsDir, 
 	stage("5.3 Running orthogroup membership test")
 	jobres = goOrthoGroupTest(path_newProteomesDir, d_spInfo, d_spInfo_modern, orthogroups, int_cores, d_sequenceInfoById)
 	stage("5.4 Renaming new genes")
-	goRename(d_spInfo, jobres, path_resultsDir, path_newProteomesDir, d_sequenceInfoById)
+	goRename(d_spInfo, jobres, path_resultsDir, path_newProteomesDir, d_sequenceInfoById, fullout)
 	###################################################
 	# Leave a friendly goodbye message
 	###################################################
 	stage("6. Finishing up!")
 	finishUp(path_resultsDir, d_spInfo)
 
-def start(path_speciesInfoFile, path_referenceFile, path_orthogroups, path_singletonsFile, path_outDir, path_resultsDir, path_wDir, hitFilter, hintFilter, int_cores, splitByChr):
+def start(path_speciesInfoFile, path_referenceFile, path_orthogroups, path_singletonsFile, path_outDir, path_resultsDir, path_wDir, hitFilter, hintFilter, int_cores, splitByChr, fullout):
 	######################################################
 	# Read in the locations of the input files and the
 	# orthofinder output.
@@ -1708,12 +1709,13 @@ def start(path_speciesInfoFile, path_referenceFile, path_orthogroups, path_singl
 #qr		d_spInfo[str_species]["augustusSpecies"]=commands.getstatusoutput("a=`find " + path_wDir+ "/augustus/"+str_species+"/autoAugTrain -name \"tmp_opt*\" -exec stat {} --printf=\"%y\\t%n\\n\" \\;  | sort -t\"-\" -k1,1n -k2,2n -k3,3n | head -n1  | cut -f2`; echo ${a##*/} | sed -r \"s/tmp_opt_//g\"")[1]
 		d_spInfo[str_species]["augustusSpecies"] = makeAugustusSpeciesName(str_species)
 		d_spInfo[str_species]["gtfForTraining"]  = path_gtfForTraining
-		jobs.append([makeGtfTrainingFile, (path_gtf, path_gtfForTraining)])#ql
+		makeGtfTrainingFile(path_gtf, path_gtfForTraining)
+		if d_spInfo[str_species]["needsTraining"]: jobs.append([makeGtfTrainingFile, (path_gtf, path_gtfForTraining)])#ql
 	runJobs(jobs, int_cores)
 	######################################################
 	# Run it
 	######################################################
-	run(d_spInfo, d_sequenceInfoById, orthogroups, singletons, path_resultsDir, path_wDir, path_orthogroups, path_singletonsFile, int_cores, False, hitFilter, hintFilter, splitByChr)
+	run(d_spInfo, d_sequenceInfoById, orthogroups, singletons, path_resultsDir, path_wDir, path_orthogroups, path_singletonsFile, fullout, int_cores, False, hitFilter, hintFilter, splitByChr)
 
 if __name__ == '__main__':
 	# Read in command-line arguments
@@ -1730,6 +1732,7 @@ if __name__ == '__main__':
 	parser.add_argument("-t", "--translationtable", metavar="transtable", help="Which translation table to use", dest="TT")
 	parser.add_argument("--checkPrograms", action="store_true", dest="checkOnly", default=False)
 	parser.add_argument("--split", action="store_true", dest="SC", default=False)
+	parser.add_argument("--fulloutput", action="store_true", dest="FO", default=False)
 	args = parser.parse_args()
 	prep = args.prep
 	
@@ -1763,5 +1766,5 @@ if __name__ == '__main__':
 		path_singletonsFile        = checkFileExists(args.SN)
 		path_speciesInfoFile       = checkFileExists(args.IN)
 		if not args.RE == "": path_referenceFile = checkFileExists(args.RE)
-	start(path_speciesInfoFile, path_referenceFile, path_orthoFinderOutputFile, path_singletonsFile, path_outDir, path_resultsDir, path_wDir, not args.noHitFilter, not args.noHintFilter, int_cores, splitByChr)
+	start(path_speciesInfoFile, path_referenceFile, path_orthoFinderOutputFile, path_singletonsFile, path_outDir, path_resultsDir, path_wDir, not args.noHitFilter, not args.noHintFilter, int_cores, splitByChr, args.FO)
 
