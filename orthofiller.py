@@ -131,7 +131,7 @@ def canRunOrthoFinder():
         elif os.path.isfile("orthofinder.py"):
                 success = canRunCommand("python orthofinder.py -h")
         else:
-                success = canRunCommand("orthofinder -h")
+                success = canRunCommand("orthofinder - h")
 	if not success:
 		print("    Cannot find the orthofinder.py file. Either\n        1) Set the orthofinder location as an environment variable using \"export ORTHOFINDER_DIR=dir\", where dir is the path to the directory containing orthofinder.py\n        2) include orthofinder.py in the same directory as OrthoFiller; or\n        3) install an orthofinder executable in your system PATH\n    Orthofinder can be downloaded from https://github.com/davidemms/OrthoFinder")
 	return success
@@ -176,6 +176,18 @@ def canRunR():
 	return check(not "WARNING: ignoring environment value of R_HOME" in a, \
 			falseExtra="    R R_HOME WARNING encountered: please call \"unset R_HOME\" in bash before running OrthoFiller\n")
 
+def mockGtf(chrom, coords, types, strand, gid, tid):
+	sline = [chrom, "fake", "#", "#", "#", ".", strand, ".", "gene_id \""+gid+"\"; transcript_id \""+tid+"\";"]
+	if len(coords) != len(types): raise ValueError()
+	res = []
+	for i in range(len(coords)):
+		nsline = sline[:]
+		nsline[2] = types[i]
+		nsline[3] = str(coords[i][0])
+		nsline[4] = str(coords[i][1])
+		res.append(nsline)
+	return res
+
 def canRunBedTools():
 	""" New versions of bedtools often seem to break things. Make extra sure that everything works as it needs to.
 	    This is not an exhaustive unit test.
@@ -183,14 +195,20 @@ def canRunBedTools():
 	path_td = tempfile.mkdtemp()
 	sys.stdout.write("Testing bedtools")
 	try:
+		# Mock genome
 		path_mockGenome = path_td + "/genome.fasta"
-		write('>chr1\nCCCACGTAGCTAAGTGAATAAGTAGCCGCGCTCGACACACAGTGATGGATACGGCAGCTGGCACCAACAAGGAGCGTGGGATGTACGCTATTTTGGCGAT\n>chr2\nGGGCTCGCAACGGTTGGCCACGGCGTCTCTCATATTCGTTTAGTAGATTAACTTTCAAGATGAAAACGAGCTCCTACTAGAGAATCTCTCAGCGCACTAT\n', path_mockGenome)
-		path_mockGtf1 = path_td + "/genes1.gtf"
-		write('chr1\tfake\tCDS\t10\t39\t.\t+\t0\tgene_id "posGene"; transcript_id "posGene.t1"; exon_number "1"; gene_name "posGene";\nchr1\tfake\tCDS\t61\t90\t.\t+\t-\tgene_id "posGene"; transcript_id "posGene.t1"; exon_number "2"; gene_name "posGene";\nchr1\tfake\tstart_codon\t10\t12\t.\t+\t0\tgene_id "posGene"; transcript_id "posGene.t1"; exon_number "1"; gene_name "posGene";\nchr1\tfake\tstop_codon\t88\t90\t.\t+\t0\tgene_id "posGene"; transcript_id "posGene.t1"; exon_number "2"; gene_name "posGene";\nchr2\tfake\tCDS\t15\t29\t.\t-\t0\tgene_id "negGene"; transcript_id "negGene.t1"; exon_number "2"; gene_name "negGene";\nchr2\tfake\tCDS\t46\t60\t.\t-\t0\tgene_id "negGene"; transcript_id "negGene.t1"; exon_number "1"; gene_name "negGene";\nchr2\tfake\tstart_codon\t58\t60\t.\t+\t0\tgene_id "negGene"; transcript_id "negGene.t1"; exon_number "2"; gene_name "negGene";\nchr2\tfake\tstop_codon\t15\t17\t.\t+\t0\tgene_id "negGene"; transcript_id "negGene.t1"; exon_number "1"; gene_name "negGene";\n', path_mockGtf1)
-		path_mockGtf2 = path_td + "/genes2.gtf"
-		write('chr1\tfake\tCDS\t5\t34\t.\t+\t0\tgene_id "posGene"; transcript_id "posGene.t1"; exon_number "1"; gene_name "posGene";\nchr1\tfake\tCDS\t56\t85\t.\t+\t-\tgene_id "posGene"; transcript_id "posGene.t1"; exon_number "2"; gene_name "posGene";\nchr1\tfake\tstart_codon\t5\t7\t.\t+\t0\tgene_id "posGene"; transcript_id "posGene.t1"; exon_number "1"; gene_name "posGene";\nchr1\tfake\tstop_codon\t83\t85\t.\t+\t0\tgene_id "posGene"; transcript_id "posGene.t1"; exon_number "2"; gene_name "posGene";\nchr2\tfake\tCDS\t10\t24\t.\t-\t0\tgene_id "negGene"; transcript_id "negGene.t1"; exon_number "2"; gene_name "negGene";\nchr2\tfake\tCDS\t41\t55\t.\t-\t0\tgene_id "negGene"; transcript_id "negGene.t1"; exon_number "1"; gene_name "negGene";\nchr2\tfake\tstart_codon\t53\t55\t.\t+\t0\tgene_id "negGene"; transcript_id "negGene.t1"; exon_number "2"; gene_name "negGene";\nchr2\tfake\tstop_codon\t10\t12\t.\t+\t0\tgene_id "negGene"; transcript_id "negGene.t1"; exon_number "1"; gene_name "negGene";\n', path_mockGtf2)
-		path_mockGtf3 = path_td + "/genes3.gtf"
-		write('chr1\tfake\tCDS\t10\t30\t.\t+\t0\tgene_id "posGene"; transcript_id "posGene.t1"; exon_number "1"; gene_name "posGene";\nchr1\tfake\tCDS\t20\t50\t.\t+\t-\tgene_id "posGene"; transcript_id "posGene.t1"; exon_number "2"; gene_name "posGene";\nchr1\tfake\tstart_codon\t10\t12\t.\t+\t0\tgene_id "posGene"; transcript_id "posGene.t1"; exon_number "1"; gene_name "posGene";\nchr1\tfake\tstop_codon\t48\t50\t.\t+\t0\tgene_id "posGene"; transcript_id "posGene.t1"; exon_number "2"; gene_name "posGene";\nchr2\tfake\tCDS\t50\t80\t.\t-\t0\tgene_id "negGene"; transcript_id "negGene.t1"; exon_number "2"; gene_name "negGene";\nchr2\tfake\tCDS\t70\t90\t.\t-\t0\tgene_id "negGene"; transcript_id "negGene.t1"; exon_number "1"; gene_name "negGene";\nchr2\tfake\tstart_codon\t88\t90\t.\t-\t0\tgene_id "negGene"; transcript_id "negGene.t1"; exon_number "2"; gene_name "negGene";\nchr2\tfake\tstop_codon\t50\t52\t.\t-\t0\tgene_id "negGene"; transcript_id "negGene.t1"; exon_number "1"; gene_name "negGene";\n', path_mockGtf3)
+		seq1 = SeqRecord(Bio.Seq.Seq("CCCACGTAGCTAAGTGAATAAGTAGCCGCGCTCGACACACAGTGATGGATACGGCAGCTGGCACCAACAAGGAGCGTGGGATGTACGCTATTTTGGCGAT"), id="chr1", description="")
+		seq2 = SeqRecord(Bio.Seq.Seq("GGGCTCGCAACGGTTGGCCACGGCGTCTCTCATATTCGTTTAGTAGATTAACTTTCAAGATGAAAACGAGCTCCTACTAGAGAATCTCTCAGCGCACTAT"), id="chr2", description="")
+		SeqIO.write([seq1, seq2], path_mockGenome, "fasta")
+		mockGtf1 = mockGtf("chr1", [[10,39],[61,90],[10,12],[88,90]], ["CDS", "CDS", "start_codon", "stop_codon"], "+", "posGene", "posGene.t1")
+		mockGtf2 = mockGtf("chr2", [[15,29],[46,60],[58,60],[15,17]], ["CDS", "CDS", "start_codon", "stop_codon"], "-", "negGene", "negGene.t1")
+		mockGtf3 = mockGtf("chr1", [[5,34],[56,85],[5,7],[83,85]], ["CDS", "CDS", "start_codon", "stop_codon"], "+", "posGene", "posGene.t1")
+                mockGtf4 = mockGtf("chr2", [[10,24],[41,55],[53,55],[10,12]], ["CDS", "CDS", "start_codon", "stop_codon"], "-", "negGene", "negGene.t1")
+		mockGtf5 = mockGtf("chr1", [[10,30],[20,50],[10,12],[48,50]], ["CDS", "CDS", "start_codon", "stop_codon"], "+", "posGene", "posGene.t1")
+                mockGtf6 = mockGtf("chr2", [[50,80],[70,90],[88,90],[50,52]], ["CDS", "CDS", "start_codon", "stop_codon"], "-", "negGene", "negGene.t1")
+		path_mockGtf1 = writeCsv(mockGtf1 + mockGtf2, path_td + "/genes1.gtf")
+		path_mockGtf2 = writeCsv(mockGtf3 + mockGtf4, path_td + "/genes2.gtf")
+		path_mockGtf3 = writeCsv(mockGtf5 + mockGtf6, path_td + "/genes3.gtf")
 		# Test merge
 		path_merged = path_td + "/merged.gtf"
 		callFunction("sort -k1,1V " + path_mockGtf3+ " | grep CDS | bedtools merge -i - -s > " + path_merged)
@@ -200,50 +218,25 @@ def canRunBedTools():
 		# Test intersect
 		path_intersected = path_td + "/intersected.gtf"
 		callFunction("bedtools intersect -wa -wb -a " + path_mockGtf1 + " -b "+ path_mockGtf2 + " > " + path_intersected)
-		with open(path_intersected, "r") as f:
-			if not f.read() == 'chr1\tfake\tCDS\t10\t39\t.\t+\t0\tgene_id "posGene"; transcript_id "posGene.t1"; exon_number "1"; gene_name "posGene";\tchr1\tfake\tCDS\t5\t34\t.\t+\t0\tgene_id "posGene"; transcript_id "posGene.t1"; exon_number "1"; gene_name "posGene";\nchr1\tfake\tCDS\t61\t90\t.\t+\t-\tgene_id "posGene"; transcript_id "posGene.t1"; exon_number "2"; gene_name "posGene";\tchr1\tfake\tCDS\t56\t85\t.\t+\t-\tgene_id "posGene"; transcript_id "posGene.t1"; exon_number "2"; gene_name "posGene";\nchr1\tfake\tCDS\t61\t90\t.\t+\t-\tgene_id "posGene"; transcript_id "posGene.t1"; exon_number "2"; gene_name "posGene";\tchr1\tfake\tstop_codon\t83\t85\t.\t+\t0\tgene_id "posGene"; transcript_id "posGene.t1"; exon_number "2"; gene_name "posGene";\nchr1\tfake\tstart_codon\t10\t12\t.\t+\t0\tgene_id "posGene"; transcript_id "posGene.t1"; exon_number "1"; gene_name "posGene";\tchr1\tfake\tCDS\t5\t34\t.\t+\t0\tgene_id "posGene"; transcript_id "posGene.t1"; exon_number "1"; gene_name "posGene";\nchr2\tfake\tCDS\t15\t29\t.\t-\t0\tgene_id "negGene"; transcript_id "negGene.t1"; exon_number "2"; gene_name "negGene";\tchr2\tfake\tCDS\t10\t24\t.\t-\t0\tgene_id "negGene"; transcript_id "negGene.t1"; exon_number "2"; gene_name "negGene";\nchr2\tfake\tCDS\t46\t60\t.\t-\t0\tgene_id "negGene"; transcript_id "negGene.t1"; exon_number "1"; gene_name "negGene";\tchr2\tfake\tCDS\t41\t55\t.\t-\t0\tgene_id "negGene"; transcript_id "negGene.t1"; exon_number "1"; gene_name "negGene";\nchr2\tfake\tCDS\t46\t60\t.\t-\t0\tgene_id "negGene"; transcript_id "negGene.t1"; exon_number "1"; gene_name "negGene";\tchr2\tfake\tstart_codon\t53\t55\t.\t+\t0\tgene_id "negGene"; transcript_id "negGene.t1"; exon_number "2"; gene_name "negGene";\nchr2\tfake\tstop_codon\t15\t17\t.\t+\t0\tgene_id "negGene"; transcript_id "negGene.t1"; exon_number "1"; gene_name "negGene";\tchr2\tfake\tCDS\t10\t24\t.\t-\t0\tgene_id "negGene"; transcript_id "negGene.t1"; exon_number "2"; gene_name "negGene";\n':
-				raise ValueError()
+		isec = readCsv(path_intersected)
+		expected =  [mockGtf1[0] + mockGtf3[0], mockGtf1[1] + mockGtf3[1], mockGtf1[1] + mockGtf3[3], mockGtf1[2] + mockGtf3[0]]
+		expected += [mockGtf2[0] + mockGtf4[0], mockGtf2[1] + mockGtf4[1], mockGtf2[1] + mockGtf4[2], mockGtf2[3] + mockGtf4[0]]
+		if not isec == expected: raise ValueError()
 		# Test subtract
 		path_subtracted = path_td + "/subtracted.gtf"
 		callFunction("bedtools subtract -a " + path_mockGtf1 + " -b " + path_mockGtf2 + " > " + path_subtracted)
-		with open(path_subtracted, "r") as f:
-			if not f.read() == 'chr1\tfake\tCDS\t34\t39\t.\t+\t0\tgene_id "posGene"; transcript_id "posGene.t1"; exon_number "1"; gene_name "posGene";\nchr1\tfake\tCDS\t85\t90\t.\t+\t-\tgene_id "posGene"; transcript_id "posGene.t1"; exon_number "2"; gene_name "posGene";\nchr1\tfake\tstop_codon\t88\t90\t.\t+\t0\tgene_id "posGene"; transcript_id "posGene.t1"; exon_number "2"; gene_name "posGene";\nchr2\tfake\tCDS\t24\t29\t.\t-\t0\tgene_id "negGene"; transcript_id "negGene.t1"; exon_number "2"; gene_name "negGene";\nchr2\tfake\tCDS\t55\t60\t.\t-\t0\tgene_id "negGene"; transcript_id "negGene.t1"; exon_number "1"; gene_name "negGene";\nchr2\tfake\tstart_codon\t58\t60\t.\t+\t0\tgene_id "negGene"; transcript_id "negGene.t1"; exon_number "2"; gene_name "negGene";\n':
-				raise ValueError()
+		subGtf1 = mockGtf("chr1", [[34,39],[85,90],[88,90]], ["CDS", "CDS", "stop_codon"], "+", "posGene", "posGene.t1")
+		subGtf2 = mockGtf("chr2", [[24,29],[55,60],[58,60]], ["CDS", "CDS", "start_codon"], "-", "negGene", "negGene.t1")
+		if not readCsv(path_subtracted) == subGtf1 + subGtf2: raise ValueError()
 		# Test getfasta
 		path_getFasta = path_td + "/getfasta.fa"
-		callFunctionMezzoPiano("infile=" +  path_mockGtf1 + "; outfile=" + path_getFasta + "; genome=" + path_mockGenome + """;
-			tf=`mktemp -d`
-			gtfCds="$tf/gtfCds"
-			gtfBed="$tf/gtfBed"
-
-			#Prepare the gtf
-			#echo "preparing gtf..."
-			grep -vP "^$" $infile | awk '$3=="CDS"' > $gtfCds
-			cut -f1-8 $gtfCds > $gtfBed.1
-			sed -r "s/.*transcript_id[ =]\\"?([^\\";]*)\\"?;?.*/\\1/g" $gtfCds > $gtfBed.2
-			paste $gtfBed.1 $gtfBed.2 | perl -ne 'chomp; @l=split; printf "$l[0]\\t%s\\t$l[4]\\t$l[8]\\t.\\t$l[6]\\n", $l[3]-1' | sort -u | sort -k1,1V -k2,2n > $gtfBed
-			#Negative strand
-			#echo "negative strand..."
-			awk '$6=="-"' $gtfBed > $gtfBed.neg
-			bedtools getfasta -name -s -fullHeader -fi $genome -fo $gtfBed.neg.tab -bed $gtfBed.neg -tab
-			tac $gtfBed.neg.tab | awk '{a[$1]=a[$1]""$2} END {for (i in a) {print ">"i"\\n"a[i]}}' > $gtfBed.neg.fa
-
-			#Then positive strand
-			#echo "positive strand..."
-			awk '$6=="+"' $gtfBed > $gtfBed.pos
-			bedtools getfasta -name -s -fullHeader -fi $genome -fo $gtfBed.pos.tab -bed $gtfBed.pos -tab
-			cat $gtfBed.pos.tab | awk '{a[$1]=a[$1]""$2} END {for (i in a) {print ">"i"\\n"a[i]}}' > $gtfBed.pos.fa
-
-			cat $gtfBed.pos.fa $gtfBed.neg.fa | sed -r "s/^>(.*)$/£££>\\1###/g" | sed -r \"s/$/###/g\" | tr '\\n' ' ' | sed -r "s/£££/\\n/g" | sed -r "s/### //g" | grep -v XXX | grep -v "\*[A-Z]" | grep -v "###$" | sed -r "s/###/\\n/g" | grep -vP "^$" > $outfile
-
-			#echo $tf
-			rm -r $tf
-		""")
+		path_getFastaAa = path_td + "/getfasta.aa.fa"
+		fetchSequences(path_mockGtf1, path_mockGenome, path_getFasta, path_getFastaAa, 1)
 		with open(path_getFasta, "r") as f:
 			if not f.read() == '>posGene.t1\nCTAAGTGAATAAGTAGCCGCGCTCGACACAGCACCAACAAGGAGCGTGGGATGTACGCTA\n>negGene.t1\nTCTTGAAAGTTAATCGAGACGCCGTGGCCA\n':
 				raise ValueError()
 		#######
-		callFunction("rm -r " + path_td)
+		deleteIfPresent(path_td)
 		print(" - ok")
 		return True
 	except ValueError:
@@ -309,6 +302,7 @@ def writeCsv(data, path_csv):
 	with open(path_csv, "w") as f:
 		writer = csv.writer(f, delimiter = '\t',quoting = csv.QUOTE_NONE, quotechar='')
 		writer.writerows(data)
+	return path_csv
 		
 def write(strObj, path_file, tag="w"):
 	with open(path_file, tag) as f: f.write(strObj)
