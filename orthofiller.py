@@ -1405,7 +1405,7 @@ def checkReferenceHits(path_refFile):
 			if a == "END": break
 			if a[-1] == "match_good": match_good += 1
 			elif a[-1] == "match_bad": match_bad += 1
-		if match_good < 1000 or match_bad < 1000:
+		if match_good < 500 or match_bad < 500:
 			exit("Error: hit quantity is not sufficient to classify potential new genes.")
 
 def proposeNewGenes(d_spInfo, path_candidates, d_ogIntersectionFileNamesAnnotated, hitFilter, path_allHitsOgIntersectionFileNameAnnotated):
