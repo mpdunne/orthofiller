@@ -202,7 +202,7 @@ def canRunBedTools():
 		SeqIO.write([seq1, seq2], path_mockGenome, "fasta")
 		mockGtf1 = mockGtf("chr1", [[10,39],[61,90],[10,12],[88,90]], ["CDS", "CDS", "start_codon", "stop_codon"], "+", "posGene", "posGene.t1")
 		mockGtf2 = mockGtf("chr2", [[15,29],[46,60],[58,60],[15,17]], ["CDS", "CDS", "start_codon", "stop_codon"], "-", "negGene", "negGene.t1")
-		mockGtf3 = mockGtf("chr1", [[5,34],[56,85],[5,7],[83,85]], ["CDS", "CDS", "start_codon", "stop_codon"], "+", "posGene", "posGene.t1")
+		mockGtf3 = mockGtf("chr1", [[5,34], [56,85],[5,7],  [83,85]], ["CDS", "CDS", "start_codon", "stop_codon"], "+", "posGene", "posGene.t1")
                 mockGtf4 = mockGtf("chr2", [[10,24],[41,55],[53,55],[10,12]], ["CDS", "CDS", "start_codon", "stop_codon"], "-", "negGene", "negGene.t1")
 		mockGtf5 = mockGtf("chr1", [[10,30],[20,50],[10,12],[48,50]], ["CDS", "CDS", "start_codon", "stop_codon"], "+", "posGene", "posGene.t1")
                 mockGtf6 = mockGtf("chr2", [[50,80],[70,90],[88,90],[50,52]], ["CDS", "CDS", "start_codon", "stop_codon"], "-", "negGene", "negGene.t1")
@@ -1400,8 +1400,9 @@ def checkReferenceHits(path_refFile):
 	with open(path_refFile, "r") as f:
 		data = csv.reader(f, delimiter="\t")
 		match_good = 0; match_bad = 0;
-		while match_good <= 1000 or match_bad <= 1000:
-			a = data.next()
+		while match_good <= 500 or match_bad <= 500:
+			a = next(data, "END")
+			if a == "END": break
 			if a[-1] == "match_good": match_good += 1
 			elif a[-1] == "match_bad": match_bad += 1
 		if match_good < 1000 or match_bad < 1000:
