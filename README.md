@@ -29,6 +29,8 @@ Usage <a name="usage"></a>
 
 ### Default usage
 
+OrthoFiller is written in Python 2.7 and is designed to be run on Linux systems. Note OrthoFiller is not currently being maintained.
+
 OrthoFiller runs as a single command that takes as input a tabulated text file containing locations of genomes and GTF files in the following format:
 
 ```
